@@ -68,4 +68,12 @@ describe("brain", () => {
     expect(result.reply).toBe("Sorry, something went wrong. Please try again.");
     expect(result.trail.at(-1)).toMatchObject({ kind: "error" });
   });
+  it("times every model pass in the trail", async () => {
+    const result = await runBrain({
+      history: [{ role: "user", text: "q" }], tools: TOOLS,
+      callTool: async () => ({ text: "x", structured: null, isError: false }),
+      converse: scripted(toolUse("find_station_story", { description: "q" }), say("done")),
+    });
+    expect(result.trail.filter((e) => e.kind === "think")).toHaveLength(2);
+  });
 });

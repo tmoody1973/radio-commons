@@ -43,7 +43,8 @@ describe("a spoken turn", () => {
   });
   it("speech-to-text failure: 'didn't catch that', with the cause in the trail", async () => {
     const { body } = await handleTurn({ passcode: "milwaukee", history: [], audio: clip }, deps({ transcribe: async () => { throw new Error("deepgram 503"); } }));
-    expect(body).toMatchObject({ reply: "Sorry, I didn't catch that.", trail: [{ kind: "error", text: expect.stringContaining("deepgram 503") }] });
+    expect(body).toMatchObject({ reply: "Sorry, I didn't catch that." });
+    expect((body as { trail: unknown[] }).trail[0]).toMatchObject({ kind: "error", text: expect.stringContaining("deepgram 503") });
   });
   it("voice unavailable: captions still come back", async () => {
     const { body } = await handleTurn({ passcode: "milwaukee", history: [], text: "frugal dining" }, deps({ speak: async () => { throw new Error("polly down"); } }));
@@ -55,5 +56,10 @@ describe("a spoken turn", () => {
     await handleTurn({ passcode: "milwaukee", history, text: "hi" }, deps({ converse: async ({ messages }) => { seen.push([...messages]); return { stopReason: "end_turn", content: [{ text: "ok" }] }; } }));
     expect(seen[0].length).toBeLessThanOrEqual(21);
     expect(seen[0][0]).toMatchObject({ role: "user" }); // Bedrock requires the conversation to start with the listener
+  });
+  it("times connecting to the MCP server and voicing the reply", async () => {
+    const { body } = await handleTurn({ passcode: "milwaukee", history: [], text: "frugal dining" }, deps());
+    const kinds = (body as { trail: { kind: string; stage?: string }[] }).trail.filter((e) => e.kind === "stage").map((e) => e.stage);
+    expect(kinds).toEqual(["connect", "voice"]);
   });
 });

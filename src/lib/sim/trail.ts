@@ -4,6 +4,8 @@ export type ChatMessage = { role: "user" | "assistant"; text: string };
 export type TrailEntry =
   | { kind: "heard"; text: string; ms?: number }
   | { kind: "tool"; name: string; input: Record<string, unknown>; ms: number; isError: boolean; summary: string }
+  | { kind: "think"; ms: number }
+  | { kind: "stage"; stage: "connect" | "voice"; ms: number }
   | { kind: "reply"; text: string; ms: number }
   | { kind: "error"; text: string };
 

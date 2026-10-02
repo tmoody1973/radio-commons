@@ -72,7 +72,9 @@ export async function handleTurn(input: TurnInput, deps: TurnDeps): Promise<Repl
   }
   if (!heard) return { status: 200, body: { heard: "", reply: DIDNT_CATCH, audio: await voice(DIDNT_CATCH, deps, trail), card: null, trail } };
 
+  const connectStarted = Date.now();
   const session = await deps.mcp();
+  trail.push({ kind: "stage", stage: "connect", ms: Date.now() - connectStarted });
   try {
     const brain = await runBrain({
       history: [...recentHistory(input.history), { role: "user", text: heard }],
@@ -92,8 +94,11 @@ export async function handleTurn(input: TurnInput, deps: TurnDeps): Promise<Repl
 }
 
 async function voice(text: string, deps: TurnDeps, trail: TrailEntry[]): Promise<string | null> {
+  const started = Date.now();
   try {
-    return Buffer.from(await deps.speak(text)).toString("base64");
+    const audio = Buffer.from(await deps.speak(text)).toString("base64");
+    trail.push({ kind: "stage", stage: "voice", ms: Date.now() - started });
+    return audio;
   } catch (error) {
     trail.push({ kind: "error", text: `voice unavailable: ${String(error instanceof Error ? error.message : error)}` });
     return null;

@@ -54,6 +54,7 @@ export async function runBrain({ history, tools, callTool, converse, maxToolCall
     for (;;) {
       const started = Date.now();
       const response = await withDeadline(converse({ system: SYSTEM_PROMPT, messages, tools }), deadline);
+      trail.push({ kind: "think", ms: Date.now() - started });
       messages.push({ role: "assistant", content: response.content });
       const uses = response.content.flatMap((b) => ("toolUse" in b ? [b.toolUse] : []));
       if (uses.length === 0) {
