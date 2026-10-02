@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChatMessage, TrailEntry } from "@/lib/sim/trail";
-import { nextHistory } from "@/lib/sim/ui";
+import { mapsUrl, nextHistory } from "@/lib/sim/ui";
 import { CardHost, type CardPayload } from "./CardHost";
 import styles from "./simulator.module.css";
 import { TrailPanel } from "./TrailPanel";
@@ -135,6 +135,8 @@ export function Simulator() {
     void send(form);
   };
 
+  const story = (card?.result.structuredContent as { story?: { places?: { name: string; lat: number | null; lng: number | null }[] } } | undefined)?.story;
+  const pinned = story?.places?.find((p) => p.lat !== null && p.lng !== null);
   const lightbar = phase === "listening" ? styles.listening : phase === "thinking" ? styles.thinking : "";
   return (
     <main className={styles.page}>
@@ -170,6 +172,11 @@ export function Simulator() {
               {showTrail ? "Hide" : "Show"} what Alexa did
             </button>
           </div>
+          {pinned ? (
+            <p className={styles.status}>
+              <a href={mapsUrl(pinned.lat!, pinned.lng!)} target="_blank" rel="noreferrer">Directions to {pinned.name}</a>
+            </p>
+          ) : null}
           <p className={styles.status} role="status">{status}</p>
         </div>
         {showTrail ? <TrailPanel turns={turns} /> : null}

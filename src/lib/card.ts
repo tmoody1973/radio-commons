@@ -47,7 +47,11 @@ root.addEventListener("click", (event) => {
   const button = event.target.closest("button.play");
   if (!button) return;
   audio = audio || new Audio(button.dataset.audio);
-  if (audio.paused) { audio.play(); button.textContent = "❚❚ Pause"; } else { audio.pause(); button.textContent = "▶ Play episode"; }
+  if (!audio.paused) { audio.pause(); button.textContent = "▶ Play episode"; return; }
+  audio.play().then(() => {
+    button.textContent = "❚❚ Pause";
+    window.parent.postMessage({ type: "radio-commons:playing" }, "*"); // lets a host stop its own voice
+  }).catch(() => { button.textContent = "Can't play here"; });
 });
 await app.connect();`;
 

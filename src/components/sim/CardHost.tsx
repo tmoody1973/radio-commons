@@ -1,5 +1,7 @@
 "use client";
 
+import { AppBridge, PostMessageTransport } from "@modelcontextprotocol/ext-apps/app-bridge";
+import { useEffect, useRef, useState } from "react";
 import styles from "./simulator.module.css";
 
 export interface CardPayload {
@@ -7,7 +9,46 @@ export interface CardPayload {
   result: Record<string, unknown>;
 }
 
-// Replaced in Task 5 by the MCP Apps host (AppBridge + sandboxed iframe).
-export function CardHost({ card }: { card: CardPayload | null; onPlaying: () => void }) {
-  return card ? <div className={styles.card} /> : null;
+let cardPage: Promise<string> | null = null;
+const loadCardPage = () => (cardPage ??= fetch("/api/sim/card").then((r) => (r.ok ? r.text() : Promise.reject(new Error(`card ${r.status}`)))));
+
+/**
+ * The simulator as an MCP Apps host: the story card from our MCP server runs in a sandboxed iframe, and the
+ * official AppBridge hands it the tool input and result, as Alexa+ would on an Echo Show.
+ */
+export function CardHost({ card, onPlaying }: { card: CardPayload; onPlaying: () => void }) {
+  const frame = useRef<HTMLIFrameElement>(null);
+  const [html, setHtml] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    loadCardPage().then(setHtml, () => setFailed(true));
+  }, []);
+
+  useEffect(() => {
+    const onMessage = (event: MessageEvent) => {
+      if (event.source === frame.current?.contentWindow && event.data?.type === "radio-commons:playing") onPlaying();
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [onPlaying]);
+
+  useEffect(() => {
+    const win = frame.current?.contentWindow;
+    if (!html || !win) return;
+    const bridge = new AppBridge(null, { name: "radio-commons-simulator", version: "0.1.0" }, { openLinks: {} });
+    bridge.oninitialized = () => {
+      void bridge.sendToolInput({ arguments: card.input });
+      void bridge.sendToolResult(card.result as never);
+    };
+    void bridge.connect(new PostMessageTransport(win, win));
+    return () => {
+      void bridge.close();
+    };
+  }, [html, card]);
+
+  if (failed) return <p className={styles.idle}>The story card couldn&rsquo;t load.</p>;
+  if (!html) return <p className={styles.idle}>Loading the story…</p>;
+  const key = String(card.input.storyId ?? "card");
+  return <iframe key={key} ref={frame} className={styles.card} sandbox="allow-scripts" srcDoc={html} title="Story card" />;
 }

@@ -39,4 +39,10 @@ describe("story card", () => {
     expect(page).toContain("cardHtml");
     expect(page.length).toBeGreaterThan(100_000);
   });
+  it("the Play button copes with a blocked play() and tells the host when playback starts", () => {
+    const page = storyCardPage();
+    expect(page).toContain("audio.play().then(");
+    expect(page).toContain("Can't play here");
+    expect(page).toContain('postMessage({ type: "radio-commons:playing" }');
+  });
 });
