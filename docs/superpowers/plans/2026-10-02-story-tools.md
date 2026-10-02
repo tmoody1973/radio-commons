@@ -187,8 +187,8 @@ import { api, internal } from "../convex/_generated/api";
 import { firstSentence, storySearchText } from "../convex/lib/storySearch";
 import { makeTest, saveRun, seedStory, type TestConvex } from "./helpers";
 
-const REVIEWER = { email: "tarik@radiomilwaukee.org", emailVerified: true, subject: "u", issuer: "https://clerk.test" };
-beforeEach(() => { process.env.BACKSTORY_REVIEWER_EMAILS = "tarik@radiomilwaukee.org"; });
+const REVIEWER = { email: "editor@example.org", emailVerified: true, subject: "u", issuer: "https://clerk.test" };
+beforeEach(() => { process.env.BACKSTORY_REVIEWER_EMAILS = "editor@example.org"; });
 afterEach(() => { delete process.env.BACKSTORY_REVIEWER_EMAILS; });
 
 async function published(t: TestConvex, overrides = {}) {
