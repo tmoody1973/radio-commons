@@ -14,6 +14,10 @@ export function trailLabel(entry: TrailEntry): string {
       return `Heard “${entry.text}”${entry.ms !== undefined ? ` (${entry.ms} ms)` : ""}`;
     case "tool":
       return `${entry.isError ? "⚠ " : ""}Called ${entry.name} · ${entry.ms} ms → ${entry.summary}`;
+    case "think":
+      return `Thought (${entry.ms} ms)`;
+    case "stage":
+      return entry.stage === "connect" ? `Connected to the MCP server (${entry.ms} ms)` : `Spoke the answer (${entry.ms} ms)`;
     case "reply":
       return `Answered from Radio Milwaukee's record (${entry.ms} ms)`;
     case "error":
