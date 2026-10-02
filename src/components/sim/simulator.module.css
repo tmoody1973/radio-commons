@@ -1,0 +1,28 @@
+.page { min-height: 100vh; margin: 0; background: #111316; color: #F7F1DB; font: 16px/1.45 system-ui, sans-serif; display: grid; place-items: center; padding: 24px 16px; box-sizing: border-box; }
+.stage { display: flex; gap: 20px; align-items: flex-start; width: 100%; max-width: 1240px; justify-content: center; }
+.device { width: min(100%, 960px); aspect-ratio: 16 / 10; background: #050607; border-radius: 28px; padding: 22px; box-shadow: 0 30px 80px rgba(0,0,0,.5); box-sizing: border-box; }
+.screen { position: relative; width: 100%; height: 100%; background: #F7F1DB; color: #1E2124; border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; }
+.idle { margin: auto; text-align: center; padding: 24px; max-width: 34ch; }
+.idle h1 { margin: 0 0 8px; font-size: clamp(22px, 3vw, 32px); }
+.prompt { color: #5C6369; }
+.card { flex: 1; border: 0; width: 100%; background: #F7F1DB; }
+.captions { margin: 0; padding: 10px 16px; background: rgba(30,33,36,.92); color: #F7F1DB; font-size: clamp(14px, 1.8vw, 18px); min-height: 1.45em; }
+.lightbar { position: absolute; left: 0; right: 0; bottom: 0; height: 8px; background: transparent; transition: background .2s; }
+.listening { background: linear-gradient(90deg, #13C2FF, #1E6BFF); animation: pulse 1s ease-in-out infinite; }
+.thinking { background: linear-gradient(90deg, #13C2FF 0%, #1E6BFF 30%, #13C2FF 60%); background-size: 200% 100%; animation: sweep 1.2s linear infinite; }
+@keyframes pulse { 50% { opacity: .45; } }
+@keyframes sweep { to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .listening, .thinking { animation: none; } }
+.controls { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 18px; width: min(100%, 960px); margin-inline: auto; }
+.talk { font: inherit; font-weight: 700; padding: 14px 26px; border-radius: 999px; border: 3px solid #F7F1DB; background: #F7941D; color: #1E2124; cursor: pointer; min-width: 220px; }
+.talk[aria-pressed="true"] { background: #13C2FF; }
+.talk:disabled { opacity: .6; cursor: progress; }
+.ask { display: flex; gap: 8px; flex: 1 1 320px; }
+.ask input { flex: 1; font: inherit; padding: 10px 12px; border-radius: 8px; border: 2px solid #5C6369; background: #1E2124; color: #F7F1DB; }
+.ask button, .toggle { font: inherit; padding: 10px 14px; border-radius: 8px; border: 2px solid #F7F1DB; background: transparent; color: #F7F1DB; cursor: pointer; }
+.trail { width: 300px; max-height: 70vh; overflow: auto; background: #1E2124; border-radius: 12px; padding: 14px; font-size: 14px; }
+.trail h2 { margin: 0 0 8px; font-size: 16px; }
+.trail ol { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+.status { text-align: center; color: #F7941D; min-height: 1.45em; margin-top: 8px; }
+:focus-visible { outline: 3px solid #13C2FF; outline-offset: 2px; }
+@media (max-width: 900px) { .stage { flex-direction: column; align-items: center; } .trail { width: min(100%, 960px); } }
