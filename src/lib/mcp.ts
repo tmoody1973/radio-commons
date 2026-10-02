@@ -15,11 +15,18 @@ interface Deps {
   cardHtml: () => string;
 }
 
+interface ToolResult {
+  [key: string]: unknown;
+  content: { type: "text"; text: string }[];
+  structuredContent?: Record<string, unknown>;
+  isError?: boolean;
+}
+
 const text = (t: string) => [{ type: "text" as const, text: t }];
-const unavailable = () => ({ content: text(UNAVAILABLE_SPEECH), isError: true });
+const unavailable = (): ToolResult => ({ content: text(UNAVAILABLE_SPEECH), isError: true });
 
 /** Logs every call's duration (the Alexa+ budget is 500 ms); Backstory failures become a plain apology. */
-async function timed<T>(tool: string, run: () => Promise<T>, fallback: () => T): Promise<T> {
+async function timed(tool: string, run: () => Promise<ToolResult>, fallback: () => ToolResult): Promise<ToolResult> {
   const started = Date.now();
   try {
     return await run();
