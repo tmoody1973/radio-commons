@@ -56,7 +56,12 @@ export function buildMcpHandler(deps: Deps) {
         async ({ description, show }) =>
           timed("find_station_story", async () => {
             const matches = (await deps.backstory().searchStoryCards(description, show)).slice(0, 3);
-            return { content: text(spokenMatches(matches)), structuredContent: { stationId: station.stationId, matches } };
+            // The ids also go in text: some hosts give the model only `content`, and it needs them for get_station_story.
+            const ids = JSON.stringify({ matches: matches.map(({ storyId, title, show }) => ({ storyId, title, show })) });
+            return {
+              content: [...text(spokenMatches(matches)), ...text(ids)],
+              structuredContent: { stationId: station.stationId, matches },
+            };
           }, unavailable),
       );
 
