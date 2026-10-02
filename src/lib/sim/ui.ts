@@ -25,6 +25,3 @@ export function trailLabel(entry: TrailEntry): string {
   }
 }
 
-export function mapsUrl(lat: number, lng: number): string {
-  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${lat},${lng}`)}`;
-}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mapsUrl, nextHistory, trailLabel } from "@/lib/sim/ui";
+import { nextHistory, trailLabel } from "@/lib/sim/ui";
 
 describe("simulator page helpers", () => {
   it("keeps the last 20 messages of the conversation", () => {
@@ -19,8 +19,5 @@ describe("simulator page helpers", () => {
     expect(trailLabel({ kind: "reply", text: "From This Bites…", ms: 900, sourced: true })).toBe("Answered from Radio Milwaukee's record (900 ms)");
     expect(trailLabel({ kind: "reply", text: "Hello!", ms: 400, sourced: false })).toBe("Answered without looking anything up (400 ms)");
     expect(trailLabel({ kind: "error", text: "voice unavailable" })).toBe("Problem: voice unavailable");
-  });
-  it("builds a directions link for a pinned place", () => {
-    expect(mapsUrl(43.0111, -88.0123)).toBe("https://www.google.com/maps/dir/?api=1&destination=43.0111%2C-88.0123");
   });
 });

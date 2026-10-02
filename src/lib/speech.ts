@@ -1,4 +1,5 @@
 import type { Story, StoryCardMatch } from "@/lib/backstory";
+import { streetAddress } from "@/lib/maps";
 
 export const UNAVAILABLE_SPEECH = "I can't reach Radio Milwaukee's stories right now. Please try again in a minute.";
 export const NOT_FOUND_SPEECH = "I couldn't find that Radio Milwaukee story.";
@@ -26,6 +27,9 @@ export function spokenMatches(matches: StoryCardMatch[]): string {
 /** Summary labeled as the station's, its source, and one next step: directions to a pinned place, else the episode. */
 export function spokenStory(story: Story): string {
   const place = story.places.find((p) => p.lat !== null && p.lng !== null);
-  const offer = place ? `Would you like directions to ${place.name}, or to hear the episode?` : "Would you like to hear the episode?";
+  const street = streetAddress(place?.address, place?.name);
+  const offer = place
+    ? `Would you like directions to ${place.name}${street ? ` at ${street}` : ""}, or to hear the episode?`
+    : "Would you like to hear the episode?";
   return `From ${source(story)}: Radio Milwaukee's summary says, ${story.summary} ${offer}`;
 }

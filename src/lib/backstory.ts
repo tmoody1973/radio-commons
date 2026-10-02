@@ -13,6 +13,7 @@ const storySchema = z.object({
   mentions: z.array(z.object({ entityType: z.string(), name: z.string(), quote: z.string(), startMs: z.number(), relatedPlace: z.string().nullable() })),
   places: z.array(z.object({
     name: z.string(), category: z.string(), lat: z.number().nullable(), lng: z.number().nullable(), neighborhood: z.string().nullable(), quote: z.string(),
+    address: z.string().nullish(), // the map service's full label
   })),
   topics: z.array(z.object({ topic: z.string(), confidence: z.number(), quote: z.string() })),
   actions: z.array(z.object({ kind: z.string(), label: z.string(), quote: z.string(), place: z.string().nullable() })),

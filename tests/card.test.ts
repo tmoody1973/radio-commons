@@ -53,4 +53,14 @@ describe("story card", () => {
     expect(html).not.toContain("Place 7");
     expect(html).toContain("+3 more");
   });
+  it("gives each pinned place a Directions button that asks the host to open the map", () => {
+    const html = renderCard({ ...STORY, places: [
+      { ...STORY.places[0], address: "414 Art Revival, 8004 W National Ave, Milwaukee, WI 53214-4554, United States" },
+      { name: "No pin", category: "venue", lat: null, lng: null, neighborhood: null, quote: "q", address: null },
+    ] });
+    expect(html).toContain('class="directions"');
+    expect(html).toContain('data-url="https://www.google.com/maps/dir/?api=1&amp;destination=414%20Art%20Revival%2C%208004%20W%20National%20Ave');
+    expect(html.match(/class="directions"/g)).toHaveLength(1); // the unpinned place gets none
+    expect(storyCardPage()).toContain("app.openLink(");
+  });
 });
