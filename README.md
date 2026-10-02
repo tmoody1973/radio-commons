@@ -21,13 +21,25 @@ Listener ──voice──▶ Alexa+ ──MCP, Streamable HTTP──▶ radio-c
 
 **Trust rules:** only editor-published stories; every answer names its show and month; summaries are described as the station's, never as the assistant's; no invented stories; the database is never exposed to Alexa directly.
 
+## Try the Alexa+ simulator
+
+Amazon isn't giving hackathon participants the Alexa+ developer tools or simulator (Amazon, on the hackathon forum: "Access to the Alexa+ developer tools will not be granted to hackathon participants"), and the rules allow a simulated Alexa+. So **https://radio-commons.vercel.app/simulator** plays the part of Alexa+ around the same MCP server:
+
+1. Hold to talk (or press Space, or type). Deepgram Nova-3 turns your words into text.
+2. Claude Haiku 4.5 on Amazon Bedrock, playing Alexa+, calls our MCP tools through the official MCP client, exactly as an Alexa+ add-on is called, under the trust rules (answer only from the tools, always name the show and month).
+3. Amazon Polly speaks the answer, streamed as it's made; the real story card (our MCP App) renders on the Echo Show screen through the official MCP Apps host bridge; Play stops Alexa's voice.
+4. **What Alexa did** shows every step: words heard, each tool call and its time, where the answer came from.
+
+The page needs a passcode (ask the station) so strangers can't spend the API credit. A turn takes about 4 seconds from releasing the button to hearing the answer.
+
 ## Run it
 
 Requirements: Node.js 20+ (Alexa's CLI needs 24+), npm.
 
 ```bash
 npm ci                      # also embeds the MCP Apps bundle (postinstall)
-cp .env.example .env.local  # set BACKSTORY_CONVEX_URL to a Backstory deployment
+cp .env.example .env.local  # set BACKSTORY_CONVEX_URL; for the simulator also DEEPGRAM_API_KEY,
+                            # SIM_AWS_ACCESS_KEY_ID / SIM_AWS_SECRET_ACCESS_KEY (Bedrock Haiku + Polly only), SIM_PASSCODE
 npm run dev                 # MCP endpoint: http://localhost:3000/api/mcp
 ```
 
