@@ -1,6 +1,6 @@
 .page { min-height: 100vh; margin: 0; background: #111316; color: #F7F1DB; font: 16px/1.45 system-ui, sans-serif; display: grid; place-items: center; padding: 24px 16px; box-sizing: border-box; }
 .stage { display: flex; gap: 20px; align-items: flex-start; width: 100%; max-width: 1240px; justify-content: center; }
-.device { width: min(100%, 960px); aspect-ratio: 16 / 10; background: #050607; border-radius: 28px; padding: 22px; box-shadow: 0 30px 80px rgba(0,0,0,.5); box-sizing: border-box; }
+.device { width: min(100%, 900px); aspect-ratio: 16 / 10; background: #050607; border-radius: 28px; padding: 22px; box-shadow: 0 30px 80px rgba(0,0,0,.5); box-sizing: border-box; }
 .screen { position: relative; width: 100%; height: 100%; background: #F7F1DB; color: #1E2124; border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; }
 .idle { margin: auto; text-align: center; padding: 24px; max-width: 34ch; }
 .idle h1 { margin: 0 0 8px; font-size: clamp(22px, 3vw, 32px); }
@@ -20,7 +20,7 @@
 .ask { display: flex; gap: 8px; flex: 1 1 320px; }
 .ask input { flex: 1; font: inherit; padding: 10px 12px; border-radius: 8px; border: 2px solid #5C6369; background: #1E2124; color: #F7F1DB; }
 .ask button, .toggle { font: inherit; padding: 10px 14px; border-radius: 8px; border: 2px solid #F7F1DB; background: transparent; color: #F7F1DB; cursor: pointer; }
-.trail { width: 300px; overflow-wrap: anywhere; max-height: 70vh; overflow: auto; background: #1E2124; border-radius: 12px; padding: 14px; font-size: 14px; }
+.trail { flex: 0 0 300px; width: 300px; overflow-wrap: break-word; box-sizing: border-box; max-height: 70vh; overflow: auto; background: #1E2124; border-radius: 12px; padding: 14px; font-size: 14px; }
 .trail h2 { margin: 0 0 8px; font-size: 16px; }
 .trail ol { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
 .status { text-align: center; color: #F7941D; min-height: 1.45em; margin-top: 8px; }
