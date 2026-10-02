@@ -5,18 +5,23 @@ import { monthYear } from "@/lib/speech";
 const escape = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 
-/** The card's inner HTML, made on the server so every piece of story text is escaped in one tested place. */
+const MAX_PLACES = 6;
+const MAX_ACTIONS = 3;
+
+/** The card's inner HTML, made on the server so every piece of story text is escaped in one tested place. Sized for an Echo Show: the main action stays visible. */
 export function renderCard(story: Story): string {
-  const image = story.imageUrl ? `<img src="${escape(story.imageUrl)}" alt="${escape(story.show)} artwork" width="120" height="120">` : "";
+  const image = story.imageUrl ? `<img src="${escape(story.imageUrl)}" alt="${escape(story.show)} artwork" width="112" height="112">` : "";
+  const extra = story.places.length - MAX_PLACES;
   const places = story.places.length
-    ? `<h3>Places</h3><ul>${story.places.map((p) => `<li>${escape(p.name)}${p.neighborhood ? ` · ${escape(p.neighborhood)}` : ""}</li>`).join("")}</ul>`
+    ? `<h3>Places</h3><ul class="chips">${story.places.slice(0, MAX_PLACES).map((p) => `<li>${escape(p.name)}${p.neighborhood ? ` · ${escape(p.neighborhood)}` : ""}</li>`).join("")}${extra > 0 ? `<li class="more">+${extra} more</li>` : ""}</ul>`
     : "";
   const actions = story.actions.length
-    ? `<h3>Things to do</h3><ul class="chips">${story.actions.map((a) => `<li>${escape(a.label)}</li>`).join("")}</ul>`
+    ? `<h3>Things to do</h3><ul class="chips">${story.actions.slice(0, MAX_ACTIONS).map((a) => `<li>${escape(a.label)}</li>`).join("")}</ul>`
     : "";
-  return `<article>${image}<div><p class="source">${escape(story.show)} · ${escape(monthYear(story.publishedAt))}</p>`
-    + `<h2>${escape(story.title)}</h2><p>${escape(story.summary)}</p>${places}${actions}`
-    + `<button type="button" class="play" data-audio="${escape(story.audioUrl)}">▶ Play episode</button></div></article>`;
+  return `<article><header>${image}<div><p class="source">${escape(story.show)} · ${escape(monthYear(story.publishedAt))}</p>`
+    + `<h2>${escape(story.title)}</h2>`
+    + `<button type="button" class="play" data-audio="${escape(story.audioUrl)}">▶ Play episode</button></div></header>`
+    + `<p class="summary">${escape(story.summary)}</p>${places}${actions}</article>`;
 }
 
 /** The MCP Apps bundle ends `export{…,X as App}`; bind its minified local name so the page can use App inline. */
@@ -28,12 +33,15 @@ function appBundle(): string {
 }
 
 const STYLE = `body{margin:0;font:16px/1.4 system-ui,sans-serif;background:#F7F1DB;color:#1E2124}
-article{display:flex;gap:16px;padding:16px;border:3px solid #1E2124;background:#fff}
+article{padding:16px 20px;background:#fff;border:3px solid #1E2124;box-sizing:border-box;min-height:100vh}
+header{display:flex;gap:16px;align-items:flex-start}
 img{border:3px solid #1E2124;object-fit:cover;flex:none}
+.summary{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;margin:12px 0 0}
+.more{border-style:dashed}
 .source{margin:0;color:#5C6369;font-size:14px}h2{margin:4px 0 8px;font-size:22px}h3{margin:12px 0 4px;font-size:15px}
 ul{margin:0;padding-left:18px}.chips{list-style:none;padding:0;display:flex;flex-wrap:wrap;gap:6px}
 .chips li{border:2px solid #1E2124;padding:2px 8px}
-.play{margin-top:12px;padding:8px 14px;border:3px solid #1E2124;background:#F7941D;color:#1E2124;font-weight:700;cursor:pointer}`;
+.play{margin-top:8px;padding:8px 14px;border:3px solid #1E2124;background:#F7941D;color:#1E2124;font-weight:700;cursor:pointer}`;
 
 const SCRIPT = `
 const root = document.getElementById("root");

@@ -45,4 +45,12 @@ describe("story card", () => {
     expect(page).toContain("Can't play here");
     expect(page).toContain('postMessage({ type: "radio-commons:playing" }');
   });
+  it("fits an Echo Show screen: Play near the top, at most six places, then '+N more'", () => {
+    const many = { ...STORY, places: Array.from({ length: 9 }, (_, i) => ({ ...STORY.places[0], name: `Place ${i + 1}`, neighborhood: null })) };
+    const html = renderCard(many);
+    expect(html.indexOf("Play episode")).toBeLessThan(html.indexOf("Places"));
+    expect(html).toContain("Place 6");
+    expect(html).not.toContain("Place 7");
+    expect(html).toContain("+3 more");
+  });
 });
