@@ -35,6 +35,8 @@ describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
     const { message } = await mcpPost(handlerWith(), call("find_station_story", { description: "art shop in West Allis" }));
     expect(message.result.structuredContent).toMatchObject({ stationId: "radiomilwaukee", matches: [{ storyId: STORY.storyId }] });
     expect(message.result.content[0].text).toMatch(/^I found one Radio Milwaukee story: 414 Art Revival/);
+    // Some hosts show the model only the text content, so the ids it needs for get_station_story are there too.
+    expect(JSON.parse(message.result.content[1].text)).toEqual({ matches: [{ storyId: STORY.storyId, title: STORY.title, show: STORY.show }] });
   });
 
   it("find returns an honest no-match", async () => {
