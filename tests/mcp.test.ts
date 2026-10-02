@@ -63,4 +63,15 @@ describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
     expect(message.result.content[0].text).toBe("I can't reach Radio Milwaukee's stories right now. Please try again in a minute.");
     expect(message.result.structuredContent).toBeUndefined();
   });
+
+  it("lists the card resource with the MCP Apps mime type and links it from get_station_story", async () => {
+    const handler = handlerWith();
+    const tools = await mcpPost(handler, { method: "tools/list" });
+    const get = tools.message.result.tools.find((t: { name: string }) => t.name === "get_station_story");
+    expect(get._meta.ui.resourceUri).toBe("ui://radio-commons/story-card.html");
+    const read = await mcpPost(handler, { method: "resources/read", params: { uri: "ui://radio-commons/story-card.html" } }, 2);
+    expect(read.message.result.contents[0].mimeType).toBe("text/html;profile=mcp-app");
+    const called = await mcpPost(handler, call("get_station_story", { storyId: STORY.storyId }), 3);
+    expect(called.message.result.structuredContent.cardHtml).toContain("414 Art Revival");
+  });
 });

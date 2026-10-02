@@ -2,6 +2,7 @@ import { registerAppResource, registerAppTool, RESOURCE_MIME_TYPE } from "@model
 import { createMcpHandler } from "mcp-handler";
 import { z } from "zod";
 import { BackstoryUnavailable, type BackstoryClient } from "@/lib/backstory";
+import { renderCard } from "@/lib/card";
 import { directAudioUrl, NOT_FOUND_SPEECH, spokenMatches, spokenStory, UNAVAILABLE_SPEECH } from "@/lib/speech";
 import { getStation } from "@/lib/stations";
 
@@ -74,7 +75,7 @@ export function buildMcpHandler(deps: Deps) {
             const story = STORY_ID.test(storyId) ? await deps.backstory().getStory(storyId) : null;
             if (!story) return { content: text(NOT_FOUND_SPEECH) };
             const clean = { ...story, audioUrl: directAudioUrl(story.audioUrl) };
-            return { content: text(spokenStory(clean)), structuredContent: { stationId: station.stationId, story: clean } };
+            return { content: text(spokenStory(clean)), structuredContent: { stationId: station.stationId, story: clean, cardHtml: renderCard(clean) } };
           }, unavailable),
       );
 
