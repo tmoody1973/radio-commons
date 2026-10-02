@@ -7,7 +7,7 @@ export const preferredRegion = "iad1";
 export async function GET() {
   const mcp = await connectMcp(mcpUrl());
   try {
-    return new Response(await mcp.readCard(), { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=300" } });
+    return new Response(await mcp.readCard(), { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-cache" } });
   } finally {
     await mcp.close().catch(() => undefined);
   }

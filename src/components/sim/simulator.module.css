@@ -20,7 +20,7 @@
 .ask { display: flex; gap: 8px; flex: 1 1 320px; }
 .ask input { flex: 1; font: inherit; padding: 10px 12px; border-radius: 8px; border: 2px solid #5C6369; background: #1E2124; color: #F7F1DB; }
 .ask button, .toggle { font: inherit; padding: 10px 14px; border-radius: 8px; border: 2px solid #F7F1DB; background: transparent; color: #F7F1DB; cursor: pointer; }
-.trail { width: 300px; max-height: 70vh; overflow: auto; background: #1E2124; border-radius: 12px; padding: 14px; font-size: 14px; }
+.trail { width: 300px; overflow-wrap: anywhere; max-height: 70vh; overflow: auto; background: #1E2124; border-radius: 12px; padding: 14px; font-size: 14px; }
 .trail h2 { margin: 0 0 8px; font-size: 16px; }
 .trail ol { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
 .status { text-align: center; color: #F7941D; min-height: 1.45em; margin-top: 8px; }

@@ -9,4 +9,8 @@ export type TrailEntry =
   | { kind: "reply"; text: string; ms: number }
   | { kind: "error"; text: string };
 
-export const summarize = (text: string) => (text.length <= 120 ? text : `${text.slice(0, 119)}…`);
+/** The first line of a tool's reply (the spoken one), not the ids it adds for the model. */
+export const summarize = (text: string) => {
+  const line = text.split("\n")[0];
+  return line.length <= 120 ? line : `${line.slice(0, 119)}…`;
+};

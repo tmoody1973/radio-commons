@@ -78,4 +78,13 @@ describe("brain", () => {
     });
     expect(result.trail.filter((e) => e.kind === "think")).toHaveLength(2);
   });
+  it("the trail shows a tool's spoken line, not the data meant for the model", async () => {
+    const result = await runBrain({
+      history: [{ role: "user", text: "q" }], tools: TOOLS,
+      callTool: async () => ({ text: 'I found one Radio Milwaukee story: T1.\n{"matches":[{"storyId":"s1"}]}', structured: null, isError: false }),
+      converse: scripted(toolUse("find_station_story", { description: "q" }), say("done")),
+    });
+    const tool = result.trail.find((e) => e.kind === "tool");
+    expect(tool && tool.kind === "tool" && tool.summary).toBe("I found one Radio Milwaukee story: T1.");
+  });
 });
