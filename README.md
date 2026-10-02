@@ -1,36 +1,75 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Radio Commons
 
-## Getting Started
+**A listener memory for public radio, on Alexa+.** Radio is immediate and fleeting: you hear a local story on the drive home and lose it. Radio Commons lets a listener ask Alexa+ for the station story they half-remember ("What was that Uniquely Milwaukee story about the art shop in West Allis?") and get it back, told from the station's own published record, with its source, and shown as a card on screen devices.
 
-First, run the development server:
+Pilot station: [Radio Milwaukee](https://radiomilwaukee.org). Built for the Amazon Developer Hackathon 2026 (Alexa+ track).
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## How it works
+
+```
+Listener ──voice──▶ Alexa+ ──MCP, Streamable HTTP──▶ radio-commons (Next.js on Vercel)
+                                                      ├─ /api/mcp          tools (mcp-handler)
+                                                      ├─ story card        MCP App (ui://radio-commons/story-card.html)
+                                                      └─ stations.ts       stationId "radiomilwaukee"
+                                                      ▼
+                                       Backstory (Convex): editor-published stories only
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- **`find_station_story`** turns a listener's description into up to three published stories, read back as a short list. If nothing matches well enough, it says so; it never guesses.
+- **`get_station_story`** tells one story: the station's published summary, its source ("From Uniquely Milwaukee, September 2026"), and one next step (directions to the place in the story, or the episode). On screens it returns a story card with the show's artwork, places, things to do and a Play button.
+- Story data comes from [Backstory](https://github.com/tmoody1973/backstory), the station's story engine: podcasts are transcribed and every person, place and action is checked against a word-for-word quote from the episode, then **approved by an editor** before Alexa can read it.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+**Trust rules:** only editor-published stories; every answer names its show and month; summaries are described as the station's, never as the assistant's; no invented stories; the database is never exposed to Alexa directly.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Run it
 
-## Learn More
+Requirements: Node.js 20+ (Alexa's CLI needs 24+), npm.
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm ci                      # also embeds the MCP Apps bundle (postinstall)
+cp .env.example .env.local  # set BACKSTORY_CONVEX_URL to a Backstory deployment
+npm run dev                 # MCP endpoint: http://localhost:3000/api/mcp
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Check an endpoint the way Alexa+ calls it (protocol 2025-11-25):
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+node scripts/smoke.mjs http://localhost:3000/api/mcp "frugal dining"
+node scripts/smoke.mjs https://radio-commons.vercel.app/api/mcp "frugal dining" 20   # + timing
+```
 
-## Deploy on Vercel
+## Test
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+npm test          # unit + MCP contract tests (Streamable HTTP, 2025-11-25)
+npm run typecheck
+npm run build
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+CI runs all three on every pull request; `main` is protected.
+
+## Deploy
+
+Vercel: set `BACKSTORY_CONVEX_URL` for Production and Preview, then `vercel deploy --prod`. Alexa+ round trips must stay under 500 ms; see `docs/LEARNING-LOG.md` for measurements.
+
+## Connect to Alexa+
+
+Follow Amazon's [Alexa+ MCP quickstart](https://developer.amazon.com/docs/alexaplus/add-ons/mcp-toolkit-quickstart.html): install the Alexa AI CLI (`@alexa-ai/cli`, from Amazon's private registry after your AWS account is allowlisted), run `alexa-ai configure`, then
+
+```bash
+alexa-ai new mcp --name "Radio Milwaukee Stories" --locale en-US --mcp-server-url "https://radio-commons.vercel.app/api/mcp"
+alexa-ai deploy
+```
+
+and test in the Alexa+ web simulator.
+
+## Docs
+
+- Design: `docs/superpowers/specs/2026-10-02-story-tools-design.md`
+- Plan: `docs/superpowers/plans/2026-10-02-story-tools.md`
+- Decisions: `docs/decisions/`
+- Concept: Radio Commons concept brief (public media listener memory)
+
+## License
+
+Apache-2.0
