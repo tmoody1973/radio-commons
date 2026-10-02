@@ -47,6 +47,7 @@ describe("brain", () => {
   it("a no-match stays a no-match: the trust rules are in the system prompt", async () => {
     expect(SYSTEM_PROMPT).toMatch(/only from the results of your tools/i);
     expect(SYSTEM_PROMPT).toMatch(/never answer .* from your own knowledge/i);
+    expect(SYSTEM_PROMPT).toMatch(/at most two sentences/i);
     const result = await runBrain({
       history: [{ role: "user", text: "moon base" }], tools: TOOLS,
       callTool: async () => ({ text: "I couldn't find a Radio Milwaukee story about that.", structured: { matches: [] }, isError: false }),

@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { runBrain, type Converse } from "@/lib/sim/brain";
 import type { McpSession } from "@/lib/sim/mcpClient";
+import { signSpeech } from "@/lib/sim/speakToken";
 import type { ChatMessage, TrailEntry } from "@/lib/sim/trail";
 
 export const MAX_AUDIO_BYTES = 1_000_000; // ~15 s of webm/opus speech
@@ -18,8 +19,8 @@ export interface TurnInput {
 export interface TurnResult {
   heard: string;
   reply: string;
-  /** Base64 MP3, or null when the voice is unavailable (captions still show). */
-  audio: string | null;
+  /** A signed, short-lived token for /api/sim/speak, which streams the spoken reply (captions show first). */
+  speech: string;
   /** What the story card needs: the tool input and its result, as an MCP Apps host passes them. */
   card: { input: Record<string, unknown>; result: Record<string, unknown> } | null;
   trail: TrailEntry[];
@@ -30,7 +31,6 @@ export interface TurnDeps {
   transcribe(bytes: Uint8Array, contentType: string): Promise<string>;
   mcp(): Promise<McpSession>;
   converse: Converse;
-  speak(text: string): Promise<Uint8Array>;
 }
 
 type Reply = { status: number; body: TurnResult | { error: string } };
@@ -70,37 +70,21 @@ export async function handleTurn(input: TurnInput, deps: TurnDeps): Promise<Repl
   } else {
     trail.push({ kind: "heard", text: heard });
   }
-  if (!heard) return { status: 200, body: { heard: "", reply: DIDNT_CATCH, audio: await voice(DIDNT_CATCH, deps, trail), card: null, trail } };
+  if (!heard) return { status: 200, body: { heard: "", reply: DIDNT_CATCH, speech: signSpeech(DIDNT_CATCH, deps.passcode), card: null, trail } };
 
   const connectStarted = Date.now();
-  const session = await deps.mcp();
+  const session = await deps.mcp(); // shared per server instance; not closed here
   trail.push({ kind: "stage", stage: "connect", ms: Date.now() - connectStarted });
-  try {
-    const brain = await runBrain({
-      history: [...recentHistory(input.history), { role: "user", text: heard }],
-      tools: session.tools,
-      callTool: (name, args) => session.callTool(name, args),
-      converse: deps.converse,
-    });
-    trail.push(...brain.trail);
-    const story = brain.lastStory?.story as { storyId?: string } | undefined;
-    const card = brain.lastStory
-      ? { input: { storyId: story?.storyId ?? "" }, result: { content: [{ type: "text", text: brain.reply }], structuredContent: brain.lastStory } }
-      : null;
-    return { status: 200, body: { heard, reply: brain.reply, audio: await voice(brain.reply, deps, trail), card, trail } };
-  } finally {
-    await session.close().catch(() => undefined);
-  }
-}
-
-async function voice(text: string, deps: TurnDeps, trail: TrailEntry[]): Promise<string | null> {
-  const started = Date.now();
-  try {
-    const audio = Buffer.from(await deps.speak(text)).toString("base64");
-    trail.push({ kind: "stage", stage: "voice", ms: Date.now() - started });
-    return audio;
-  } catch (error) {
-    trail.push({ kind: "error", text: `voice unavailable: ${String(error instanceof Error ? error.message : error)}` });
-    return null;
-  }
+  const brain = await runBrain({
+    history: [...recentHistory(input.history), { role: "user", text: heard }],
+    tools: session.tools,
+    callTool: (name, args) => session.callTool(name, args),
+    converse: deps.converse,
+  });
+  trail.push(...brain.trail);
+  const story = brain.lastStory?.story as { storyId?: string } | undefined;
+  const card = brain.lastStory
+    ? { input: { storyId: story?.storyId ?? "" }, result: { content: [{ type: "text", text: brain.reply }], structuredContent: brain.lastStory } }
+    : null;
+  return { status: 200, body: { heard, reply: brain.reply, speech: signSpeech(brain.reply, deps.passcode), card, trail } };
 }
