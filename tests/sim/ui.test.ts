@@ -1,0 +1,25 @@
+import { describe, expect, it } from "vitest";
+import { mapsUrl, nextHistory, trailLabel } from "@/lib/sim/ui";
+
+describe("simulator page helpers", () => {
+  it("keeps the last 20 messages of the conversation", () => {
+    const long = Array.from({ length: 20 }, (_, i) => ({ role: "user" as const, text: `m${i}` }));
+    const next = nextHistory(long, "heard", "reply");
+    expect(next).toHaveLength(20);
+    expect(next.slice(-2)).toEqual([{ role: "user", text: "heard" }, { role: "assistant", text: "reply" }]);
+  });
+  it("skips an empty heard turn", () => {
+    expect(nextHistory([], "", "Sorry, I didn't catch that.")).toEqual([]);
+  });
+  it("labels trail lines in plain words", () => {
+    expect(trailLabel({ kind: "heard", text: "frugal dining", ms: 412 })).toBe("Heard “frugal dining” (412 ms)");
+    expect(trailLabel({ kind: "tool", name: "find_station_story", input: { description: "frugal dining" }, ms: 118, isError: false, summary: "I found one" }))
+      .toBe("Called find_station_story · 118 ms → I found one");
+    expect(trailLabel({ kind: "tool", name: "get_station_story", input: {}, ms: 90, isError: true, summary: "I can't reach" })).toContain("⚠");
+    expect(trailLabel({ kind: "reply", text: "From This Bites…", ms: 900 })).toBe("Answered from Radio Milwaukee's record (900 ms)");
+    expect(trailLabel({ kind: "error", text: "voice unavailable" })).toBe("Problem: voice unavailable");
+  });
+  it("builds a directions link for a pinned place", () => {
+    expect(mapsUrl(43.0111, -88.0123)).toBe("https://www.google.com/maps/dir/?api=1&destination=43.0111%2C-88.0123");
+  });
+});
