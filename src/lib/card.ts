@@ -1,5 +1,4 @@
-import { readFileSync } from "node:fs";
-import { createRequire } from "node:module";
+import { EXT_APPS_BUNDLE } from "@/generated/ext-apps-bundle";
 import type { Story } from "@/lib/backstory";
 import { monthYear } from "@/lib/speech";
 
@@ -22,8 +21,7 @@ export function renderCard(story: Story): string {
 
 /** The MCP Apps bundle ends `export{…,X as App}`; bind its minified local name so the page can use App inline. */
 function appBundle(): string {
-  const require = createRequire(import.meta.url);
-  const source = readFileSync(require.resolve("@modelcontextprotocol/ext-apps/app-with-deps"), "utf8");
+  const source = EXT_APPS_BUNDLE;
   const local = source.match(/\b([A-Za-z0-9_$]+) as App\b/)?.[1];
   if (!local) throw new Error("MCP Apps bundle no longer exports App the expected way; check @modelcontextprotocol/ext-apps");
   return `${source.replace(/<\/script/gi, "<\\/script")}\nconst App = ${local};`;
