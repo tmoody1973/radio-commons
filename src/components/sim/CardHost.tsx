@@ -2,6 +2,7 @@
 
 import { AppBridge, PostMessageTransport } from "@modelcontextprotocol/ext-apps/app-bridge";
 import { useEffect, useRef, useState } from "react";
+import { isMapsLink } from "@/lib/maps";
 import styles from "./simulator.module.css";
 
 export interface CardPayload {
@@ -37,6 +38,12 @@ export function CardHost({ card, onPlaying }: { card: CardPayload; onPlaying: ()
     const win = frame.current?.contentWindow;
     if (!html || !win) return;
     const bridge = new AppBridge(null, { name: "radio-commons-simulator", version: "0.1.0" }, { openLinks: {} });
+    // The card asks; the host decides. This host opens Google Maps directions only; a device would hand them to its own maps.
+    bridge.onopenlink = async ({ url }) => {
+      if (!isMapsLink(url)) return { isError: true };
+      window.open(url, "_blank", "noopener,noreferrer");
+      return {};
+    };
     bridge.oninitialized = () => {
       void bridge.sendToolInput({ arguments: card.input });
       void bridge.sendToolResult(card.result as never);

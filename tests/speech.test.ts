@@ -38,4 +38,8 @@ describe("speech", () => {
     expect(directAudioUrl(STORY.audioUrl)).toBe("https://dovetail.prxu.org/13497/a.mp3");
     expect(directAudioUrl("https://example.com/a.mp3")).toBe("https://example.com/a.mp3");
   });
+  it("offers directions with the street when the place has an address", () => {
+    const withAddress = { ...STORY, places: [{ ...STORY.places[0], address: "414 Art Revival, 8004 W National Ave, Milwaukee, WI 53214-4554, United States" }] };
+    expect(spokenStory(withAddress)).toMatch(/Would you like directions to 414 Art Revival at 8004 W National Ave, or to hear the episode\?$/);
+  });
 });
