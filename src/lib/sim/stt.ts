@@ -4,11 +4,13 @@ const KEYTERMS = ["Radio Milwaukee", "This Bites", "Uniquely Milwaukee", "Ann Ch
 /** Deepgram Nova-3, pre-recorded: one short clip in, the transcript out. */
 export function deepgramTranscribe(apiKey: string, fetchImpl: typeof fetch = fetch) {
   return async (bytes: Uint8Array, contentType: string): Promise<string> => {
-    const params = new URLSearchParams([["model", "nova-3"], ["smart_format", "true"], ...KEYTERMS.map((t) => ["keyterm", t])]);
+    // mip_opt_out: listeners' audio is not kept for Deepgram's model training.
+    const params = new URLSearchParams([["model", "nova-3"], ["smart_format", "true"], ["mip_opt_out", "true"], ...KEYTERMS.map((t) => ["keyterm", t])]);
     const response = await fetchImpl(`https://api.deepgram.com/v1/listen?${params}`, {
       method: "POST",
       headers: { Authorization: `Token ${apiKey}`, "Content-Type": contentType },
       body: bytes as unknown as BodyInit,
+      signal: AbortSignal.timeout(5_000),
     });
     if (!response.ok) throw new Error(`Deepgram HTTP ${response.status}`);
     const json = (await response.json()) as { results?: { channels?: { alternatives?: { transcript?: string }[] }[] } };

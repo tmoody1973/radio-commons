@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { BedrockRuntimeClient } from "@aws-sdk/client-bedrock-runtime";
 import { PollyClient } from "@aws-sdk/client-polly";
 import { bedrockConverse } from "@/lib/sim/brain";
@@ -32,16 +33,26 @@ const awsConfig = () => ({
   credentials: { accessKeyId: required("SIM_AWS_ACCESS_KEY_ID"), secretAccessKey: required("SIM_AWS_SECRET_ACCESS_KEY") },
 });
 
+/** Speech links are signed with a key derived from the AWS secret (high-entropy), never the human-shared passcode. */
+const speechSecret = () => createHash("sha256").update(`radio-commons-speech:${required("SIM_AWS_SECRET_ACCESS_KEY")}`).digest("hex");
+
+// One client each per server instance, so keep-alive connections are reused across turns.
+let bedrock: BedrockRuntimeClient | undefined;
+let polly: PollyClient | undefined;
+
 /** The real services, from server-only env vars. */
 export function turnDepsFromEnv(): TurnDeps {
+  bedrock ??= new BedrockRuntimeClient(awsConfig());
   return {
     passcode: required("SIM_PASSCODE"),
+    speechSecret: speechSecret(),
     transcribe: deepgramTranscribe(required("DEEPGRAM_API_KEY")),
     mcp: sharedMcp,
-    converse: bedrockConverse(new BedrockRuntimeClient(awsConfig()), HAIKU),
+    converse: bedrockConverse(bedrock, HAIKU),
   };
 }
 
 export function speakDepsFromEnv(): SpeakDeps {
-  return { secret: required("SIM_PASSCODE"), synthesize: pollyStream(new PollyClient(awsConfig()), process.env.SIM_POLLY_VOICE ?? "Ruth") };
+  polly ??= new PollyClient(awsConfig());
+  return { secret: speechSecret(), synthesize: pollyStream(polly, process.env.SIM_POLLY_VOICE ?? "Ruth") };
 }

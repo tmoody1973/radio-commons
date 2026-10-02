@@ -1,5 +1,5 @@
 import { timingSafeEqual } from "node:crypto";
-import { runBrain, type Converse } from "@/lib/sim/brain";
+import { APOLOGY, runBrain, type Converse } from "@/lib/sim/brain";
 import type { McpSession } from "@/lib/sim/mcpClient";
 import { signSpeech } from "@/lib/sim/speakToken";
 import type { ChatMessage, TrailEntry } from "@/lib/sim/trail";
@@ -28,6 +28,8 @@ export interface TurnResult {
 
 export interface TurnDeps {
   passcode: string;
+  /** Signs speech links. Separate from the passcode and high-entropy. */
+  speechSecret: string;
   transcribe(bytes: Uint8Array, contentType: string): Promise<string>;
   mcp(): Promise<McpSession>;
   converse: Converse;
@@ -70,10 +72,16 @@ export async function handleTurn(input: TurnInput, deps: TurnDeps): Promise<Repl
   } else {
     trail.push({ kind: "heard", text: heard });
   }
-  if (!heard) return { status: 200, body: { heard: "", reply: DIDNT_CATCH, speech: signSpeech(DIDNT_CATCH, deps.passcode), card: null, trail } };
+  if (!heard) return { status: 200, body: { heard: "", reply: DIDNT_CATCH, speech: signSpeech(DIDNT_CATCH, deps.speechSecret), card: null, trail } };
 
   const connectStarted = Date.now();
-  const session = await deps.mcp(); // shared per server instance; not closed here
+  let session: McpSession;
+  try {
+    session = await deps.mcp(); // shared per server instance; not closed here
+  } catch (error) {
+    trail.push({ kind: "error", text: `connecting to the MCP server failed: ${String(error instanceof Error ? error.message : error)}` });
+    return { status: 200, body: { heard, reply: APOLOGY, speech: signSpeech(APOLOGY, deps.speechSecret), card: null, trail } };
+  }
   trail.push({ kind: "stage", stage: "connect", ms: Date.now() - connectStarted });
   const brain = await runBrain({
     history: [...recentHistory(input.history), { role: "user", text: heard }],
@@ -86,5 +94,5 @@ export async function handleTurn(input: TurnInput, deps: TurnDeps): Promise<Repl
   const card = brain.lastStory
     ? { input: { storyId: story?.storyId ?? "" }, result: { content: [{ type: "text", text: brain.reply }], structuredContent: brain.lastStory } }
     : null;
-  return { status: 200, body: { heard, reply: brain.reply, speech: signSpeech(brain.reply, deps.passcode), card, trail } };
+  return { status: 200, body: { heard, reply: brain.reply, speech: signSpeech(brain.reply, deps.speechSecret), card, trail } };
 }

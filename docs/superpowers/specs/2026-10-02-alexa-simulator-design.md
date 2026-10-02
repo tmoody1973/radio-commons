@@ -8,7 +8,7 @@ Amazon will not give hackathon participants the Alexa+ developer tools or simula
 
 So slice 2 builds an Alexa+ simulator that plays the part of Alexa+ around the real Radio Commons MCP server from slice 1, unchanged.
 
-**Success looks like:** on a laptop, holding the talk button on an Echo-Show-styled page and asking *"What was that This Bites episode about frugal dining?"* plays a spoken answer that names the show and month, shows the real story card (artwork, places, Play), and the "What Alexa did" panel lists the words heard, each MCP tool call with its time, and the source. "Play it" plays the episode; "directions" opens a map for a pinned place. The spoken answer arrives within ~5 s of releasing the button.
+**Success looks like:** on a laptop, holding the talk button on an Echo-Show-styled page and asking *"What was that This Bites episode about frugal dining?"* plays a spoken answer that names the show and month, shows the real story card (artwork, places, Play), and the "What Alexa did" panel lists the words heard, each MCP tool call with its time, and the source. tapping Play on the card plays the episode (a spoken "play it" is not wired to the card in this slice); "directions" opens a map for a pinned place. The spoken answer arrives within ~5 s of releasing the button.
 
 ## What Tarik decided (2026-10-02)
 
@@ -58,7 +58,7 @@ Browser (/simulator, Echo Show frame)
 3. Claude Haiku 4.5 on Bedrock gets the text, the Alexa-style system prompt, and the two tools as fetched from our MCP server. Each tool call it requests is made through the MCP client; results go back to it. At most 4 tool calls; 15 s overall cap.
 4. The final text reply is synthesized by Polly.
 5. The response carries: what was heard, the reply text (captions), audio, the latest `get_station_story` result (for the card), and the trail.
-6. Follow-ups: "the second one" (picks from the shortlist), "play it" (plays the episode in the card), "directions" (opens Google/Apple Maps for the place's coordinates; the card or reply offers it only when a place has a pin).
+6. Follow-ups: "the second one" (picks from the shortlist), tapping Play (plays the episode in the card; spoken "play it" is a later slice), "directions" (opens Google/Apple Maps for the place's coordinates; the card or reply offers it only when a place has a pin).
 
 **System prompt rules (the trust rules, carried from slice 1):** answer only from tool results; always say the show and month; describe summaries as Radio Milwaukee's; if a tool finds nothing or apologizes, say so and stop; never answer local-story questions from your own knowledge; keep replies short and spoken.
 

@@ -4,6 +4,7 @@ import { handleTurn, type TurnDeps } from "@/lib/sim/turn";
 
 const deps = (over: Partial<TurnDeps> = {}): TurnDeps => ({
   passcode: "milwaukee",
+  speechSecret: "a-separate-high-entropy-secret",
   transcribe: vi.fn(async () => "the frugal dining episode"),
   mcp: async () => ({
     tools: [],
@@ -22,7 +23,9 @@ describe("a spoken turn", () => {
     expect(status).toBe(200);
     expect(body).toMatchObject({ heard: "the frugal dining episode", reply: "From This Bites, September 2026: frugal dining." });
     // The voice comes from a signed link the page streams, so captions appear before the audio is made.
-    expect(verifySpeech((body as { speech: string }).speech, "milwaukee")).toBe("From This Bites, September 2026: frugal dining.");
+    expect(verifySpeech((body as { speech: string }).speech, "a-separate-high-entropy-secret")).toBe("From This Bites, September 2026: frugal dining.");
+    // Never signed with the passcode: a leaked link must not help anyone guess it.
+    expect(verifySpeech((body as { speech: string }).speech, "milwaukee")).toBeNull();
   });
   it("refuses without the passcode, before any paid call", async () => {
     const d = deps();
@@ -59,5 +62,11 @@ describe("a spoken turn", () => {
     const { body } = await handleTurn({ passcode: "milwaukee", history: [], text: "frugal dining" }, deps());
     const kinds = (body as { trail: { kind: string; stage?: string }[] }).trail.filter((e) => e.kind === "stage").map((e) => e.stage);
     expect(kinds).toEqual(["connect"]);
+  });
+  it("MCP server unreachable: Alexa's apology with the cause in the trail, not a crash", async () => {
+    const { status, body } = await handleTurn({ passcode: "milwaukee", history: [], text: "frugal dining" }, deps({ mcp: async () => { throw new Error("ECONNREFUSED"); } }));
+    expect(status).toBe(200);
+    expect(body).toMatchObject({ reply: "Sorry, something went wrong. Please try again.", card: null });
+    expect((body as { trail: { kind: string; text?: string }[] }).trail.some((e) => e.kind === "error" && e.text?.includes("ECONNREFUSED"))).toBe(true);
   });
 });

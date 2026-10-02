@@ -87,4 +87,14 @@ describe("brain", () => {
     const tool = result.trail.find((e) => e.kind === "tool");
     expect(tool && tool.kind === "tool" && tool.summary).toBe("I found one Radio Milwaukee story: T1.");
   });
+  it("marks whether a reply came from a tool, so the trail never claims a source it didn't use", async () => {
+    const unsourced = await runBrain({ history: [{ role: "user", text: "hi" }], tools: TOOLS, callTool: async () => ({ text: "x", structured: null, isError: false }), converse: scripted(say("Hello!")) });
+    expect(unsourced.trail.find((e) => e.kind === "reply")).toMatchObject({ sourced: false });
+    const sourced = await runBrain({
+      history: [{ role: "user", text: "q" }], tools: TOOLS,
+      callTool: async () => ({ text: "found", structured: null, isError: false }),
+      converse: scripted(toolUse("find_station_story", { description: "q" }), say("From This Bites…")),
+    });
+    expect(sourced.trail.find((e) => e.kind === "reply")).toMatchObject({ sourced: true });
+  });
 });
