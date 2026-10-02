@@ -19,7 +19,7 @@ export function trailLabel(entry: TrailEntry): string {
     case "stage":
       return entry.stage === "connect" ? `Connected to the MCP server (${entry.ms} ms)` : `Spoke the answer (${entry.ms} ms)`;
     case "reply":
-      return `Answered from Radio Milwaukee's record (${entry.ms} ms)`;
+      return entry.sourced ? `Answered from Radio Milwaukee's record (${entry.ms} ms)` : `Answered without looking anything up (${entry.ms} ms)`;
     case "error":
       return `Problem: ${entry.text}`;
   }

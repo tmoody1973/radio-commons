@@ -6,7 +6,7 @@ export type TrailEntry =
   | { kind: "tool"; name: string; input: Record<string, unknown>; ms: number; isError: boolean; summary: string }
   | { kind: "think"; ms: number }
   | { kind: "stage"; stage: "connect" | "voice"; ms: number }
-  | { kind: "reply"; text: string; ms: number }
+  | { kind: "reply"; text: string; ms: number; sourced: boolean }
   | { kind: "error"; text: string };
 
 /** The first line of a tool's reply (the spoken one), not the ids it adds for the model. */

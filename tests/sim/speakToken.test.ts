@@ -17,4 +17,9 @@ describe("signed speech links", () => {
     expect(verifySpeech(token, SECRET, 1_000 + 61_000)).toBeNull();
     expect(verifySpeech(`${payload}`, SECRET, 2_000)).toBeNull();
   });
+  it("links expire after 20 seconds", () => {
+    const token = signSpeech("hello", SECRET, 1_000);
+    expect(verifySpeech(token, SECRET, 1_000 + 19_000)).toBe("hello");
+    expect(verifySpeech(token, SECRET, 1_000 + 21_000)).toBeNull();
+  });
 });

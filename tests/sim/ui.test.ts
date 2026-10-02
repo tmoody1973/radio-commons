@@ -16,7 +16,8 @@ describe("simulator page helpers", () => {
     expect(trailLabel({ kind: "tool", name: "find_station_story", input: { description: "frugal dining" }, ms: 118, isError: false, summary: "I found one" }))
       .toBe("Called find_station_story · 118 ms → I found one");
     expect(trailLabel({ kind: "tool", name: "get_station_story", input: {}, ms: 90, isError: true, summary: "I can't reach" })).toContain("⚠");
-    expect(trailLabel({ kind: "reply", text: "From This Bites…", ms: 900 })).toBe("Answered from Radio Milwaukee's record (900 ms)");
+    expect(trailLabel({ kind: "reply", text: "From This Bites…", ms: 900, sourced: true })).toBe("Answered from Radio Milwaukee's record (900 ms)");
+    expect(trailLabel({ kind: "reply", text: "Hello!", ms: 400, sourced: false })).toBe("Answered without looking anything up (400 ms)");
     expect(trailLabel({ kind: "error", text: "voice unavailable" })).toBe("Problem: voice unavailable");
   });
   it("builds a directions link for a pinned place", () => {

@@ -38,6 +38,12 @@ export function Simulator() {
   const chunks = useRef<Blob[]>([]);
   const voice = useRef<HTMLAudioElement | null>(null);
   const stopTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const held = useRef(false); // is the talk button (or Space) still down?
+  const starting = useRef(false); // waiting for the microphone
+  const busy = useRef(false); // a turn is being answered
+  useEffect(() => {
+    busy.current = phase === "thinking";
+  }, [phase]);
 
   // Wake the MCP server so a cold start doesn't land on the first question.
   useEffect(() => {
@@ -83,9 +89,17 @@ export function Simulator() {
   }, []);
 
   const startTalking = useCallback(async () => {
-    if (recorder.current) return;
+    held.current = true;
+    if (recorder.current || starting.current || busy.current) return;
+    starting.current = true;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      starting.current = false;
+      // Released while the microphone was starting (a quick tap, or answering the permission prompt): don't record.
+      if (!held.current) {
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
       const mime = MediaRecorder.isTypeSupported("audio/webm;codecs=opus") ? "audio/webm;codecs=opus" : "";
       const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
       chunks.current = [];
@@ -105,18 +119,24 @@ export function Simulator() {
       setPhase("listening");
       stopTimer.current = setTimeout(() => rec.state === "recording" && rec.stop(), MAX_RECORD_MS);
     } catch {
+      starting.current = false;
       setStatus("Microphone not available. Use the box to type your question.");
     }
   }, [send]);
 
   const stopTalking = useCallback(() => {
+    held.current = false;
     clearTimeout(stopTimer.current);
     if (recorder.current?.state === "recording") recorder.current.stop();
   }, []);
 
   // Space bar is push-to-talk when focus isn't in the text box.
   useEffect(() => {
-    const isTyping = (e: KeyboardEvent) => (e.target as HTMLElement)?.tagName === "INPUT";
+    // Space belongs to whatever has focus when that's a control; push-to-talk only from the page itself.
+    const isTyping = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      return !!target && (["INPUT", "TEXTAREA", "BUTTON", "A", "SELECT"].includes(target.tagName) || target.isContentEditable);
+    };
     const down = (e: KeyboardEvent) => { if (e.code === "Space" && !e.repeat && !isTyping(e)) { e.preventDefault(); void startTalking(); } };
     const up = (e: KeyboardEvent) => { if (e.code === "Space" && !isTyping(e)) { e.preventDefault(); stopTalking(); } };
     window.addEventListener("keydown", down);
@@ -159,7 +179,7 @@ export function Simulator() {
           <div className={styles.controls}>
             <button
               type="button" className={styles.talk} aria-pressed={phase === "listening"} disabled={phase === "thinking"}
-              onPointerDown={() => void startTalking()} onPointerUp={stopTalking} onPointerLeave={stopTalking}
+              onPointerDown={() => void startTalking()} onPointerUp={stopTalking} onPointerLeave={stopTalking} onPointerCancel={stopTalking}
             >
               {phase === "listening" ? "Listening… release to send" : phase === "thinking" ? "Thinking…" : "Hold to talk (or Space)"}
             </button>

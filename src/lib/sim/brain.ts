@@ -50,6 +50,7 @@ export async function runBrain({ history, tools, callTool, converse, maxToolCall
   const messages: unknown[] = history.map((m) => ({ role: m.role, content: [{ text: m.text }] }));
   let lastStory: Record<string, unknown> | null = null;
   let toolCalls = 0;
+  let sourced = false; // did any tool answer successfully this turn?
   try {
     for (;;) {
       const started = Date.now();
@@ -59,7 +60,7 @@ export async function runBrain({ history, tools, callTool, converse, maxToolCall
       const uses = response.content.flatMap((b) => ("toolUse" in b ? [b.toolUse] : []));
       if (uses.length === 0) {
         const reply = response.content.flatMap((b) => ("text" in b ? [b.text] : [])).join(" ").trim();
-        trail.push({ kind: "reply", text: reply, ms: Date.now() - started });
+        trail.push({ kind: "reply", text: reply, ms: Date.now() - started, sourced });
         return { reply: reply || APOLOGY, trail, lastStory };
       }
       const results = [];
@@ -69,6 +70,7 @@ export async function runBrain({ history, tools, callTool, converse, maxToolCall
         const t0 = Date.now();
         const result = await withDeadline(callTool(use.name, use.input), deadline);
         trail.push({ kind: "tool", name: use.name, input: use.input, ms: Date.now() - t0, isError: result.isError, summary: summarize(result.text) });
+        if (!result.isError) sourced = true;
         if (use.name === "get_station_story" && result.structured?.story) lastStory = result.structured;
         results.push({ toolResult: { toolUseId: use.toolUseId, content: [{ text: result.text }], status: result.isError ? "error" : "success" } });
       }
