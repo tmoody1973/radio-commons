@@ -8,7 +8,7 @@ import styles from "./simulator.module.css";
 import { TrailPanel } from "./TrailPanel";
 
 type Phase = "idle" | "listening" | "thinking" | "answering";
-interface TurnResponse { heard: string; reply: string; audio: string | null; card: CardPayload | null; trail: TrailEntry[] }
+interface TurnResponse { heard: string; reply: string; speech: string; card: CardPayload | null; trail: TrailEntry[] }
 
 const PASSCODE_KEY = "radio-commons-sim-passcode";
 const MAX_RECORD_MS = 15_000;
@@ -71,11 +71,10 @@ export function Simulator() {
       setCaptions(body.reply);
       if (body.card) setCard(body.card);
       setPhase("answering");
-      if (body.audio && voice.current) {
-        voice.current.src = `data:audio/mpeg;base64,${body.audio}`;
+      if (voice.current) {
+        // Streams as Polly speaks, so the answer starts before the whole reply is voiced.
+        voice.current.src = `/api/sim/speak?t=${encodeURIComponent(body.speech)}`;
         void voice.current.play().catch(() => setStatus("Tap anywhere to allow sound, then ask again."));
-      } else if (!body.audio) {
-        setStatus("Voice unavailable; showing captions.");
       }
     } catch {
       setStatus("Couldn't reach the simulator. Check your connection.");
@@ -181,7 +180,12 @@ export function Simulator() {
         </div>
         {showTrail ? <TrailPanel turns={turns} /> : null}
       </div>
-      <audio ref={voice} onEnded={() => setPhase((p) => (p === "answering" ? "idle" : p))} hidden />
+      <audio
+        ref={voice}
+        onEnded={() => setPhase((p) => (p === "answering" ? "idle" : p))}
+        onError={() => setStatus("Voice unavailable; showing captions.")}
+        hidden
+      />
     </main>
   );
 }
