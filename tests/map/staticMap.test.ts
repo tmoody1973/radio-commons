@@ -11,7 +11,7 @@ describe("staticMapUrl", () => {
     const url = new URL(staticMapUrl({ center: { lat: 43.04812345678901234, lng: -87.9876543210987654 }, zoom: 11.5 }, 300, 250, "dark", "KEY"));
     expect(url.origin + url.pathname).toBe("https://maps.geo.us-east-1.amazonaws.com/v2/static/map@2x");
     // Amazon allows at most 14 decimal places; 6 is about 10 cm.
-    expect(Object.fromEntries(url.searchParams)).toEqual({ center: "-87.987654,43.048123", zoom: "11.5", width: "300", height: "250", "color-scheme": "Dark", key: "KEY" });
+    expect(Object.fromEntries(url.searchParams)).toEqual({ style: "Standard", center: "-87.987654,43.048123", zoom: "11.5", width: "300", height: "250", "color-scheme": "Dark", key: "KEY" });
   });
 });
 

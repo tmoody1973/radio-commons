@@ -11,6 +11,7 @@ export const pinnedPlaces = (story: Story) =>
 /** Amazon's static map of `frame` at w×h, in its sharp (@2x) form so it stays crisp on a 1.67× screen. */
 export function staticMapUrl(frame: Frame, w: number, h: number, theme: "light" | "dark", key: string): string {
   const params = new URLSearchParams({
+    style: "Standard", // Amazon's default is Satellite, which has no light/dark
     // Amazon allows at most 14 decimal places; 6 is about 10 cm.
     center: `${frame.center.lng.toFixed(6)},${frame.center.lat.toFixed(6)}`,
     zoom: String(frame.zoom),
@@ -57,7 +58,9 @@ export async function handleMap(query: URLSearchParams, deps: MapDeps): Promise<
   const theme = query.get("theme") === "dark" ? "dark" : "light";
   const image = await deps.fetchImage(staticMapUrl(mapFrame(places, w, h), w, h, theme, deps.key));
   if (!image.ok) {
-    console.error(JSON.stringify({ map: "amazon_error", status: image.status }));
+    // Amazon's reason, minus anything that could carry the key.
+    const reason = (await image.text().catch(() => "")).slice(0, 300).replace(/key=[^&\s"]*/gi, "key=…");
+    console.error(JSON.stringify({ map: "amazon_error", status: image.status, type: image.headers.get("x-amzn-errortype"), reason }));
     return fail(502, "The map is unavailable right now.");
   }
   return new Response(image.body, {
