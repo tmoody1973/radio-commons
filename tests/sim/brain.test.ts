@@ -100,6 +100,8 @@ describe("brain", () => {
   it("tells Alexa to quote ask_station_story word for word, and its result becomes the card", async () => {
     expect(SYSTEM_PROMPT).toContain("ask_station_story");
     expect(SYSTEM_PROMPT).toContain("word for word");
+    // The page keeps only the words of earlier turns, not story ids: a follow-up must look the story up again.
+    expect(SYSTEM_PROMPT).toMatch(/never guess a storyId/i);
     const result = await runBrain({
       history: [{ role: "user", text: "what did they say about the stromboli" }], tools: TOOLS,
       callTool: async () => ({ text: "At 18:42 …", structured: { story: { storyId: "s1" }, passages: [] }, isError: false }),
