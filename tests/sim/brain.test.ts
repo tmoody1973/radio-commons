@@ -145,5 +145,7 @@ describe("brain", () => {
     expect(SYSTEM_PROMPT).toContain("station_picks");
     expect(SYSTEM_PROMPT).toMatch(/tap Add to calendar/i);
   });
+  it("points to Reserve for booking", () => {
+    expect(SYSTEM_PROMPT).toMatch(/tap Reserve/);
+  });
 });
-

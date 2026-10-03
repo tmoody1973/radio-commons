@@ -1,7 +1,7 @@
 import { EVENT } from "./fixtures";
 import { describe, expect, it } from "vitest";
 import type { Story } from "@/lib/backstory";
-import { EVENTS_UNAVAILABLE_SPEECH, NOT_ALLOWED_SPEECH, NO_PASSAGE_SPEECH, clock, directAudioUrl, eventTime, monthYear, spokenEvents, spokenMatches, spokenPassages, spokenPicks, spokenStory } from "@/lib/speech";
+import { EVENTS_UNAVAILABLE_SPEECH, NOT_ALLOWED_SPEECH, NO_PASSAGE_SPEECH, clock, directAudioUrl, eventTime, monthYear, spokenEvents, spokenMatches, spokenPassages, spokenPicks, spokenPlaces, spokenStory } from "@/lib/speech";
 
 const STORY: Story = {
   storyId: "s1", show: "Uniquely Milwaukee", title: "Creativity is sustainable, accessible at 414 Art Revival",
@@ -97,5 +97,8 @@ describe("events speech", () => {
   it("station events titled '88Nine presents: …' aren't 'presents presents'", () => {
     const station = { ...EVENT, title: "88Nine presents: Friko", isStationEvent: true };
     expect(spokenPicks([station], new Date("2026-10-03T22:00:00Z"))).toMatch(/^1, Radio Milwaukee presents Friko at /);
+  });
+  it("says which mapped place takes reservations", () => {
+    expect(spokenPlaces(["Bread House", "El Tsunami"], "Bread House")).toBe("That story mentions 2 mapped places. The first two are Bread House and El Tsunami. Bread House takes reservations; tap Reserve to book. Want directions to one?");
   });
 });

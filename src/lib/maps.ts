@@ -24,12 +24,15 @@ export function isMapsLink(url: string): boolean {
 }
 
 const OPENABLE_HOSTS = new Set(["www.google.com", "calendar.google.com", "mke-field-guide.vercel.app"]);
+const BOOKING_HOSTS = ["opentable.com", "resy.com", "exploretock.com", "sevenrooms.com"];
 
-/** What the simulator host opens for a card: Google Maps directions, Google Calendar, and Field Guide event pages. */
+/** What the simulator host opens for a card: Google Maps directions, Google Calendar, Field Guide event pages, and booking sites. */
 export function isOpenableLink(url: string): boolean {
   try {
     const parsed = new URL(url);
-    if (parsed.protocol !== "https:" || !OPENABLE_HOSTS.has(parsed.hostname)) return false;
+    if (parsed.protocol !== "https:") return false;
+    if (BOOKING_HOSTS.some((host) => parsed.hostname === host || parsed.hostname.endsWith(`.${host}`))) return true;
+    if (!OPENABLE_HOSTS.has(parsed.hostname)) return false;
     return parsed.hostname !== "www.google.com" || parsed.pathname.startsWith("/maps");
   } catch {
     return false;

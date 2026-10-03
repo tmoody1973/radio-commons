@@ -75,8 +75,12 @@ function storiesView(matches: StoryCardMatch[]): string {
 export function placeRows(story: Story, limit: number): string {
   return pinnedPlaces(story).slice(0, limit).map((p, i) => {
     const street = streetAddress(p.address, p.name);
-    return `<button type="button" class="row directions" data-url="${escape(directionsUrl(p.name, p.address, p.lat, p.lng))}" aria-label="Directions to ${escape(p.name)}">`
+    const row = `<button type="button" class="row directions" data-url="${escape(directionsUrl(p.name, p.address, p.lat, p.lng))}" aria-label="Directions to ${escape(p.name)}">`
       + `<span class="num">${i + 1}</span><span class="what"><b>${escape(p.name)}</b><small>${escape(street ?? p.category)}</small></span></button>`;
+    // Reserve sits beside the row (a button can't hold a button), only where an editor saved a booking link.
+    return p.reservationUrl
+      ? `<div class="row-wrap">${row}<button type="button" class="secondary reserve" data-url="${escape(p.reservationUrl)}" aria-label="Reserve at ${escape(p.name)}">Reserve</button></div>`
+      : row;
   }).join("");
 }
 
