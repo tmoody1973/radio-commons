@@ -141,4 +141,11 @@ describe("the card page", () => {
     expect(html).toContain('class="secondary details" data-url="https://fg.test/e/1"');
     expect(renderView({ view: "events", items: [{ event: { ...ev, isFree: true, pick: null }, when: "w" }] })).toContain(">Free<");
   });
+  it("an event without a photo has no tall empty block: the category sits beside its number", () => {
+    const ev = { id: "e1", title: "Jazz", startAt: "x", endAt: null, venue: null, category: "music", isFree: true, priceMin: null, priceMax: null, imageUrl: null,
+      url: "https://fg.test/e/1", calendarUrl: "https://calendar.google.com/x", isStationEvent: false, pick: null };
+    const html = renderView({ view: "events", items: [{ event: ev, when: "tonight at 8 PM" }] });
+    expect(html).not.toContain("tile-art");
+    expect(html).toContain('<div class="ev-head"><span class="badge">1</span><span class="ev-cat">music</span>');
+  });
 });
