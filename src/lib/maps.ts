@@ -22,3 +22,16 @@ export function isMapsLink(url: string): boolean {
     return false;
   }
 }
+
+const OPENABLE_HOSTS = new Set(["www.google.com", "calendar.google.com", "mke-field-guide.vercel.app"]);
+
+/** What the simulator host opens for a card: Google Maps directions, Google Calendar, and Field Guide event pages. */
+export function isOpenableLink(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "https:" || !OPENABLE_HOSTS.has(parsed.hostname)) return false;
+    return parsed.hostname !== "www.google.com" || parsed.pathname.startsWith("/maps");
+  } catch {
+    return false;
+  }
+}

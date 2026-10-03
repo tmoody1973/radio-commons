@@ -1,5 +1,6 @@
 import { backstoryFromEnv, type BackstoryClient } from "@/lib/backstory";
 import { storyCardPage } from "@/lib/card";
+import { fieldGuideFromEnv } from "@/lib/fieldGuide";
 import { buildMcpHandler } from "@/lib/mcp";
 
 // Convex and Vercel's default region are both in US East; keep the function there.
@@ -11,6 +12,6 @@ let client: BackstoryClient | undefined;
 const backstory = () => (client ??= backstoryFromEnv());
 if (process.env.BACKSTORY_CONVEX_URL) void backstory().searchStoryCards("warm up").catch(() => undefined); // not at build time in CI
 
-const handler = buildMcpHandler({ backstory, cardHtml: storyCardPage });
+const handler = buildMcpHandler({ backstory, fieldGuide: fieldGuideFromEnv, cardHtml: storyCardPage });
 
 export { handler as DELETE, handler as GET, handler as POST };

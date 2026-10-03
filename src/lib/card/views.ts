@@ -1,16 +1,21 @@
 import type { Passage, Story, StoryCardMatch } from "@/lib/backstory";
+import type { PublicEvent } from "@/lib/fieldGuide";
 import type { Badge } from "@/lib/map/geo";
 import { pinnedPlaces } from "@/lib/map/staticMap";
 import { directionsUrl, streetAddress } from "@/lib/maps";
 import { clock, monthYear } from "@/lib/speech";
 import { SITE } from "./tokens";
 
-export interface MapData { url: string; w: number; h: number; badges: Badge[] }
+export interface MapData { url: string; w: number; h: number; badges: Badge[]; anchor?: { x: number; y: number; name: string } }
+/** An event with its time already put into words ("tonight at 8 PM"), so rendering stays clock-free. */
+export interface EventItem { event: PublicEvent; when: string }
 export type CardView =
   | { view: "story"; story: Story }
   | { view: "quote"; story: Story; passages: Passage[] }
   | { view: "stories"; matches: StoryCardMatch[] }
-  | { view: "places"; story: Story; map: MapData };
+  | { view: "places"; story: Story; map: MapData }
+  | { view: "events"; items: EventItem[] }
+  | { view: "events-map"; items: EventItem[]; map: MapData };
 
 const escape = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
@@ -83,6 +88,44 @@ function placesView(story: Story, map: MapData): string {
     + `<div class="list">${placeRows(story, 3)}${total > 3 ? `<button type="button" class="secondary fullscreen">See all ${total} on the map</button>` : ""}</div></div></article>`;
 }
 
+const CAL = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>';
+
+/** "Free", "$15", "$15–25", or nothing when the guide doesn't say. */
+function price(e: PublicEvent): string {
+  if (e.isFree) return "Free";
+  if (e.priceMin === null) return "";
+  return e.priceMax !== null && e.priceMax !== e.priceMin ? `$${e.priceMin}–${e.priceMax}` : `$${e.priceMin}`;
+}
+const badge = (e: PublicEvent) => (e.pick ? "Staff pick" : e.isStationEvent ? "Radio Milwaukee" : "");
+const eventButtons = (e: PublicEvent) =>
+  `<button type="button" class="secondary calendar" data-url="${escape(e.calendarUrl)}">${CAL} Add to calendar</button>`
+  + `<button type="button" class="secondary details" data-url="${escape(e.url)}">Details</button>`;
+
+function eventsView(items: EventItem[]): string {
+  const tiles = items.slice(0, 5).map(({ event: e, when }, i) => {
+    const tag = badge(e);
+    const cost = price(e);
+    return `<article class="tile event">${e.imageUrl ? `<img class="tile-art" src="${escape(e.imageUrl)}" alt="">` : `<div class="tile-art ph cat">${escape(e.category ?? "event")}</div>`}`
+      + `<span class="badge">${i + 1}</span>${tag ? `<span class="tag">${tag}</span>` : ""}`
+      + `<span class="tile-title">${escape(e.title)}</span>`
+      + `<span class="tile-date">${escape(when)}${e.venue ? ` · ${escape(e.venue.name)}` : ""}${cost ? ` · <b>${cost}</b>` : ""}</span>`
+      + `<span class="tile-actions">${eventButtons(e)}</span></article>`;
+  }).join("");
+  return `<article class="card stories">${LOGO}<div class="carousel">${tiles}</div></article>`;
+}
+
+function eventsMapView(items: EventItem[], map: MapData): string {
+  const pins = map.badges.map((b) => `<span class="pin" style="left:${Math.round(b.x)}px;top:${Math.round(b.y)}px">${escape(b.label)}</span>`).join("")
+    + (map.anchor ? `<span class="pin anchor" style="left:${Math.round(map.anchor.x)}px;top:${Math.round(map.anchor.y)}px" title="${escape(map.anchor.name)}">★</span>` : "");
+  const rows = items.slice(0, 3).map(({ event: e, when }, i) =>
+    `<div class="row event-row"><span class="num">${i + 1}</span><span class="what"><b>${escape(e.title)}</b>`
+    + `<small>${escape(when)}${e.venue ? ` · ${escape(e.venue.name)}` : ""}${e.distanceMiles !== undefined ? ` · ${e.distanceMiles} mi` : ""}</small></span>`
+    + `<button type="button" class="secondary calendar small" data-url="${escape(e.calendarUrl)}" aria-label="Add ${escape(e.title)} to calendar">${CAL}</button></div>`).join("");
+  return `<article class="card places"><div class="top">${LOGO}<span class="meta">${map.anchor ? `Near ★ ${escape(map.anchor.name)}` : "Nearby"}</span></div>`
+    + `<div class="split"><div class="mapbox" style="width:${map.w}px;height:${map.h}px"><img data-themed src="${escape(map.url)}" width="${map.w}" height="${map.h}" alt="Map of nearby events, numbered to match the list">${pins}</div>`
+    + `<div class="list">${rows}</div></div></article>`;
+}
+
 /** The fullscreen map's frame: the pan-and-zoom map fills the screen; header and list float over it. */
 export function fullPlacesView(story: Story): string {
   const total = pinnedPlaces(story).length;
@@ -98,5 +141,7 @@ export function renderView(card: CardView): string {
     case "quote": return quoteView(card.story, card.passages);
     case "stories": return storiesView(card.matches);
     case "places": return placesView(card.story, card.map);
+    case "events": return eventsView(card.items);
+    case "events-map": return eventsMapView(card.items, card.map);
   }
 }

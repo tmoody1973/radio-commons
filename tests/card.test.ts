@@ -127,4 +127,18 @@ describe("the card page", () => {
     expect(renderView({ view: "quote", story: STORY, passages: [{ text: "Short.", startMs: 1000, speaker: null }] })).toContain("<blockquote>");
     expect(storyCardPage("k")).toMatch(/\.moments span\{[^}]*-webkit-line-clamp:1/);
   });
+  it("event tiles: escaped, with time, venue, price or Free, badges, and calendar/details buttons", () => {
+    const ev = { id: "e1", title: `Jazz ${XSS}`, startAt: "x", endAt: null, venue: { name: "Jazz <b>Gallery</b>", address: null, lat: 1, lng: 2, neighborhood: null },
+      category: "music", isFree: false, priceMin: 15, priceMax: null, imageUrl: null, url: "https://fg.test/e/1", calendarUrl: "https://calendar.google.com/x?a=1&b=2",
+      isStationEvent: true, pick: { curator: "Tarik", role: null, blurb: "b" } };
+    const html = renderView({ view: "events", items: [{ event: ev, when: "tonight at 8 PM" }] });
+    expect(html).not.toContain(XSS);
+    expect(html).toContain("Jazz &lt;b&gt;Gallery&lt;/b&gt;");
+    expect(html).toContain("tonight at 8 PM");
+    expect(html).toContain("$15");
+    expect(html).toContain("Staff pick");
+    expect(html).toContain('class="secondary calendar" data-url="https://calendar.google.com/x?a=1&amp;b=2"');
+    expect(html).toContain('class="secondary details" data-url="https://fg.test/e/1"');
+    expect(renderView({ view: "events", items: [{ event: { ...ev, isFree: true, pick: null }, when: "w" }] })).toContain(">Free<");
+  });
 });

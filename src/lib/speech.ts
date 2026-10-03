@@ -76,6 +76,7 @@ export function spokenPlaces(names: string[]): string {
   return `That story mentions ${names.length} mapped places. The first ${first.length === 2 ? "two" : "three"} are ${list}. Want directions to one?`;
 }
 
+export const NO_PLACES_FOR_EVENTS_SPEECH = "Radio Milwaukee hasn't mapped places for that story. Where should I look?";
 export const EVENTS_UNAVAILABLE_SPEECH = "I can't reach Radio Milwaukee's event guide right now.";
 const CALENDAR_OFFER = "Want to add one to your calendar?";
 const MAX_SPOKEN_EVENTS = 3;

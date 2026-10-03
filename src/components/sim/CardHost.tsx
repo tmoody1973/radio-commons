@@ -2,7 +2,7 @@
 
 import { AppBridge, PostMessageTransport } from "@modelcontextprotocol/ext-apps/app-bridge";
 import { useEffect, useRef, useState } from "react";
-import { isMapsLink } from "@/lib/maps";
+import { isOpenableLink } from "@/lib/maps";
 import styles from "./simulator.module.css";
 
 export interface CardPayload {
@@ -78,9 +78,9 @@ export function CardHost({ card, theme, displayMode, onPlaying, onAsk, onDisplay
     const win = frame.current?.contentWindow;
     if (!html || !win) return;
     const host = new AppBridge(null, { name: "radio-commons-simulator", version: "0.2.0" }, { openLinks: {} }, { hostContext: context() });
-    // The card asks; the host decides. Maps links only; a device would hand them to its own maps.
+    // The card asks; the host decides: maps, calendar and event pages only. A device would use its own apps.
     host.onopenlink = async ({ url }) => {
-      if (!isMapsLink(url)) return { isError: true };
+      if (!isOpenableLink(url)) return { isError: true };
       window.open(url, "_blank", "noopener,noreferrer");
       return {};
     };

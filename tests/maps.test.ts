@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { directionsUrl, isMapsLink, streetAddress } from "@/lib/maps";
+import { directionsUrl, isMapsLink, isOpenableLink, streetAddress } from "@/lib/maps";
 
 describe("maps helpers", () => {
   it("speaks just the street from the map service's full label", () => {
@@ -21,4 +21,13 @@ describe("maps helpers", () => {
     expect(isMapsLink("javascript:alert(1)")).toBe(false);
     expect(isMapsLink("not a url")).toBe(false);
   });
+  it("the host also opens Google Calendar and Field Guide event pages, nothing else", () => {
+    expect(isOpenableLink("https://calendar.google.com/calendar/render?action=TEMPLATE&text=x")).toBe(true);
+    expect(isOpenableLink("https://mke-field-guide.vercel.app/events/jazz-jam")).toBe(true);
+    expect(isOpenableLink("https://www.google.com/maps/dir/?api=1&destination=x")).toBe(true);
+    expect(isOpenableLink("https://evil.example/calendar")).toBe(false);
+    expect(isOpenableLink("https://mke-field-guide.vercel.app.evil.example/x")).toBe(false);
+    expect(isOpenableLink("javascript:alert(1)")).toBe(false);
+  });
 });
+
