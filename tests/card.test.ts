@@ -63,4 +63,14 @@ describe("story card", () => {
     expect(html.match(/class="directions"/g)).toHaveLength(1); // the unpinned place gets none
     expect(storyCardPage()).toContain("app.openLink(");
   });
+  it("lists passages from the episode, escaped, each with a play-from-here button", () => {
+    const html = renderCard(STORY, [{ text: "<img src=x onerror=alert(1)> 'great'", startMs: 1_122_400, speaker: "Ann <b>C</b>" }]);
+    expect(html).toContain("<h3>From the episode</h3>");
+    expect(html).not.toContain("<img src=x");
+    expect(html).toContain("&lt;img src=x onerror=alert(1)&gt;");
+    expect(html).toContain("Ann &lt;b&gt;C&lt;/b&gt;");
+    expect(html).toContain('<button type="button" class="play-from" data-start="1122" aria-label="Play from 18:42">▶ 18:42</button>');
+    expect(renderCard(STORY)).not.toContain("From the episode");
+    expect(storyCardPage()).toContain("currentTime");
+  });
 });

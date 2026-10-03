@@ -19,6 +19,11 @@ const storySchema = z.object({
   actions: z.array(z.object({ kind: z.string(), label: z.string(), quote: z.string(), place: z.string().nullable() })),
 });
 
+const passageSchema = z.object({ text: z.string(), startMs: z.number(), speaker: z.string().nullable() });
+const askSchema = z.object({ status: z.enum(["ok", "not_allowed", "not_found"]), passages: z.array(passageSchema) });
+
+export type Passage = z.infer<typeof passageSchema>;
+export type AskResult = z.infer<typeof askSchema>;
 export type StoryCardMatch = z.infer<typeof matchSchema>;
 export type Story = z.infer<typeof storySchema>;
 
@@ -27,6 +32,8 @@ export class BackstoryUnavailable extends Error {}
 export interface BackstoryClient {
   searchStoryCards(text: string, showSlug?: string): Promise<StoryCardMatch[]>;
   getStory(storyId: string): Promise<Story | null>;
+  /** Short, guarded transcript passages from one published episode (Backstory decides what's allowed). */
+  askStory(storyId: string, question: string): Promise<AskResult>;
 }
 
 type Query = (name: string, args: Record<string, unknown>) => Promise<unknown>;
@@ -55,6 +62,7 @@ export function createBackstoryClient({ query, timeoutMs = 350 }: { query: Query
     searchStoryCards: (text, showSlug) =>
       call("public:searchStoryCards", showSlug ? { text, showSlug } : { text }, z.array(matchSchema)),
     getStory: (storyId) => call("public:getStory", { storyId }, storySchema.nullable()),
+    askStory: (storyId, question) => call("public:askStory", { storyId, question }, askSchema),
   };
 }
 

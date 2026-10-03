@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Story } from "@/lib/backstory";
-import { directAudioUrl, monthYear, spokenMatches, spokenStory } from "@/lib/speech";
+import { NOT_ALLOWED_SPEECH, NO_PASSAGE_SPEECH, clock, directAudioUrl, monthYear, spokenMatches, spokenPassages, spokenStory } from "@/lib/speech";
 
 const STORY: Story = {
   storyId: "s1", show: "Uniquely Milwaukee", title: "Creativity is sustainable, accessible at 414 Art Revival",
@@ -41,5 +41,18 @@ describe("speech", () => {
   it("offers directions with the street when the place has an address", () => {
     const withAddress = { ...STORY, places: [{ ...STORY.places[0], address: "414 Art Revival, 8004 W National Ave, Milwaukee, WI 53214-4554, United States" }] };
     expect(spokenStory(withAddress)).toMatch(/Would you like directions to 414 Art Revival at 8004 W National Ave, or to hear the episode\?$/);
+  });
+  it("says when in the episode a passage is heard", () => {
+    expect(clock(1_122_000)).toBe("18:42");
+    expect(clock(5_000)).toBe("0:05");
+    expect(clock(3_725_000)).toBe("1:02:05");
+  });
+  it("quotes passages with the time and a confirmed speaker, then offers that part", () => {
+    expect(spokenPassages([{ text: "The stromboli is the deal.", startMs: 1_122_000, speaker: "Ann Christenson" }]))
+      .toBe("At 18:42, Ann Christenson says: 'The stromboli is the deal.' Want to hear that part?");
+    expect(spokenPassages([{ text: "A.", startMs: 0, speaker: null }, { text: "B.", startMs: 61_000, speaker: null }]))
+      .toBe("At 0:00, the episode says: 'A.' At 1:01, the episode says: 'B.' Want to hear that part?");
+    expect(spokenPassages([])).toBe(NO_PASSAGE_SPEECH);
+    expect(NOT_ALLOWED_SPEECH).toBe("Detailed answers aren't available for this episode.");
   });
 });

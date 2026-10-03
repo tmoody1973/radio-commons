@@ -3,7 +3,7 @@ import { createMcpHandler } from "mcp-handler";
 import { z } from "zod";
 import { BackstoryUnavailable, type BackstoryClient } from "@/lib/backstory";
 import { renderCard } from "@/lib/card";
-import { directAudioUrl, NOT_FOUND_SPEECH, spokenMatches, spokenStory, UNAVAILABLE_SPEECH } from "@/lib/speech";
+import { directAudioUrl, NOT_ALLOWED_SPEECH, NOT_FOUND_SPEECH, spokenMatches, spokenPassages, spokenStory, UNAVAILABLE_SPEECH } from "@/lib/speech";
 import { getStation } from "@/lib/stations";
 
 export const CARD_URI = "ui://radio-commons/story-card.html";
@@ -81,6 +81,30 @@ export function buildMcpHandler(deps: Deps) {
             if (!story) return { content: text(NOT_FOUND_SPEECH) };
             const clean = { ...story, audioUrl: directAudioUrl(story.audioUrl) };
             return { content: text(spokenStory(clean)), structuredContent: { stationId: station.stationId, story: clean, cardHtml: renderCard(clean) } };
+          }, unavailable),
+      );
+
+      registerAppTool(
+        server,
+        "ask_station_story",
+        {
+          title: "Answer a detail question about a Radio Milwaukee story",
+          description:
+            "Answer a listener's detail question about one Radio Milwaukee story using the station's own words. Quote the passages exactly, say when in the episode each is heard, and never add facts. If detailed answers aren't available or nothing matches, say so.",
+          inputSchema: z.object({ storyId: z.string().min(1).max(64), question: z.string().min(1).max(200) }),
+          _meta: { ui: { resourceUri: CARD_URI } },
+        },
+        async ({ storyId, question }) =>
+          timed("ask_station_story", async () => {
+            if (!STORY_ID.test(storyId)) return { content: text(NOT_FOUND_SPEECH) };
+            const [story, asked] = await Promise.all([deps.backstory().getStory(storyId), deps.backstory().askStory(storyId, question)]);
+            if (!story || asked.status === "not_found") return { content: text(NOT_FOUND_SPEECH) };
+            if (asked.status === "not_allowed") return { content: text(NOT_ALLOWED_SPEECH) };
+            const clean = { ...story, audioUrl: directAudioUrl(story.audioUrl) };
+            return {
+              content: text(spokenPassages(asked.passages)),
+              structuredContent: { stationId: station.stationId, story: clean, passages: asked.passages, cardHtml: renderCard(clean, asked.passages) },
+            };
           }, unavailable),
       );
 
