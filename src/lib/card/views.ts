@@ -106,7 +106,8 @@ function eventsView(items: EventItem[]): string {
     const tag = badge(e);
     const cost = price(e);
     // No photo, no empty block: the category sits beside the number so the buttons stay on the card.
-    return `<article class="tile event">${e.imageUrl ? `<img class="tile-art" src="${escape(e.imageUrl)}" alt="">` : ""}`
+    // No outside photos: event images live on many other sites, which a real Alexa+ screen would block.
+    return `<article class="tile event">`
       + `<div class="ev-head"><span class="badge">${i + 1}</span><span class="ev-cat">${escape(e.category ?? "event")}</span>${tag ? `<span class="tag">${tag}</span>` : ""}</div>`
       + `<span class="tile-title">${escape(e.title)}</span>`
       + `<span class="tile-date">${escape(when)}${e.venue ? ` · ${escape(e.venue.name)}` : ""}${cost ? ` · <b>${cost}</b>` : ""}</span>`
@@ -117,7 +118,8 @@ function eventsView(items: EventItem[]): string {
 
 function eventsMapView(items: EventItem[], map: MapData): string {
   const pins = map.badges.map((b) => `<span class="pin" style="left:${Math.round(b.x)}px;top:${Math.round(b.y)}px">${escape(b.label)}</span>`).join("")
-    + (map.anchor ? `<span class="pin anchor" style="left:${Math.round(map.anchor.x)}px;top:${Math.round(map.anchor.y)}px" title="${escape(map.anchor.name)}">★</span>` : "");
+    // The star is dropped where it would cover a numbered pin (events at the story's own place).
+    + (map.anchor && !map.badges.some((b) => Math.hypot(b.x - map.anchor!.x, b.y - map.anchor!.y) < 36) ? `<span class="pin anchor" style="left:${Math.round(map.anchor.x)}px;top:${Math.round(map.anchor.y)}px" title="${escape(map.anchor.name)}">★</span>` : "");
   const rows = items.slice(0, 3).map(({ event: e, when }, i) =>
     `<div class="row event-row"><span class="num">${i + 1}</span><span class="what"><b>${escape(e.title)}</b>`
     + `<small>${escape(when)}${e.venue ? ` · ${escape(e.venue.name)}` : ""}${e.distanceMiles !== undefined ? ` · ${e.distanceMiles} mi` : ""}</small></span>`
