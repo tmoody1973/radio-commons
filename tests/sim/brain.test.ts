@@ -117,4 +117,7 @@ describe("brain", () => {
     });
     expect(result.reply).toBe("From This Bites. Want directions?");
   });
+  it("searches first for any local place, person, business or event, even when it isn't asked as a story", () => {
+    expect(SYSTEM_PROMPT).toMatch(/any question about a Milwaukee place, person, business or event/i);
+  });
 });
