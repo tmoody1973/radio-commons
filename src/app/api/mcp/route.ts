@@ -12,6 +12,9 @@ let client: BackstoryClient | undefined;
 const backstory = () => (client ??= backstoryFromEnv());
 if (process.env.BACKSTORY_CONVEX_URL) void backstory().searchStoryCards("warm up").catch(() => undefined); // not at build time in CI
 
+// Wake the Field Guide too: its first answer after a quiet spell is slow (server and database both starting).
+if (process.env.BACKSTORY_CONVEX_URL) void fieldGuideFromEnv().picks().catch(() => undefined);
+
 const handler = buildMcpHandler({ backstory, fieldGuide: fieldGuideFromEnv, cardHtml: storyCardPage });
 
 export { handler as DELETE, handler as GET, handler as POST };

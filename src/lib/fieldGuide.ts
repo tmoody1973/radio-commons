@@ -27,7 +27,7 @@ export interface FieldGuideClient {
 type Fetch = (url: string, init?: RequestInit) => Promise<Response>;
 
 /** Every call has a deadline and a checked shape; anything else is "unavailable", never partial data. */
-export function createFieldGuideClient({ baseUrl, fetch: get = fetch, timeoutMs = 800 }: { baseUrl: string; fetch?: Fetch; timeoutMs?: number }): FieldGuideClient {
+export function createFieldGuideClient({ baseUrl, fetch: get = fetch, timeoutMs = 2000 }: { baseUrl: string; fetch?: Fetch; timeoutMs?: number }): FieldGuideClient {
   async function call(path: string): Promise<PublicEvent[]> {
     try {
       const response = await get(`${baseUrl}${path}`, { signal: AbortSignal.timeout(timeoutMs) });
