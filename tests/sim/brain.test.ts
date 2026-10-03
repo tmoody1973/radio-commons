@@ -135,5 +135,9 @@ describe("brain", () => {
     });
     expect(result.lastStory).toMatchObject({ view: "stories" });
   });
+  it("keeps a list in the tool's order and never invents which story is newer", () => {
+    expect(SYSTEM_PROMPT).toMatch(/keep the tool's order and numbers/i);
+    expect(SYSTEM_PROMPT).toMatch(/never call one newer or older/i);
+  });
 });
 
