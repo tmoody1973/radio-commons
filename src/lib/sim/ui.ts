@@ -8,7 +8,8 @@ const MAX_HISTORY = 20;
  */
 export function nextHistory(history: ChatMessage[], heard: string, reply: string, onScreen?: { storyId: string; title: string }): ChatMessage[] {
   if (!heard) return history;
-  const remembered = onScreen ? `${reply} [On screen: "${onScreen.title}", storyId ${onScreen.storyId}]` : reply;
+  const title = onScreen?.title.replace(/["[\]]/g, "");
+  const remembered = onScreen ? `${reply} [On screen: "${title}", storyId ${onScreen.storyId}]` : reply;
   return [...history, { role: "user" as const, text: heard }, { role: "assistant" as const, text: remembered }].slice(-MAX_HISTORY);
 }
 

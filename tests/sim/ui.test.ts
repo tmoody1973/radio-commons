@@ -12,6 +12,9 @@ describe("simulator page helpers", () => {
     expect(nextHistory([], "frugal dining", "From This Bites…", { storyId: "jn79", title: "Frugal dining" }).at(-1))
       .toEqual({ role: "assistant", text: 'From This Bites… [On screen: "Frugal dining", storyId jn79]' });
   });
+  it("keeps a title from breaking the on-screen note", () => {
+    expect(nextHistory([], "q", "r", { storyId: "jn79", title: 'The "Best" [Bites]' }).at(-1)?.text).toBe('r [On screen: "The Best Bites", storyId jn79]');
+  });
   it("skips an empty heard turn", () => {
     expect(nextHistory([], "", "Sorry, I didn't catch that.")).toEqual([]);
   });

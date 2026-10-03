@@ -51,7 +51,7 @@ describe("speech", () => {
     expect(spokenPassages([{ text: "The stromboli is the deal.", startMs: 1_122_000, speaker: "Ann Christenson" }]))
       .toBe("At 18:42, Ann Christenson says: 'The stromboli is the deal.' Want to hear that part?");
     expect(spokenPassages([{ text: "A.", startMs: 0, speaker: null }, { text: "B.", startMs: 61_000, speaker: null }]))
-      .toBe("At 0:00, the episode says: 'A.' At 1:01, the episode says: 'B.' Want to hear that part?");
+      .toBe("At 0:00, the episode says: 'A.' One more moment is on the screen. Want to hear that part?");
     expect(spokenPassages([])).toBe(NO_PASSAGE_SPEECH);
     expect(NOT_ALLOWED_SPEECH).toBe("Detailed answers aren't available for this episode.");
   });

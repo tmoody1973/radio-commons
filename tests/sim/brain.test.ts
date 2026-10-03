@@ -109,4 +109,12 @@ describe("brain", () => {
     });
     expect(result.lastStory).toMatchObject({ story: { storyId: "s1" } });
   });
+  it("lets a quote run past the two-sentence rule, and never speaks the on-screen note", async () => {
+    expect(SYSTEM_PROMPT).toMatch(/quote .* even if it is longer/i);
+    const result = await runBrain({
+      history: [{ role: "user", text: "q" }], tools: TOOLS, callTool: async () => ({ text: "x", structured: null, isError: false }),
+      converse: scripted(say('From This Bites. [On screen: "Frugal dining", storyId jn79] Want directions?')),
+    });
+    expect(result.reply).toBe("From This Bites. Want directions?");
+  });
 });
