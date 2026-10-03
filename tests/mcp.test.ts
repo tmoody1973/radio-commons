@@ -8,12 +8,12 @@ const handlerWith = (backstory = fakeBackstory()) => buildMcpHandler({ backstory
 const call = (name: string, args: Record<string, unknown>) => ({ method: "tools/call", params: { name, arguments: args } });
 
 describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
-  it("initializes on protocol 2025-11-25 and lists the three tools", async () => {
+  it("initializes on protocol 2025-11-25 and lists the four tools", async () => {
     const handler = handlerWith();
     const init = await mcpPost(handler, INITIALIZE);
     expect(init.message.result?.protocolVersion).toBe("2025-11-25");
     const tools = await mcpPost(handler, { method: "tools/list" }, 2);
-    expect(tools.message.result.tools.map((t: { name: string }) => t.name).sort()).toEqual(["ask_station_story", "find_station_story", "get_station_story"]);
+    expect(tools.message.result.tools.map((t: { name: string }) => t.name).sort()).toEqual(["ask_station_story", "find_station_story", "get_station_story", "latest_station_stories"]);
   });
 
   it("find_station_story returns matches and a spoken shortlist", async () => {
@@ -87,4 +87,54 @@ describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
     expect(message.result.isError).toBe(true);
     expect(message.result.structuredContent).toBeUndefined();
   });
+
+  it("every tool shows the one Radio Milwaukee card", async () => {
+    const tools = (await mcpPost(handlerWith(), { method: "tools/list" })).message.result.tools;
+    for (const tool of tools) expect(tool._meta?.ui?.resourceUri).toBe("ui://radio-commons/story-card.html");
+  });
+
+  it("find_station_story shows the matches as a numbered carousel", async () => {
+    const { message } = await mcpPost(handlerWith(), call("find_station_story", { description: "art shop in West Allis" }));
+    expect(message.result.structuredContent.view).toBe("stories");
+    expect(message.result.structuredContent.cardHtml).toContain('<span class="badge">1</span>');
+  });
+
+  it("a match found in a transcript says where it's mentioned", async () => {
+    const hinted = fakeBackstory({ searchStoryCards: async () => [{ ...(await fakeBackstory().searchStoryCards("x"))[0], hint: 'Mentioned at 10:45: "They call them stromboli."' }] });
+    const { message } = await mcpPost(handlerWith(hinted), call("find_station_story", { description: "stromboli" }));
+    expect(message.result.content[0].text).toContain('Mentioned at 10:45: "They call them stromboli."');
+  });
+
+  it("latest_station_stories reads the newest stories and shows them as a carousel", async () => {
+    const { message } = await mcpPost(handlerWith(), call("latest_station_stories", { show: "this-bites" }));
+    expect(message.result.content[0].text).toBe("The newest Radio Milwaukee stories: 1, Newest, from This Bites, October 2026; 2, Older, from This Bites, September 2026. Which one?");
+    expect(message.result.structuredContent.view).toBe("stories");
+  });
+
+  it("get_station_story with view places shows the map with matching numbers, and the fullscreen map's data", async () => {
+    const { message } = await mcpPost(handlerWith(), call("get_station_story", { storyId: STORY.storyId, view: "places" }));
+    const data = message.result.structuredContent;
+    expect(message.result.content[0].text).toBe("That story mentions one mapped place: 414 Art Revival. Want directions?");
+    expect(data.view).toBe("places");
+    expect(data.cardHtml).toContain("/api/map?story=" + STORY.storyId);
+    expect(data.cardHtml).toContain("data-themed");
+    // A version from the pins' locations: re-pinning a place changes the address, so a cached old map can't show.
+    expect(data.cardHtml).toMatch(/&amp;v=[a-z0-9]{6,}/);
+    expect(data.fullHtml).toContain('id="fullmap"');
+    expect(data.mapPlaces).toEqual([{ numbers: [1], lat: 43.01, lng: -88.01 }]);
+  });
+
+  it("asking for places when none are mapped says so and shows the story", async () => {
+    const none = fakeBackstory({ getStory: async () => ({ ...STORY, places: [] }) });
+    const { message } = await mcpPost(handlerWith(none), call("get_station_story", { storyId: STORY.storyId, view: "places" }));
+    expect(message.result.content[0].text).toBe("Radio Milwaukee hasn't mapped places for that story.");
+    expect(message.result.structuredContent.view).toBe("story");
+  });
+
+  it("ask_station_story shows the quote view", async () => {
+    const { message } = await mcpPost(handlerWith(), call("ask_station_story", { storyId: STORY.storyId, question: "what do they sell" }));
+    expect(message.result.structuredContent.view).toBe("quote");
+    expect(message.result.structuredContent.cardHtml).toContain("<blockquote>");
+  });
 });
+

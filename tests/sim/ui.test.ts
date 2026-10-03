@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { nextHistory, trailLabel } from "@/lib/sim/ui";
+import { cardAfterTurn, nextHistory, trailLabel } from "@/lib/sim/ui";
 
 describe("simulator page helpers", () => {
   it("keeps the last 20 messages of the conversation", () => {
@@ -14,6 +14,12 @@ describe("simulator page helpers", () => {
   });
   it("keeps a title from breaking the on-screen note", () => {
     expect(nextHistory([], "q", "r", { storyId: "jn79", title: 'The "Best" [Bites]' }).at(-1)?.text).toBe('r [On screen: "The Best Bites", storyId jn79]');
+  });
+  it("clears the screen when a search found nothing, keeps it for a turn that called no tool", () => {
+    const tool = { kind: "tool" as const, name: "find_station_story", input: {}, ms: 1, isError: false, summary: "I couldn't find" };
+    expect(cardAfterTurn("old", null, [tool])).toBeNull();
+    expect(cardAfterTurn("old", null, [])).toBe("old");
+    expect(cardAfterTurn("old", "new", [tool])).toBe("new");
   });
   it("skips an empty heard turn", () => {
     expect(nextHistory([], "", "Sorry, I didn't catch that.")).toEqual([]);

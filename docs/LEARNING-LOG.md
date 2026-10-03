@@ -38,3 +38,17 @@
 - Tapping ▶ 10:45 starts the episode at second 645, measured in the card itself.
 
 **What we now believe:** prompt rules don't stop a model from guessing an id; giving it the id does. Anything the simulator drops from the conversation becomes a failure Alexa+ wouldn't have, so the simulator should carry context the way the real host does. And every flow needs at least one multi-turn run in a real browser, repeated, because single runs hide failures that happen half the time.
+
+## 2026-10-03: redesigning the card to Amazon's guide, and putting real maps on it
+
+**What we expected:** a restyle, mostly CSS, plus dropping a map picture into the card.
+
+**What happened:**
+- The design rules existed all along: Amazon's MCP Design Guide for Alexa+ (nine pages) says one title, one or two fields, one action, a 768×480 base scaled up, light and dark, 48 px buttons, and only four layouts. The first card broke nearly all of them because it was designed from a bullet point.
+- Amazon's static map took four live tries: coordinates with too many decimals were refused; the default style is satellite, which can't be light or dark; and its zoom numbers didn't line up with the pin math even after a one-level correction. Asking for the exact corners of the area (a bounding box) instead of a zoom made the pins land on the right streets.
+- Only a screenshot showed the pins were wrong. Every unit test passed while Ted's Ice Cream sat near West Bend.
+- The pan-and-zoom map drifted its pins because each pin was scaled with CSS zoom; sizing them directly fixed it.
+- Real places shaped the design: two restaurants share an address, a third is in Mequon, and 9 of 10 have no neighborhood set, so the list shows the street.
+- Alexa read a list in the right order but then called the older episode "newer"; a one-line rule fixed it.
+
+**What we now believe:** for anything a person looks at, read the platform's design guide first and check every view in a real browser at real size. For anything with coordinates, overlay the result on the real map before trusting it.

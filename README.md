@@ -10,14 +10,17 @@ Pilot station: [Radio Milwaukee](https://radiomilwaukee.org). Built for the Amaz
 Listener ──voice──▶ Alexa+ ──MCP, Streamable HTTP──▶ radio-commons (Next.js on Vercel)
                                                       ├─ /api/mcp          tools (mcp-handler)
                                                       ├─ story card        MCP App (ui://radio-commons/story-card.html)
+                                                      ├─ /api/map          Amazon Location map pictures (key stays server-side)
                                                       └─ stations.ts       stationId "radiomilwaukee"
                                                       ▼
                                        Backstory (Convex): editor-published stories only
 ```
 
-- **`find_station_story`** turns a listener's description into up to three published stories, read back as a short list. If nothing matches well enough, it says so; it never guesses.
-- **`get_station_story`** tells one story: the station's published summary, its source ("From Uniquely Milwaukee, September 2026"), and one next step (directions to the place in the story, or the episode). On screens it returns a story card with the show's artwork, places, things to do and a Play button.
+- **`find_station_story`** turns a listener's description into up to three published stories, read back as a short numbered list. It also finds a story by something said in it ("the episode where they talked about stromboli"), but only in episodes whose detailed answers are on. If nothing matches well enough, it says so; it never guesses.
+- **`latest_station_stories`** reads the newest stories, optionally for one show ("What's new on This Bites?").
+- **`get_station_story`** tells one story: the station's published summary, its source ("From Uniquely Milwaukee, September 2026"), and one next step. With `view: "places"` it shows the story's places numbered on a map.
 - **`ask_station_story`** answers a detail question about one story ("What did they say about the stromboli?") with the episode's own words: up to three short transcript passages, each with the moment it's heard ("At 10:45 …"), which the card can play from. Only published episodes an editor allows (This Bites by default; Uniquely Milwaukee only when switched on), and never a passage naming someone an editor removed or kept off Alexa.
+- **On screens**, every tool returns one card in Amazon's [MCP Design Guide for Alexa+](https://developer.amazon.com/docs/alexaplus/add-ons/mcp-addon-design-guide-overview.html) patterns: a **story card** (artwork, title, ▶ Play episode, Places), a **quote card** (▶ Play from 10:45), a **carousel** (numbered, tap to pick) or a **map** (Amazon Location, numbered pins matching a list; "See all" opens a pan-and-zoom fullscreen map). Cards are authored at Amazon's 768×480 base and scale to the screen, in light and dark.
 - Story data comes from [Backstory](https://github.com/tmoody1973/backstory), the station's story engine: podcasts are transcribed and every person, place and action is checked against a word-for-word quote from the episode, then **approved by an editor** before Alexa can read it.
 
 **Trust rules:** only editor-published stories; every answer names its show and month; summaries are described as the station's, never as the assistant's; no invented stories; the database is never exposed to Alexa directly.

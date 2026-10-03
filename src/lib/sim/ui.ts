@@ -30,3 +30,9 @@ export function trailLabel(entry: TrailEntry): string {
   }
 }
 
+
+/** What the screen shows after a turn: the new card; none if a tool ran and found nothing to show; else the old one. */
+export function cardAfterTurn<T>(previous: T | null, next: T | null, trail: TrailEntry[]): T | null {
+  if (next) return next;
+  return trail.some((entry) => entry.kind === "tool") ? null : previous;
+}
