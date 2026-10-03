@@ -10,8 +10,9 @@ describe("staticMapUrl", () => {
   it("asks Amazon for its sharp (@2x) image of the area, with coordinates Amazon accepts", () => {
     const url = new URL(staticMapUrl({ center: { lat: 43.04812345678901234, lng: -87.9876543210987654 }, zoom: 11.5 }, 300, 250, "dark", "KEY"));
     expect(url.origin + url.pathname).toBe("https://maps.geo.us-east-1.amazonaws.com/v2/static/map@2x");
-    // Amazon allows at most 14 decimal places; 6 is about 10 cm.
-    expect(Object.fromEntries(url.searchParams)).toEqual({ style: "Standard", center: "-87.987654,43.048123", zoom: "11.5", width: "300", height: "250", "color-scheme": "Dark", key: "KEY" });
+    // Amazon allows at most 14 decimal places; 6 is about 10 cm. Its static zoom counts 256-px tiles:
+    // one level above our 512-px frame zoom shows the same area (checked against a live image, 2026-10-03).
+    expect(Object.fromEntries(url.searchParams)).toEqual({ style: "Standard", center: "-87.987654,43.048123", zoom: "12.5", width: "300", height: "250", "color-scheme": "Dark", key: "KEY" });
   });
 });
 

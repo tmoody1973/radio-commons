@@ -14,7 +14,8 @@ export function staticMapUrl(frame: Frame, w: number, h: number, theme: "light" 
     style: "Standard", // Amazon's default is Satellite, which has no light/dark
     // Amazon allows at most 14 decimal places; 6 is about 10 cm.
     center: `${frame.center.lng.toFixed(6)},${frame.center.lat.toFixed(6)}`,
-    zoom: String(frame.zoom),
+    // Amazon's static zoom counts 256-px tiles; our frame (and the pins) use 512-px tiles, one level apart.
+    zoom: String(frame.zoom + 1),
     width: String(w),
     height: String(h),
     "color-scheme": theme === "dark" ? "Dark" : "Light",
