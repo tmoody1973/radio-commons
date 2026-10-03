@@ -32,8 +32,8 @@ button{font:inherit;cursor:pointer;border:0}
 .top{display:flex;justify-content:space-between;align-items:center;gap:16px}
 .source{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--muted);min-width:0}.thumb{width:40px;height:40px;border-radius:8px;object-fit:cover}
 .said{flex:1;display:flex;flex-direction:column;justify-content:center;gap:10px}
-blockquote{margin:0;font-size:40px;line-height:1.1;font-weight:700}
-.moments{list-style:none;margin:0;padding:0;display:grid;gap:6px;font-size:14px;color:var(--muted)}.moments li{display:flex;align-items:center;gap:10px}
+blockquote{margin:0;font-size:40px;line-height:1.1;font-weight:700}blockquote.q-mid{font-size:28px}blockquote.q-long{font-size:22px;line-height:1.25}
+.moments{list-style:none;margin:0;padding:0;display:grid;gap:6px;font-size:14px;color:var(--muted)}.moments li{display:flex;align-items:center;gap:10px}.moments span{display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
 .carousel{display:flex;gap:16px;overflow-x:auto;padding-bottom:4px}
 .tile{position:relative;flex:0 0 224px;padding:0;border-radius:16px;background:var(--inner);color:var(--text);text-align:left;overflow:hidden;display:flex;flex-direction:column}
 .tile-art{width:100%;height:132px;object-fit:cover;display:block}
@@ -154,7 +154,8 @@ applyContext();`;
 let cached: { key: string; html: string } | null = null;
 
 /** The MCP App page Alexa+ shows on screens: the official App bundle inline, then it renders the view each tool returns. */
-export function storyCardPage(mapKey = process.env.AMAZON_LOCATION_API_KEY ?? ""): string {
+// The browser key can only fetch map tiles (pan and zoom); the map-picture key stays on the server (/api/map).
+export function storyCardPage(mapKey = process.env.AMAZON_LOCATION_BROWSER_KEY ?? ""): string {
   if (cached?.key !== mapKey) {
     const html = `<!doctype html><html lang="en" data-theme="light"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">`
       + `<title>Radio Milwaukee story</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;600;700&display=swap">`

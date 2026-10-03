@@ -54,7 +54,8 @@ function quoteView(story: Story, passages: Passage[]): string {
     : "";
   return `<article class="card quote"><div class="top">${LOGO}<div class="source">${art(story.imageUrl, story.show, "thumb")}<span>${escape(story.show)} · ${escape(story.title)}</span></div></div>`
     + `<div class="said"><p class="meta">From the episode · ${clock(first.startMs)}${first.speaker ? ` · ${escape(first.speaker)}` : ""}</p>`
-    + `<blockquote>“${escape(first.text)}”</blockquote></div>${others}`
+    // Long quotes get smaller type so "Play from …" stays on the card.
+    + `<blockquote${first.text.length > 180 ? ' class="q-long"' : first.text.length > 90 ? ' class="q-mid"' : ""}>“${escape(first.text)}”</blockquote></div>${others}`
     + `<div class="actions">${from(first, "primary", `Play from ${clock(first.startMs)}`)}<button type="button" class="secondary play" data-audio="${audio}">Whole episode</button></div></article>`;
 }
 

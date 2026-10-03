@@ -118,6 +118,8 @@ describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
     expect(data.view).toBe("places");
     expect(data.cardHtml).toContain("/api/map?story=" + STORY.storyId);
     expect(data.cardHtml).toContain("data-themed");
+    // A version from the pins' locations: re-pinning a place changes the address, so a cached old map can't show.
+    expect(data.cardHtml).toMatch(/&amp;v=[a-z0-9]{6,}/);
     expect(data.fullHtml).toContain('id="fullmap"');
     expect(data.mapPlaces).toEqual([{ numbers: [1], lat: 43.01, lng: -88.01 }]);
   });

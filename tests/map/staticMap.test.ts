@@ -41,8 +41,10 @@ describe("handleMap", () => {
     const spy = async (url: string) => { fetched = url; return ok(); };
     expect((await handleMap(params("story=jn7000000000000000000000000000000&w=300&h=250"), deps())).status).toBe(404);
     expect((await handleMap(params(`story=${STORY.storyId}&w=5000&h=250`), deps())).status).toBe(400);
+    expect((await handleMap(params(`story=${STORY.storyId}&w=300&h=250&n=1`), deps())).status).toBe(200);
     expect((await handleMap(params(`story=${STORY.storyId}&w=300&h=250&n=99`), deps())).status).toBe(400);
-    await handleMap(params(`story=${STORY.storyId}&w=300&h=250&center=0,0&lat=1`), deps({ fetchImage: spy }));
+    expect((await handleMap(params(`story=${STORY.storyId}&w=300&h=250&center=0,0&lat=1`), deps({ fetchImage: spy }))).status).toBe(400);
+    await handleMap(params(`story=${STORY.storyId}&w=300&h=250`), deps({ fetchImage: spy }));
     expect(fetched).toContain("bounding-box=-88.01");
   });
   it("a story with no pinned places has no map; Amazon errors never show the key", async () => {
@@ -51,5 +53,10 @@ describe("handleMap", () => {
     const res = await handleMap(params(`story=${STORY.storyId}&w=300&h=250`), deps({ fetchImage: async () => new Response("denied", { status: 403 }) }));
     expect(res.status).toBe(502);
     expect(await res.text()).not.toContain("secret");
+  });
+  it("only the card's own map size and known settings, so junk can't skip the cache", async () => {
+    expect((await handleMap(params(`story=${STORY.storyId}&w=301&h=250`), deps())).status).toBe(400);
+    expect((await handleMap(params(`story=${STORY.storyId}&w=300&h=250&zz=1`), deps())).status).toBe(400);
+    expect((await handleMap(params(`story=${STORY.storyId}&w=300&h=250&n=1&theme=dark&v=abc`), deps())).status).toBe(200);
   });
 });

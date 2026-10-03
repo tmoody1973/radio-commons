@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChatMessage, TrailEntry } from "@/lib/sim/trail";
-import { nextHistory } from "@/lib/sim/ui";
+import { cardAfterTurn, nextHistory } from "@/lib/sim/ui";
 import { CardHost, type CardPayload, type DisplayMode, type Theme } from "./CardHost";
 import styles from "./simulator.module.css";
 import { TrailPanel } from "./TrailPanel";
@@ -84,10 +84,8 @@ export function Simulator() {
       setTurns((all) => [...all, body.trail]);
       setHeard(body.heard);
       setCaptions(body.reply);
-      if (body.card) {
-        setCard(body.card);
-        setDisplayMode("inline");
-      }
+      setCard((previous) => cardAfterTurn(previous, body.card, body.trail));
+      if (body.card) setDisplayMode("inline");
       setPhase("answering");
       if (voice.current) {
         // Streams as Polly speaks, so the answer starts before the whole reply is voiced.
@@ -166,6 +164,7 @@ export function Simulator() {
   }, []);
 
   const askFromCard = useCallback((text: string) => {
+    if (busy.current) return; // a double-tap on a card mustn't start a second answer
     const form = new FormData();
     form.set("text", text.slice(0, 300));
     void send(form);

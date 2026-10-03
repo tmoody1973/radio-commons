@@ -36,7 +36,7 @@ export interface Badge extends Point { label: string; numbers: number[] }
 
 /**
  * One badge per place, numbered from 1 in list order; places closer than `minDistance` px share a badge
- * ("2 places") so overlapping pins stay readable from across the room.
+ * ("2·3") so overlapping pins stay readable from across the room.
  */
 export function clusterPins(pins: Point[], minDistance = 36): Badge[] {
   const badges: Badge[] = [];
@@ -45,7 +45,8 @@ export function clusterPins(pins: Point[], minDistance = 36): Badge[] {
     if (near) near.numbers.push(i + 1);
     else badges.push({ x: pin.x, y: pin.y, numbers: [i + 1], label: "" });
   });
-  return badges.map((b) => ({ label: b.numbers.length === 1 ? String(b.numbers[0]) : `${b.numbers.length} places`, numbers: b.numbers, x: b.x, y: b.y }));
+  // A shared badge names its numbers ("2·3") so it matches the list beside the map.
+  return badges.map((b) => ({ label: b.numbers.join("·"), numbers: b.numbers, x: b.x, y: b.y }));
 }
 
 /** The south-west and north-east corners of a w×h image of `frame`: the exact area the pins are placed on. */

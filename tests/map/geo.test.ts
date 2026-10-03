@@ -36,9 +36,12 @@ describe("clusterPins", () => {
   it("one badge for places at the same address, separate badges when far apart", () => {
     const pins = [{ x: 10, y: 10 }, { x: 200, y: 200 }, { x: 12, y: 11 }];
     expect(clusterPins(pins)).toEqual([
-      { label: "2 places", numbers: [1, 3], x: 10, y: 10 },
+      { label: "1·3", numbers: [1, 3], x: 10, y: 10 },
       { label: "2", numbers: [2], x: 200, y: 200 },
     ]);
     expect(clusterPins([{ x: 0, y: 0 }, { x: 36, y: 0 }])).toHaveLength(2);
+  });
+  it("a cluster badge names its numbers, matching the list", () => {
+    expect(clusterPins([{ x: 10, y: 10 }, { x: 11, y: 10 }])[0].label).toBe("1·2");
   });
 });

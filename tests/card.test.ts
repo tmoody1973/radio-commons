@@ -78,13 +78,13 @@ describe("stories view (Carousel pattern)", () => {
 describe("places view (Map pattern)", () => {
   const map = {
     url: "https://radio-commons.vercel.app/api/map?story=s1&w=300&h=250&n=3&theme=light", w: 300, h: 250,
-    badges: [{ label: "1", numbers: [1], x: 118.4, y: 30.5 }, { label: "2 places", numbers: [2, 3], x: 181, y: 127 }],
+    badges: [{ label: "1", numbers: [1], x: 118.4, y: 30.5 }, { label: "2·3", numbers: [2, 3], x: 181, y: 127 }],
   };
   const html = renderView({ view: "places", story: STORY, map });
   it("the map with numbered badges where the places are, and a matching list", () => {
     expect(html).toContain(`src="${map.url.replace(/&/g, "&amp;")}"`);
     expect(html).toContain('style="left:118px;top:31px"');
-    expect(html).toContain(">2 places</span>");
+    expect(html).toContain(">2·3</span>");
     expect(html).toContain("6204 W North Ave");
     expect(html).toContain('class="row directions"');
   });
@@ -110,5 +110,21 @@ describe("the card page", () => {
     expect(page).toContain("maplibre-gl");
     expect(page).toContain("maps.geo.us-east-1.amazonaws.com/v2/styles/Standard/descriptor");
     expect(page).toContain("v1.public.MAPKEY");
+  });
+  it("embeds only the browser (tiles) key, never the server's map-picture key", () => {
+    const before = { ...process.env };
+    process.env.AMAZON_LOCATION_API_KEY = "v1.public.SERVERKEY";
+    process.env.AMAZON_LOCATION_BROWSER_KEY = "v1.public.BROWSERKEY";
+    const html = storyCardPage();
+    process.env = before;
+    expect(html).toContain("v1.public.BROWSERKEY");
+    expect(html).not.toContain("SERVERKEY");
+  });
+  it("a long quote gets smaller type so Play stays on the card; extra moments stay one line", () => {
+    const long = "word ".repeat(56).trim(); // ~280 characters
+    const html = renderView({ view: "quote", story: STORY, passages: [{ text: long, startMs: 1000, speaker: null }, { text: long, startMs: 2000, speaker: null }] });
+    expect(html).toContain('<blockquote class="q-long">');
+    expect(renderView({ view: "quote", story: STORY, passages: [{ text: "Short.", startMs: 1000, speaker: null }] })).toContain("<blockquote>");
+    expect(storyCardPage("k")).toMatch(/\.moments span\{[^}]*-webkit-line-clamp:1/);
   });
 });

@@ -3,6 +3,10 @@ import { frameBounds, mapFrame, type Frame } from "@/lib/map/geo";
 
 const STATIC_MAP = "https://maps.geo.us-east-1.amazonaws.com/v2/static/map";
 const STORY_ID = /^[a-z0-9]{1,64}$/;
+/** The card's inline map size at its 768-px base canvas: the only size this route draws. */
+export const MAP_W = 300;
+export const MAP_H = 250;
+const KNOWN = new Set(["story", "w", "h", "n", "theme", "v"]);
 
 /** The story's places that have a pin, in story order. */
 export const pinnedPlaces = (story: Story) =>
@@ -43,10 +47,11 @@ const int = (value: string | null, min: number, max: number, fallback?: number) 
  */
 export async function handleMap(query: URLSearchParams, deps: MapDeps): Promise<Response> {
   const storyId = query.get("story") ?? "";
-  const w = int(query.get("w"), 100, 800);
-  const h = int(query.get("h"), 100, 800);
   const n = int(query.get("n"), 1, 10, 10);
-  if (!STORY_ID.test(storyId) || w === null || h === null || n === null) return fail(400, "Bad map request.");
+  const [w, h] = [Number(query.get("w")), Number(query.get("h"))];
+  // Only the card's own size and known settings: anything else would be a fresh, uncached Amazon call.
+  const unknown = [...query.keys()].some((key) => !KNOWN.has(key));
+  if (!STORY_ID.test(storyId) || w !== MAP_W || h !== MAP_H || n === null || unknown) return fail(400, "Bad map request.");
   let story: Story | null;
   try {
     story = await deps.backstory.getStory(storyId);

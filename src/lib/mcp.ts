@@ -5,7 +5,8 @@ import { BackstoryUnavailable, type BackstoryClient, type Story } from "@/lib/ba
 import { fullPlacesView, renderView, type CardView } from "@/lib/card";
 import { SITE } from "@/lib/card/tokens";
 import { clusterPins, mapFrame, pinPositions } from "@/lib/map/geo";
-import { pinnedPlaces } from "@/lib/map/staticMap";
+import { createHash } from "node:crypto";
+import { MAP_H, MAP_W, pinnedPlaces } from "@/lib/map/staticMap";
 import {
   directAudioUrl, NO_PLACES_SPEECH, NOT_ALLOWED_SPEECH, NOT_FOUND_SPEECH, spokenLatest, spokenMatches, spokenPassages,
   spokenPlaces, spokenStory, UNAVAILABLE_SPEECH,
@@ -22,8 +23,6 @@ const CARD_CSP = {
   ],
   connectDomains: ["https://maps.geo.us-east-1.amazonaws.com", "https://unpkg.com"],
 };
-const MAP_W = 300; // the inline map at the card's 768-px base canvas
-const MAP_H = 250;
 const INLINE_PLACES = 3;
 const CARD = { _meta: { ui: { resourceUri: CARD_URI } } };
 
@@ -63,7 +62,9 @@ function placesCard(story: Story) {
   const first = pinned.slice(0, INLINE_PLACES);
   const frame = mapFrame(first, MAP_W, MAP_H);
   const badges = clusterPins(pinPositions(first, frame, MAP_W, MAP_H));
-  const url = `${SITE}/api/map?story=${encodeURIComponent(story.storyId)}&w=${MAP_W}&h=${MAP_H}&n=${first.length}&theme=light`;
+  // The version follows the pins: re-pinning a place changes the address, so a cached old map is never shown under new pins.
+  const version = createHash("sha256").update(first.map((p) => `${p.lat},${p.lng}`).join(";")).digest("hex").slice(0, 10);
+  const url = `${SITE}/api/map?story=${encodeURIComponent(story.storyId)}&w=${MAP_W}&h=${MAP_H}&n=${first.length}&theme=light&v=${version}`;
   const groups = new Map<string, { numbers: number[]; lat: number; lng: number }>();
   pinned.forEach((p, i) => {
     const key = `${p.lat},${p.lng}`;

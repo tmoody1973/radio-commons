@@ -16,6 +16,7 @@
 - The summary on screen (Alexa speaks it instead).
 - Exact fidelity: Amazon's Local Inspector, which renders cards in real device frames, isn't available to hackathon participants, so the simulator follows the written rules, not Amazon's own preview.
 - The fullscreen map's downtown pins still overlap at the starting zoom (zoom in to separate them).
+- **Unverified on a real device:** the pan-and-zoom map loads a map library that starts background workers, which the MCP Apps security settings may not allow on a real Alexa+ screen. The simulator applies no such restriction, so it can't show this. The inline map (a plain picture) doesn't have this risk.
 
 **How we'll know if this was right:** Every view reads at arm's length on a laptop screen at Echo Show size; a judge can tell what to tap without being told; nothing in the guide's accessibility checklist (contrast, 48 px targets, alt text) fails.
 
