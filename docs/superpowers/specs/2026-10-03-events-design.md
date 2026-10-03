@@ -1,6 +1,6 @@
 # Radio Commons, slice 4: events — design
 
-**Date:** 2026-10-03 · **Status:** awaiting Tarik's review · **Owner:** Tarik Moody (decisions), Claude (draft)
+**Date:** 2026-10-03 · **Status:** approved 2026-10-03 · **Owner:** Tarik Moody (decisions), Claude (draft)
 
 ## Purpose
 
@@ -64,6 +64,16 @@ Only Field Guide listings; never invent an event; always venue + day/time; picks
 
 Saving events to a listener account (later slice, needs sign-in); Ticketmaster purchase links; events outside Milwaukee; spoken "add the second one" performing the add.
 
-## Open questions
+## Measured (2026-10-03, read-only on the live Field Guide database)
 
-1. How many Field Guide venues have coordinates? (Measure in planning; if low, near-search coverage is limited — fallback is neighborhood text.)
+| | |
+|---|---|
+| Venues / with own pin | 496 / 122 |
+| Venues with events in the next 7 days | 64; 41 have a pin counting the Overture venue registry fallback (64%) |
+| Pin-less venues with an address | 318 (22 of them have events this week) |
+| Events tonight / free this week / staff picks (2 weeks) | 40 / 12 / 1 |
+
+## Added decisions (Tarik, 2026-10-03)
+
+- **Venue pins:** geocode venues that have an address but no pin (own or registry) with Amazon Location (stored-use tier, Milwaukee bias, confidence-checked), one time (~318 venues, ~$1.30). Writes only empty `venues.lat/lng`; low-confidence matches are skipped and listed. New venues going forward: follow-up (the Field Guide has no AWS credentials yet).
+- **Picks:** "What is Radio Milwaukee recommending?" reads staff picks and tops up with upcoming Radio Milwaukee station events to three.
