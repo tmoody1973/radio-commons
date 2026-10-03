@@ -1,6 +1,7 @@
+import { EVENT } from "./fixtures";
 import { describe, expect, it } from "vitest";
 import type { Story } from "@/lib/backstory";
-import { NOT_ALLOWED_SPEECH, NO_PASSAGE_SPEECH, clock, directAudioUrl, monthYear, spokenMatches, spokenPassages, spokenStory } from "@/lib/speech";
+import { EVENTS_UNAVAILABLE_SPEECH, NOT_ALLOWED_SPEECH, NO_PASSAGE_SPEECH, clock, directAudioUrl, eventTime, monthYear, spokenEvents, spokenMatches, spokenPassages, spokenPicks, spokenStory } from "@/lib/speech";
 
 const STORY: Story = {
   storyId: "s1", show: "Uniquely Milwaukee", title: "Creativity is sustainable, accessible at 414 Art Revival",
@@ -56,3 +57,35 @@ describe("speech", () => {
     expect(NOT_ALLOWED_SPEECH).toBe("Detailed answers aren't available for this episode.");
   });
 });
+
+describe("events speech", () => {
+  const NOW = new Date("2026-10-03T22:00:00Z"); // Saturday 5 PM in Milwaukee
+  it("says when like a person: tonight, tomorrow, a weekday, then a date", () => {
+    expect(eventTime("2026-10-04T01:00:00Z", NOW)).toBe("tonight at 8 PM");
+    expect(eventTime("2026-10-03T23:30:00Z", NOW)).toBe("tonight at 6:30 PM");
+    expect(eventTime("2026-10-04T19:00:00Z", NOW)).toBe("tomorrow at 2 PM");
+    expect(eventTime("2026-10-07T00:00:00Z", NOW)).toBe("Tuesday at 7 PM");
+    expect(eventTime("2026-10-20T00:00:00Z", NOW)).toBe("October 19 at 7 PM");
+  });
+  it("numbers up to three, with venue and time, and offers the calendar", () => {
+    const two = [EVENT, { ...EVENT, title: "Late Show", venue: { ...EVENT.venue, name: "Cactus Club" }, startAt: "2026-10-04T03:00:00Z" }];
+    expect(spokenEvents(two, { now: NOW, near: "Ted's Ice Cream", when: "tonight" }))
+      .toBe("Near Ted's Ice Cream: 1, Jazz Jam at Jazz Gallery, tonight at 8 PM; 2, Late Show at Cactus Club, tonight at 10 PM. Want to add one to your calendar?");
+    expect(spokenEvents([EVENT], { now: NOW }))
+      .toBe("From Radio Milwaukee's event guide: 1, Jazz Jam at Jazz Gallery, tonight at 8 PM. Want to add one to your calendar?");
+  });
+  it("says when it had to look farther, and when there's nothing", () => {
+    expect(spokenEvents([EVENT], { now: NOW, near: "Ted's Ice Cream", widened: true })).toMatch(/^Nothing within a mile of Ted's Ice Cream, but within three miles: 1, Jazz Jam/);
+    expect(spokenEvents([], { now: NOW, near: "Ted's Ice Cream", when: "tonight" })).toBe("I don't see anything near Ted's Ice Cream tonight.");
+    expect(spokenEvents([], { now: NOW, when: "this-weekend" })).toBe("I don't see anything for that this weekend.");
+    expect(EVENTS_UNAVAILABLE_SPEECH).toBe("I can't reach Radio Milwaukee's event guide right now.");
+  });
+  it("picks in the curator's words; station events as Radio Milwaukee's", () => {
+    const pick = { ...EVENT, title: "Samara Joy", pick: { curator: "Tarik Moody", role: "Host", blurb: "A voice for the ages. Go." } };
+    const station = { ...EVENT, title: "88Nine presents: Friko", isStationEvent: true };
+    expect(spokenPicks([pick, station], NOW)).toBe(
+      "1, Tarik Moody picks Samara Joy at Jazz Gallery, tonight at 8 PM: \"A voice for the ages.\"; 2, Radio Milwaukee presents 88Nine presents: Friko at Jazz Gallery, tonight at 8 PM. Want to add one to your calendar?",
+    );
+  });
+});
+
