@@ -8,17 +8,18 @@ const STORY_ID = /^[a-z0-9]{1,64}$/;
 export const pinnedPlaces = (story: Story) =>
   story.places.flatMap((p) => (p.lat !== null && p.lng !== null ? [{ ...p, lat: p.lat, lng: p.lng }] : []));
 
-/** Amazon's static map of `frame` at w×h, fetched at twice the pixels one zoom closer so it stays sharp on a 1.67× screen. */
+/** Amazon's static map of `frame` at w×h, in its sharp (@2x) form so it stays crisp on a 1.67× screen. */
 export function staticMapUrl(frame: Frame, w: number, h: number, theme: "light" | "dark", key: string): string {
   const params = new URLSearchParams({
-    center: `${frame.center.lng},${frame.center.lat}`,
-    zoom: String(frame.zoom + 1),
-    width: String(w * 2),
-    height: String(h * 2),
+    // Amazon allows at most 14 decimal places; 6 is about 10 cm.
+    center: `${frame.center.lng.toFixed(6)},${frame.center.lat.toFixed(6)}`,
+    zoom: String(frame.zoom),
+    width: String(w),
+    height: String(h),
     "color-scheme": theme === "dark" ? "Dark" : "Light",
     key,
   });
-  return `${STATIC_MAP}?${params}`;
+  return `${STATIC_MAP}@2x?${params}`;
 }
 
 interface MapDeps {

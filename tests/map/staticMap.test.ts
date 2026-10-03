@@ -7,10 +7,11 @@ const deps = (over = {}) => ({ backstory: fakeBackstory(), key: "v1.public.secre
 const params = (q: string) => new URLSearchParams(q);
 
 describe("staticMapUrl", () => {
-  it("asks Amazon for a 2x image of the same area (twice the pixels, one zoom level closer)", () => {
-    const url = new URL(staticMapUrl({ center: { lat: 43, lng: -88 }, zoom: 11.5 }, 300, 250, "dark", "KEY"));
-    expect(url.origin + url.pathname).toBe("https://maps.geo.us-east-1.amazonaws.com/v2/static/map");
-    expect(Object.fromEntries(url.searchParams)).toEqual({ center: "-88,43", zoom: "12.5", width: "600", height: "500", "color-scheme": "Dark", key: "KEY" });
+  it("asks Amazon for its sharp (@2x) image of the area, with coordinates Amazon accepts", () => {
+    const url = new URL(staticMapUrl({ center: { lat: 43.04812345678901234, lng: -87.9876543210987654 }, zoom: 11.5 }, 300, 250, "dark", "KEY"));
+    expect(url.origin + url.pathname).toBe("https://maps.geo.us-east-1.amazonaws.com/v2/static/map@2x");
+    // Amazon allows at most 14 decimal places; 6 is about 10 cm.
+    expect(Object.fromEntries(url.searchParams)).toEqual({ center: "-87.987654,43.048123", zoom: "11.5", width: "300", height: "250", "color-scheme": "Dark", key: "KEY" });
   });
 });
 
