@@ -25,3 +25,16 @@
 - A published Uniquely Milwaukee summary names a facility resident; the simulator repeated it, as it should repeat published text. The fix is in the editor's review, not the simulator.
 
 **What we now believe:** Voice latency is dominated by speech synthesis, so stream it. Model passes are the floor (about a second each). Look at every screen in a real browser before calling it done. And the simulator is a faithful mirror: whatever the editor publishes, Alexa says.
+
+## 2026-10-02: ask the episode (slice 3), first live runs
+
+**What we expected:** once Backstory returned guarded passages and the card showed them, "What did they say about the stromboli?" after finding the episode would just work.
+
+**What happened:**
+- Backstory's guarded search worked first time against real data: "stromboli" found "They call them stromboli." at 10:45, and the three people an editor removed from that episode (who appear four times in the raw transcript) never came back.
+- The relevance floor from story search would have rejected almost every detail question: "what did they say about" counts as four words the passage doesn't contain. Detail questions now drop question words and host names first.
+- In the simulator, the follow-up failed 4 times out of 5. Claude invented story ids like "this-bites-frugal-dining" instead of looking the story up, even with a rule against guessing. The cause was the simulator: real Alexa+ keeps earlier tool results in the conversation, ours kept only the spoken words. Noting the on-screen story's id in the remembered reply fixed it: 5 of 5, and one tool call instead of two.
+- The card didn't refresh for a follow-up about the same story, because an MCP App starts once and the card was rebuilt only when the story changed. Only a real browser run showed it.
+- Tapping ▶ 10:45 starts the episode at second 645, measured in the card itself.
+
+**What we now believe:** prompt rules don't stop a model from guessing an id; giving it the id does. Anything the simulator drops from the conversation becomes a failure Alexa+ wouldn't have, so the simulator should carry context the way the real host does. And every flow needs at least one multi-turn run in a real browser, repeated, because single runs hide failures that happen half the time.

@@ -17,6 +17,7 @@ Listener ──voice──▶ Alexa+ ──MCP, Streamable HTTP──▶ radio-c
 
 - **`find_station_story`** turns a listener's description into up to three published stories, read back as a short list. If nothing matches well enough, it says so; it never guesses.
 - **`get_station_story`** tells one story: the station's published summary, its source ("From Uniquely Milwaukee, September 2026"), and one next step (directions to the place in the story, or the episode). On screens it returns a story card with the show's artwork, places, things to do and a Play button.
+- **`ask_station_story`** answers a detail question about one story ("What did they say about the stromboli?") with the episode's own words: up to three short transcript passages, each with the moment it's heard ("At 10:45 …"), which the card can play from. Only published episodes an editor allows (This Bites by default; Uniquely Milwaukee only when switched on), and never a passage naming someone an editor removed or kept off Alexa.
 - Story data comes from [Backstory](https://github.com/tmoody1973/backstory), the station's story engine: podcasts are transcribed and every person, place and action is checked against a word-for-word quote from the episode, then **approved by an editor** before Alexa can read it.
 
 **Trust rules:** only editor-published stories; every answer names its show and month; summaries are described as the station's, never as the assistant's; no invented stories; the database is never exposed to Alexa directly.
