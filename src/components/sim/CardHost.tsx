@@ -11,6 +11,13 @@ export interface CardPayload {
 }
 
 let cardPage: Promise<string> | null = null;
+// Every answer is a new card: an MCP App initializes once, so a follow-up about the same story must remount it.
+const cardIds = new WeakMap<CardPayload, number>();
+let nextCardId = 0;
+const cardKey = (card: CardPayload) => {
+  if (!cardIds.has(card)) cardIds.set(card, nextCardId++);
+  return String(cardIds.get(card));
+};
 const loadCardPage = () => (cardPage ??= fetch("/api/sim/card").then((r) => (r.ok ? r.text() : Promise.reject(new Error(`card ${r.status}`)))));
 
 /**
@@ -56,8 +63,5 @@ export function CardHost({ card, onPlaying }: { card: CardPayload; onPlaying: ()
 
   if (failed) return <p className={styles.idle}>The story card couldn&rsquo;t load.</p>;
   if (!html) return <p className={styles.idle}>Loading the story…</p>;
-  // A new answer gets a fresh card: an MCP App initializes once, so a follow-up about the same story (a detail
-  // question) must remount it to receive the new result. Keyed by the tool's arguments: story + question.
-  const key = JSON.stringify(card.input);
-  return <iframe key={key} ref={frame} className={styles.card} sandbox="allow-scripts" srcDoc={html} title="Story card" />;
+  return <iframe key={cardKey(card)} ref={frame} className={styles.card} sandbox="allow-scripts" srcDoc={html} title="Story card" />;
 }
