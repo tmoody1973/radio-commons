@@ -29,5 +29,10 @@ describe("maps helpers", () => {
     expect(isOpenableLink("https://mke-field-guide.vercel.app.evil.example/x")).toBe(false);
     expect(isOpenableLink("javascript:alert(1)")).toBe(false);
   });
+  it("the host also opens booking sites for Reserve", () => {
+    expect(isOpenableLink("https://www.opentable.com/r/teds")).toBe(true);
+    expect(isOpenableLink("https://resy.com/cities/mke/venues/x")).toBe(true);
+    expect(isOpenableLink("https://www.exploretock.com/x")).toBe(true);
+    expect(isOpenableLink("https://opentable.com.evil.example/x")).toBe(false);
+  });
 });
-

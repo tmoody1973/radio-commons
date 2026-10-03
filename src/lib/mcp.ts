@@ -147,9 +147,12 @@ export function buildMcpHandler(deps: Deps) {
             if (!found) return { content: text(NOT_FOUND_SPEECH) };
             const story = clean(found);
             if (view === "places") {
-              const names = pinnedPlaces(story).map((p) => p.name);
+              const pinned = pinnedPlaces(story);
+              const names = pinned.map((p) => p.name);
+              // Mention booking for a place the listener can see on screen (the first three) that has a link.
+              const reservable = pinned.slice(0, 3).find((p) => p.reservationUrl)?.name;
               if (names.length === 0) return { content: text(NO_PLACES_SPEECH), structuredContent: card({ view: "story", story }, { story }) };
-              return { content: text(spokenPlaces(names)), structuredContent: { stationId: station.stationId, view: "places", story, ...placesCard(story) } };
+              return { content: text(spokenPlaces(names, reservable)), structuredContent: { stationId: station.stationId, view: "places", story, ...placesCard(story) } };
             }
             return { content: text(spokenStory(story)), structuredContent: card({ view: "story", story }, { story }) };
           }, unavailable),

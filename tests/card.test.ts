@@ -161,4 +161,11 @@ describe("the card page", () => {
     expect(over).toContain("Near ★ Cactus Club");
     expect(renderView({ view: "events", items: [{ event: ev, when: "w" }] })).not.toContain("i.ticketweb.com");
   });
+  it("a place with a booking link gets its own Reserve button beside the row; others don't", () => {
+    const booked = { ...STORY, places: [{ ...STORY.places[0], reservationUrl: "https://www.opentable.com/r/teds?a=1&b=2" }, ...STORY.places.slice(1)] };
+    const html = renderView({ view: "places", story: booked, map: { url: "u", w: 300, h: 250, badges: [] } });
+    expect(html).toContain('class="secondary reserve" data-url="https://www.opentable.com/r/teds?a=1&amp;b=2"');
+    expect(html.match(/class="secondary reserve"/g)).toHaveLength(1);
+    expect(storyCardPage("k")).toContain('has("reserve")');
+  });
 });

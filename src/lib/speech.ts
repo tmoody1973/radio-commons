@@ -68,12 +68,13 @@ export function spokenLatest(matches: StoryCardMatch[]): string {
 }
 
 /** The mapped places, first three by name, matching the numbered list on screen. */
-export function spokenPlaces(names: string[]): string {
+export function spokenPlaces(names: string[], reservable?: string): string {
   if (names.length === 0) return NO_PLACES_SPEECH;
   if (names.length === 1) return `That story mentions one mapped place: ${names[0]}. Want directions?`;
   const first = names.slice(0, 3);
   const list = first.length === 2 ? first.join(" and ") : `${first.slice(0, -1).join(", ")} and ${first.at(-1)}`;
-  return `That story mentions ${names.length} mapped places. The first ${first.length === 2 ? "two" : "three"} are ${list}. Want directions to one?`;
+  const booking = reservable ? ` ${reservable} takes reservations; tap Reserve to book.` : "";
+  return `That story mentions ${names.length} mapped places. The first ${first.length === 2 ? "two" : "three"} are ${list}.${booking} Want directions to one?`;
 }
 
 export const NO_PLACES_FOR_EVENTS_SPEECH = "Radio Milwaukee hasn't mapped places for that story. Where should I look?";
