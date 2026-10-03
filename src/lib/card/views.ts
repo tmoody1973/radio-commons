@@ -105,8 +105,9 @@ function eventsView(items: EventItem[]): string {
   const tiles = items.slice(0, 5).map(({ event: e, when }, i) => {
     const tag = badge(e);
     const cost = price(e);
-    return `<article class="tile event">${e.imageUrl ? `<img class="tile-art" src="${escape(e.imageUrl)}" alt="">` : `<div class="tile-art ph cat">${escape(e.category ?? "event")}</div>`}`
-      + `<span class="badge">${i + 1}</span>${tag ? `<span class="tag">${tag}</span>` : ""}`
+    // No photo, no empty block: the category sits beside the number so the buttons stay on the card.
+    return `<article class="tile event">${e.imageUrl ? `<img class="tile-art" src="${escape(e.imageUrl)}" alt="">` : ""}`
+      + `<div class="ev-head"><span class="badge">${i + 1}</span><span class="ev-cat">${escape(e.category ?? "event")}</span>${tag ? `<span class="tag">${tag}</span>` : ""}</div>`
       + `<span class="tile-title">${escape(e.title)}</span>`
       + `<span class="tile-date">${escape(when)}${e.venue ? ` · ${escape(e.venue.name)}` : ""}${cost ? ` · <b>${cost}</b>` : ""}</span>`
       + `<span class="tile-actions">${eventButtons(e)}</span></article>`;
