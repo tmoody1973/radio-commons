@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { verifySpeech } from "@/lib/sim/speakToken";
-import { handleTurn, type TurnDeps } from "@/lib/sim/turn";
+import { handleTurn, isStopCommand, type TurnDeps } from "@/lib/sim/turn";
 
 const deps = (over: Partial<TurnDeps> = {}): TurnDeps => ({
   passcode: "milwaukee",
@@ -68,5 +68,17 @@ describe("a spoken turn", () => {
     expect(status).toBe(200);
     expect(body).toMatchObject({ reply: "Sorry, something went wrong. Please try again.", card: null });
     expect((body as { trail: { kind: string; text?: string }[] }).trail.some((e) => e.kind === "error" && e.text?.includes("ECONNREFUSED"))).toBe(true);
+  });
+  it("'stop', 'pause' or 'Alexa, stop' pauses the card's audio on the device, without asking the AI", async () => {
+    for (const text of ["Alexa, stop.", "stop audio", "Pause", "pause the episode", "stop playing"]) {
+      let asked = false;
+      const { body } = await handleTurn({ passcode: "milwaukee", history: [], text }, deps({ converse: async () => { asked = true; throw new Error("should not be called"); } }));
+      expect(asked).toBe(false);
+      expect(body).toMatchObject({ reply: "Paused.", control: "pause", card: null });
+    }
+  });
+  it("a question that merely contains 'stop' still goes to Alexa", () => {
+    expect(isStopCommand("what's the stop near the cafe")).toBe(false);
+    expect(isStopCommand("Alexa stop")).toBe(true);
   });
 });

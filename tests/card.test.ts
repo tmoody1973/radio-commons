@@ -148,4 +148,9 @@ describe("the card page", () => {
     expect(html).not.toContain("tile-art");
     expect(html).toContain('<div class="ev-head"><span class="badge">1</span><span class="ev-cat">music</span>');
   });
+  it("the main button becomes Pause while anything plays, and the host can pause the card", () => {
+    const page = storyCardPage("k");
+    expect(page).toContain('" Pause"');
+    expect(page).toContain("radio-commons:pause");
+  });
 });
