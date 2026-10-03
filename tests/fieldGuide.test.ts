@@ -17,4 +17,13 @@ describe("Field Guide client", () => {
     const slow = createFieldGuideClient({ baseUrl: "https://fg.test", timeoutMs: 20, fetch: (_url, init) => new Promise((_, reject) => init?.signal?.addEventListener("abort", () => reject(new Error("aborted")))) });
     await expect(slow.events({})).rejects.toBeInstanceOf(FieldGuideUnavailable);
   });
+  it("waits up to two seconds by default, so a cold Field Guide still answers", async () => {
+    // Like real fetch: answers after 1.2 s unless the deadline aborts it first.
+    const coldButFine = createFieldGuideClient({ baseUrl: "https://fg.test", fetch: (_url, init) => new Promise((resolve, reject) => {
+      const timer = setTimeout(() => resolve(new Response(JSON.stringify({ events: [EVENT] }))), 1200);
+      init?.signal?.addEventListener("abort", () => { clearTimeout(timer); reject(new Error("aborted")); });
+    }) });
+    expect(await coldButFine.events({})).toEqual([EVENT]);
+  });
 });
+
