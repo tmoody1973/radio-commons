@@ -56,6 +56,8 @@ export function CardHost({ card, onPlaying }: { card: CardPayload; onPlaying: ()
 
   if (failed) return <p className={styles.idle}>The story card couldn&rsquo;t load.</p>;
   if (!html) return <p className={styles.idle}>Loading the story…</p>;
-  const key = String(card.input.storyId ?? "card");
+  // A new answer gets a fresh card: an MCP App initializes once, so a follow-up about the same story (a detail
+  // question) must remount it to receive the new result. Keyed by the tool's arguments: story + question.
+  const key = JSON.stringify(card.input);
   return <iframe key={key} ref={frame} className={styles.card} sandbox="allow-scripts" srcDoc={html} title="Story card" />;
 }
