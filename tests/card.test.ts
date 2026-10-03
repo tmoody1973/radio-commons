@@ -148,4 +148,17 @@ describe("the card page", () => {
     expect(html).not.toContain("tile-art");
     expect(html).toContain('<div class="ev-head"><span class="badge">1</span><span class="ev-cat">music</span>');
   });
+  it("the main button becomes Pause while anything plays, and the host can pause the card", () => {
+    const page = storyCardPage("k");
+    expect(page).toContain('" Pause"');
+    expect(page).toContain("radio-commons:pause");
+  });
+  it("the star is left off when it would cover a numbered pin; event tiles never load outside photos", () => {
+    const ev = { id: "e1", title: "Jazz", startAt: "x", endAt: null, venue: { name: "V", address: null, lat: 1, lng: 2, neighborhood: null }, category: "music",
+      isFree: true, priceMin: null, priceMax: null, imageUrl: "https://i.ticketweb.com/x.jpg", url: "https://fg.test/e", calendarUrl: "https://calendar.google.com/x", isStationEvent: false, pick: null };
+    const over = renderView({ view: "events-map", items: [{ event: ev, when: "w" }], map: { url: "u", w: 300, h: 250, badges: [{ label: "1", numbers: [1], x: 100, y: 100 }], anchor: { x: 104, y: 102, name: "Cactus Club" } } });
+    expect(over).not.toContain('class="pin anchor"');
+    expect(over).toContain("Near ★ Cactus Club");
+    expect(renderView({ view: "events", items: [{ event: ev, when: "w" }] })).not.toContain("i.ticketweb.com");
+  });
 });

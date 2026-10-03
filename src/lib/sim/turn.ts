@@ -8,6 +8,11 @@ export const MAX_AUDIO_BYTES = 1_000_000; // ~15 s of webm/opus speech
 export const MAX_TEXT_CHARS = 300;
 const MAX_HISTORY = 20;
 const DIDNT_CATCH = "Sorry, I didn't catch that.";
+const PAUSED = "Paused.";
+const STOP = /^(alexa[,.!\s]*)?(stop|pause)(\s+(it|that|audio|the audio|playing|the episode|the music|music))?[.!]?$/i;
+
+/** "Alexa, stop", "pause the episode": on a real device the device itself handles these, not an add-on. */
+export const isStopCommand = (text: string) => STOP.test(text.trim());
 
 export interface TurnInput {
   passcode: string | null;
@@ -24,6 +29,8 @@ export interface TurnResult {
   /** What the story card needs: the tool input and its result, as an MCP Apps host passes them. */
   card: { input: Record<string, unknown>; result: Record<string, unknown> } | null;
   trail: TrailEntry[];
+  /** A device control the page carries out itself (pause the card's audio), as Alexa does for "stop". */
+  control?: "pause";
 }
 
 export interface TurnDeps {
@@ -73,6 +80,10 @@ export async function handleTurn(input: TurnInput, deps: TurnDeps): Promise<Repl
     trail.push({ kind: "heard", text: heard });
   }
   if (!heard) return { status: 200, body: { heard: "", reply: DIDNT_CATCH, speech: signSpeech(DIDNT_CATCH, deps.speechSecret), card: null, trail } };
+  if (isStopCommand(heard)) {
+    trail.push({ kind: "reply", text: PAUSED, ms: 0, sourced: false });
+    return { status: 200, body: { heard, reply: PAUSED, speech: signSpeech(PAUSED, deps.speechSecret), card: null, trail, control: "pause" } };
+  }
 
   const connectStarted = Date.now();
   let session: McpSession;

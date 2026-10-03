@@ -84,8 +84,18 @@ describe("events speech", () => {
     const pick = { ...EVENT, title: "Samara Joy", pick: { curator: "Tarik Moody", role: "Host", blurb: "A voice for the ages. Go." } };
     const station = { ...EVENT, title: "88Nine presents: Friko", isStationEvent: true };
     expect(spokenPicks([pick, station], NOW)).toBe(
-      "1, Tarik Moody picks Samara Joy at Jazz Gallery, tonight at 8 PM: \"A voice for the ages.\"; 2, Radio Milwaukee presents 88Nine presents: Friko at Jazz Gallery, tonight at 8 PM. Want to add one to your calendar?",
+      "1, Tarik Moody picks Samara Joy at Jazz Gallery, tonight at 8 PM: \"A voice for the ages.\"; 2, Radio Milwaukee presents Friko at Jazz Gallery, tonight at 8 PM. Want to add one to your calendar?",
     );
   });
+  it("after-midnight shows asked about in the evening are still tonight; midnight is 'midnight'", () => {
+    const TEN_PM = new Date("2026-10-04T03:00:00Z"); // Saturday 10 PM
+    expect(eventTime("2026-10-04T05:30:00Z", TEN_PM)).toBe("tonight at 12:30 AM");
+    expect(eventTime("2026-10-04T05:00:00Z", TEN_PM)).toBe("tonight at midnight");
+    const ONE_THIRTY_AM = new Date("2026-10-04T06:30:00Z");
+    expect(eventTime("2026-10-04T07:00:00Z", ONE_THIRTY_AM)).toBe("tonight at 2 AM");
+  });
+  it("station events titled '88Nine presents: …' aren't 'presents presents'", () => {
+    const station = { ...EVENT, title: "88Nine presents: Friko", isStationEvent: true };
+    expect(spokenPicks([station], new Date("2026-10-03T22:00:00Z"))).toMatch(/^1, Radio Milwaukee presents Friko at /);
+  });
 });
-

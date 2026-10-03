@@ -132,16 +132,36 @@ function startMap() {
   }).catch(() => { el.textContent = "The map couldn't load here."; });
 }
 
+// The card's main button is the player: it reads "Pause" while anything plays and pauses on tap.
+function mainButton() { return root.querySelector(".actions .primary"); }
+function showPlaying(playing) {
+  const main = mainButton();
+  if (!main || !main.lastChild) return;
+  if (!main.dataset.label) main.dataset.label = main.lastChild.textContent;
+  main.lastChild.textContent = playing ? " Pause" : main.dataset.label;
+}
+function pauseAudio() {
+  if (audio && !audio.paused) audio.pause();
+  showPlaying(false);
+}
+
 function play(button) {
   audio = audio || new Audio(button.dataset.audio);
-  const from = button.classList.contains("play-from");
-  if (from) { audio.currentTime = Number(button.dataset.start); if (!audio.paused) return; }
-  else if (!audio.paused) { audio.pause(); button.lastChild.textContent = " Play episode"; return; }
+  audio.onpause = () => showPlaying(false);
+  if (button === mainButton() && !audio.paused) { pauseAudio(); return; }
+  if (button.classList.contains("play-from")) audio.currentTime = Number(button.dataset.start);
+  else if (button.classList.contains("secondary")) audio.currentTime = 0; // "Whole episode" starts at the top
+  if (!audio.paused) { showPlaying(true); return; } // already playing: that was a jump
   audio.play().then(() => {
-    if (!from) button.lastChild.textContent = " Pause";
+    showPlaying(true);
     window.parent.postMessage({ type: "radio-commons:playing" }, "*"); // lets a host stop its own voice
   }).catch(() => { button.lastChild.textContent = " Can't play here"; });
 }
+
+// The host pauses the card when the listener says "stop" or "pause" (Alexa handles those on the device itself).
+window.addEventListener("message", (event) => {
+  if (event.source === window.parent && event.data && event.data.type === "radio-commons:pause") pauseAudio();
+});
 
 root.addEventListener("click", (event) => {
   const button = event.target.closest("button");

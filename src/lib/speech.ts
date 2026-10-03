@@ -94,8 +94,10 @@ export function eventTime(startAt: string, now: Date): string {
   const today = chicago(now.getTime());
   const days = Math.round((at.day - today.day) / 86_400_000);
   const hour12 = at.hour % 12 === 0 ? 12 : at.hour % 12;
-  const time = `${hour12}${at.minute ? `:${String(at.minute).padStart(2, "0")}` : ""} ${at.hour < 12 ? "AM" : "PM"}`;
-  const day = days === 0 ? (at.hour >= 17 ? "tonight" : "today")
+  const time = at.hour === 0 && at.minute === 0 ? "midnight" : `${hour12}${at.minute ? `:${String(at.minute).padStart(2, "0")}` : ""} ${at.hour < 12 ? "AM" : "PM"}`;
+  // Night runs past midnight: at 10 PM a 12:30 AM show is still "tonight", and so is 2 AM when it's 1:30 AM.
+  const lateNight = (days === 1 && at.hour < 3 && today.hour >= 17) || (days === 0 && at.hour < 5 && today.hour < 5);
+  const day = lateNight ? "tonight" : days === 0 ? (at.hour >= 17 ? "tonight" : "today")
     : days === 1 ? "tomorrow"
       : days > 1 && days < 7 ? at.weekday
         : new Intl.DateTimeFormat("en-US", { timeZone: "America/Chicago", month: "long", day: "numeric" }).format(Date.parse(startAt));
@@ -121,7 +123,8 @@ export function spokenPicks(events: PublicEvent[], now: Date): string {
   const lines = events.slice(0, MAX_SPOKEN_EVENTS).map((e) => {
     const base = `${e.title}${where(e)}, ${eventTime(e.startAt, now)}`;
     if (e.pick) return `${e.pick.curator} picks ${base}: "${firstSentenceOf(e.pick.blurb)}"`;
-    return `Radio Milwaukee presents ${base}`;
+    // Station listings are often titled "88Nine presents: …"; don't say "presents" twice.
+    return `Radio Milwaukee presents ${base.replace(/^(88nine|hyfin|radio milwaukee|414 music|rhythm lab)\s+presents:?\s*/i, "")}`;
   });
   return `${numbered(lines)}. ${CALENDAR_OFFER}`;
 }

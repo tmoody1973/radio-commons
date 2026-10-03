@@ -8,7 +8,7 @@ import styles from "./simulator.module.css";
 import { TrailPanel } from "./TrailPanel";
 
 type Phase = "idle" | "listening" | "thinking" | "answering";
-interface TurnResponse { heard: string; reply: string; speech: string; card: CardPayload | null; trail: TrailEntry[] }
+interface TurnResponse { heard: string; reply: string; speech: string; card: CardPayload | null; trail: TrailEntry[]; control?: "pause" }
 
 const PASSCODE_KEY = "radio-commons-sim-passcode";
 const MAX_RECORD_MS = 15_000;
@@ -38,6 +38,7 @@ export function Simulator() {
   const [theme, setTheme] = useState<Theme>("light");
   const [displayMode, setDisplayMode] = useState<DisplayMode>("inline");
   const [scale, setScale] = useState(1);
+  const [pauseSignal, setPauseSignal] = useState(0);
   const fit = useRef<HTMLDivElement>(null);
   const [typed, setTyped] = useState("");
   const history = useRef<ChatMessage[]>([]);
@@ -84,6 +85,7 @@ export function Simulator() {
       setTurns((all) => [...all, body.trail]);
       setHeard(body.heard);
       setCaptions(body.reply);
+      if (body.control === "pause") setPauseSignal((n) => n + 1);
       setCard((previous) => cardAfterTurn(previous, body.card, body.trail));
       if (body.card) setDisplayMode("inline");
       setPhase("answering");
@@ -203,7 +205,7 @@ export function Simulator() {
                   <div className={fullscreen ? styles.cardFull : styles.cardArea}>
                     <CardHost
                       card={card} theme={theme} displayMode={displayMode}
-                      onPlaying={() => voice.current?.pause()} onAsk={askFromCard} onDisplayMode={setDisplayMode}
+                      onPlaying={() => voice.current?.pause()} onAsk={askFromCard} onDisplayMode={setDisplayMode} pauseSignal={pauseSignal}
                     />
                   </div>
                 ) : (

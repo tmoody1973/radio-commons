@@ -36,13 +36,15 @@ interface Props {
   /** The card asked a follow-up ("Tell me about the story …"): run it as the listener's next turn. */
   onAsk: (text: string) => void;
   onDisplayMode: (mode: DisplayMode) => void;
+  /** Bumped when the listener says "stop" or "pause": the card pauses its audio. */
+  pauseSignal: number;
 }
 
 /**
  * The simulator as an MCP Apps host: the card from our MCP server runs in a sandboxed iframe, and the official
  * AppBridge hands it the tool result plus what Alexa+ tells a card about its surface: size, theme and display mode.
  */
-export function CardHost({ card, theme, displayMode, onPlaying, onAsk, onDisplayMode }: Props) {
+export function CardHost({ card, theme, displayMode, onPlaying, onAsk, onDisplayMode, pauseSignal }: Props) {
   const frame = useRef<HTMLIFrameElement>(null);
   const bridge = useRef<AppBridge | null>(null);
   const [html, setHtml] = useState<string | null>(null);
@@ -117,6 +119,10 @@ export function CardHost({ card, theme, displayMode, onPlaying, onAsk, onDisplay
     observer.observe(el);
     return () => observer.disconnect();
   }, [theme, displayMode, html]);
+
+  useEffect(() => {
+    if (pauseSignal > 0) frame.current?.contentWindow?.postMessage({ type: "radio-commons:pause" }, "*");
+  }, [pauseSignal]);
 
   if (failed) return <p className={styles.idle}>The card couldn&rsquo;t load.</p>;
   if (!html) return <p className={styles.idle}>Loading…</p>;

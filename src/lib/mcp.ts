@@ -214,13 +214,11 @@ export function buildMcpHandler(deps: Deps) {
             const index = Math.max(0, wanted ? pinned.findIndex((p) => p.name.toLowerCase().includes(wanted) || wanted.includes(p.name.toLowerCase())) : 0);
             const place = pinned[index];
             const near = { lat: place.lat, lng: place.lng };
-            let widened = false;
-            let events = await deps.fieldGuide().events({ ...base, near, radiusMiles: 1, limit: 3 });
-            if (events.length === 0) {
-              widened = true;
-              events = await deps.fieldGuide().events({ ...base, near, radiusMiles: 3, limit: 3 });
-            }
-            events = pinnedEvents(events).slice(0, 3);
+            // One call out to 3 miles (nearest first): within a mile if anything is, else say we looked farther.
+            let events = pinnedEvents(await deps.fieldGuide().events({ ...base, near, radiusMiles: 3, limit: 3 }));
+            const widened = events.length > 0 && (events[0].distanceMiles ?? 0) > 1;
+            if (!widened) events = events.filter((e) => (e.distanceMiles ?? 0) <= 1);
+            events = events.slice(0, 3);
             const speech = spokenEvents(events, { now, near: place.name, widened, when });
             if (events.length === 0) return { content: text(speech) };
             // One frame for the picture and the badges: the events in order, then the starred place.
@@ -229,7 +227,9 @@ export function buildMcpHandler(deps: Deps) {
             const positions = pinPositions(points, frame, MAP_W, MAP_H);
             const badges = clusterPins(positions.slice(0, events.length));
             const star = positions[events.length];
-            const url = `${SITE}/api/map?events=${events.map((e) => e.id).join(",")}&anchor=${encodeURIComponent(story.storyId)}&ai=${index}&w=${MAP_W}&h=${MAP_H}&theme=light`;
+            // Versioned by the points, like story maps: a moved pin changes the address, so a cached old map never shows.
+            const version = createHash("sha256").update(points.map((p) => `${p.lat},${p.lng}`).join(";")).digest("hex").slice(0, 10);
+            const url = `${SITE}/api/map?events=${events.map((e) => e.id).join(",")}&anchor=${encodeURIComponent(story.storyId)}&ai=${index}&w=${MAP_W}&h=${MAP_H}&theme=light&v=${version}`;
             return {
               content: text(speech),
               structuredContent: card({ view: "events-map", items: items(events), map: { url, w: MAP_W, h: MAP_H, badges, anchor: { ...star, name: place.name } } }, { events }),

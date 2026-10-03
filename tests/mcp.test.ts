@@ -142,19 +142,19 @@ describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
     let asked: EventQuery = {};
     const fg = fakeFieldGuide({ events: async (q) => { asked = q; return [EVENT]; } });
     const { message } = await mcpPost(handlerWith(fakeBackstory(), fg), call("find_events", { nearStoryId: STORY.storyId, when: "tonight" }));
-    expect(asked).toMatchObject({ near: { lat: 43.01, lng: -88.01 }, radiusMiles: 1, when: "tonight" });
+    expect(asked).toMatchObject({ near: { lat: 43.01, lng: -88.01 }, radiusMiles: 3, when: "tonight" });
     expect(message.result.content[0].text).toMatch(/^Near 414 Art Revival: 1, Jazz Jam at Jazz Gallery, /);
     const data = message.result.structuredContent;
     expect(data.view).toBe("events-map");
     expect(data.cardHtml).toContain("/api/map?events=" + EVENT.id);
-    expect(data.cardHtml).toContain('class="pin anchor"');
+    expect(data.cardHtml).toMatch(/\/api\/map\?events=[^"]*&amp;v=[a-z0-9]{6,}/); // versioned by the pins, like story maps
   });
 
-  it("find_events looks three miles out when nothing is within one, and says so", async () => {
+  it("find_events asks once (3 miles, nearest first) and says when the nearest is beyond a mile", async () => {
     const radii: unknown[] = [];
-    const fg = fakeFieldGuide({ events: async (q) => { radii.push(q.radiusMiles); return q.radiusMiles === 3 ? [EVENT] : []; } });
+    const fg = fakeFieldGuide({ events: async (q) => { radii.push(q.radiusMiles); return [{ ...EVENT, distanceMiles: 2.4 }]; } });
     const { message } = await mcpPost(handlerWith(fakeBackstory(), fg), call("find_events", { nearStoryId: STORY.storyId }));
-    expect(radii).toEqual([1, 3]);
+    expect(radii).toEqual([3]);
     expect(message.result.content[0].text).toMatch(/^Nothing within a mile of 414 Art Revival, but within three miles:/);
   });
 
