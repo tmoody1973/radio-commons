@@ -51,8 +51,9 @@ blockquote{margin:0;font-size:40px;line-height:1.1;font-weight:700}
 .overlay{position:fixed;zoom:var(--z)}
 .bar{top:10px;left:10px;right:10px;display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-radius:16px;background:var(--card)}
 .side{top:80px;right:10px;bottom:10px;width:300px;box-sizing:border-box;padding:14px;border-radius:16px;background:var(--card);overflow-y:auto;display:flex;flex-direction:column;gap:8px}
-.side-title{margin:0 0 4px;font-size:18px;font-weight:700}
-.mappin{min-width:30px;height:30px;padding:0 8px;box-sizing:border-box;border-radius:9999px;background:${TOKENS.accent};color:${TOKENS.onAccent};border:2px solid #fff;font:700 15px Figtree,system-ui,sans-serif;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.35)}`;
+.side-title{margin:0 0 4px;font-size:18px;font-weight:700}.side>*{flex-shrink:0}
+/* Map pins live inside the unscaled map, so they size from --z directly (CSS zoom would shift their position). */
+.mappin{min-width:calc(30px * var(--z));height:calc(30px * var(--z));padding:0 calc(8px * var(--z));box-sizing:border-box;border-radius:9999px;background:${TOKENS.accent};color:${TOKENS.onAccent};border:calc(2px * var(--z)) solid #fff;font:700 calc(15px * var(--z)) Figtree,system-ui,sans-serif;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.35)}`;
 
 const script = (mapKey: string) => `
 const root = document.getElementById("root");
@@ -116,7 +117,6 @@ function startMap() {
     for (const group of current.mapPlaces) {
       const pin = document.createElement("div");
       pin.className = "mappin";
-      pin.style.zoom = String(z);
       pin.textContent = group.numbers.join("·");
       new maplibregl.Marker({ element: pin }).setLngLat([group.lng, group.lat]).addTo(map);
       bounds.extend([group.lng, group.lat]);
