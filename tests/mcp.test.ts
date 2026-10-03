@@ -1,19 +1,21 @@
 import { describe, expect, it } from "vitest";
 import { BackstoryUnavailable } from "@/lib/backstory";
-import { fakeBackstory, STORY } from "./fixtures";
+import { FieldGuideUnavailable, type EventQuery } from "@/lib/fieldGuide";
+import { EVENT, fakeBackstory, fakeFieldGuide, STORY } from "./fixtures";
 import { buildMcpHandler } from "@/lib/mcp";
 import { INITIALIZE, mcpPost } from "./mcp-wire";
 
-const handlerWith = (backstory = fakeBackstory()) => buildMcpHandler({ backstory: () => backstory, cardHtml: () => "<!doctype html><title>card</title>" });
+const handlerWith = (backstory = fakeBackstory(), fieldGuide = fakeFieldGuide()) =>
+  buildMcpHandler({ backstory: () => backstory, fieldGuide: () => fieldGuide, cardHtml: () => "<!doctype html><title>card</title>" });
 const call = (name: string, args: Record<string, unknown>) => ({ method: "tools/call", params: { name, arguments: args } });
 
 describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
-  it("initializes on protocol 2025-11-25 and lists the four tools", async () => {
+  it("initializes on protocol 2025-11-25 and lists the six tools", async () => {
     const handler = handlerWith();
     const init = await mcpPost(handler, INITIALIZE);
     expect(init.message.result?.protocolVersion).toBe("2025-11-25");
     const tools = await mcpPost(handler, { method: "tools/list" }, 2);
-    expect(tools.message.result.tools.map((t: { name: string }) => t.name).sort()).toEqual(["ask_station_story", "find_station_story", "get_station_story", "latest_station_stories"]);
+    expect(tools.message.result.tools.map((t: { name: string }) => t.name).sort()).toEqual(["ask_station_story", "find_events", "find_station_story", "get_station_story", "latest_station_stories", "station_picks"]);
   });
 
   it("find_station_story returns matches and a spoken shortlist", async () => {
@@ -136,5 +138,48 @@ describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
     expect(message.result.structuredContent.view).toBe("quote");
     expect(message.result.structuredContent.cardHtml).toContain("<blockquote>");
   });
-});
+  it("find_events near a story: the place's pin, a map card with the place starred, and a spoken list", async () => {
+    let asked: EventQuery = {};
+    const fg = fakeFieldGuide({ events: async (q) => { asked = q; return [EVENT]; } });
+    const { message } = await mcpPost(handlerWith(fakeBackstory(), fg), call("find_events", { nearStoryId: STORY.storyId, when: "tonight" }));
+    expect(asked).toMatchObject({ near: { lat: 43.01, lng: -88.01 }, radiusMiles: 1, when: "tonight" });
+    expect(message.result.content[0].text).toMatch(/^Near 414 Art Revival: 1, Jazz Jam at Jazz Gallery, /);
+    const data = message.result.structuredContent;
+    expect(data.view).toBe("events-map");
+    expect(data.cardHtml).toContain("/api/map?events=" + EVENT.id);
+    expect(data.cardHtml).toContain('class="pin anchor"');
+  });
 
+  it("find_events looks three miles out when nothing is within one, and says so", async () => {
+    const radii: unknown[] = [];
+    const fg = fakeFieldGuide({ events: async (q) => { radii.push(q.radiusMiles); return q.radiusMiles === 3 ? [EVENT] : []; } });
+    const { message } = await mcpPost(handlerWith(fakeBackstory(), fg), call("find_events", { nearStoryId: STORY.storyId }));
+    expect(radii).toEqual([1, 3]);
+    expect(message.result.content[0].text).toMatch(/^Nothing within a mile of 414 Art Revival, but within three miles:/);
+  });
+
+  it("find_events near a story with no mapped places asks where", async () => {
+    const none = fakeBackstory({ getStory: async () => ({ ...STORY, places: [] }) });
+    const { message } = await mcpPost(handlerWith(none), call("find_events", { nearStoryId: STORY.storyId }));
+    expect(message.result.content[0].text).toBe("Radio Milwaukee hasn't mapped places for that story. Where should I look?");
+  });
+
+  it("find_events by words or time shows a carousel with Add to calendar", async () => {
+    const { message } = await mcpPost(handlerWith(), call("find_events", { query: "live music", when: "this-weekend", freeOnly: true }));
+    expect(message.result.structuredContent.view).toBe("events");
+    expect(message.result.structuredContent.cardHtml).toContain('class="secondary calendar"');
+  });
+
+  it("station_picks reads picks in the curator's words", async () => {
+    const { message } = await mcpPost(handlerWith(), call("station_picks", {}));
+    expect(message.result.content[0].text).toMatch(/^1, Tarik Moody picks Samara Joy at Jazz Gallery, .*: "A voice for the ages\."/);
+    expect(message.result.structuredContent.view).toBe("events");
+  });
+
+  it("Field Guide down: the event-guide apology, no partial card", async () => {
+    const down = fakeFieldGuide({ events: async () => { throw new FieldGuideUnavailable("down"); } });
+    const { message } = await mcpPost(handlerWith(fakeBackstory(), down), call("find_events", { query: "jazz" }));
+    expect(message.result.isError).toBe(true);
+    expect(message.result.content[0].text).toBe("I can't reach Radio Milwaukee's event guide right now.");
+  });
+});

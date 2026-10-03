@@ -1,4 +1,5 @@
 import type { BackstoryClient, Story } from "@/lib/backstory";
+import type { FieldGuideClient, PublicEvent } from "@/lib/fieldGuide";
 
 export const STORY = {
   storyId: "jn7ebag3ecbzcq29j3qm27k4p18fhn0v", show: "Uniquely Milwaukee", title: "414 Art Revival", summary: "An art resale shop.",
@@ -21,5 +22,19 @@ export const fakeBackstory = (overrides: Partial<BackstoryClient> = {}): Backsto
   askStory: async (id) => (id === STORY.storyId
     ? { status: "ok", passages: [{ text: "We sell <art> and 'antiques'.", startMs: 1_122_000, speaker: "Kim Shine" }] }
     : { status: "not_found", passages: [] }),
+  ...overrides,
+});
+
+export const EVENT = {
+  id: "11111111-1111-4111-8111-111111111111", title: "Jazz Jam", startAt: "2026-10-04T01:00:00.000Z", endAt: null,
+  venue: { name: "Jazz Gallery", address: "926 E Center St, Milwaukee, WI 53212", lat: 43.0677, lng: -87.8994, neighborhood: "Riverwest" },
+  category: "music", isFree: true, priceMin: null, priceMax: null, imageUrl: null,
+  url: "https://mke-field-guide.vercel.app/events/jazz-jam", calendarUrl: "https://calendar.google.com/calendar/render?action=TEMPLATE&text=Jazz+Jam",
+  isStationEvent: false, pick: null,
+} satisfies PublicEvent;
+
+export const fakeFieldGuide = (overrides: Partial<FieldGuideClient> = {}): FieldGuideClient => ({
+  events: async () => [EVENT],
+  picks: async () => [{ ...EVENT, title: "Samara Joy", pick: { curator: "Tarik Moody", role: "Host", blurb: "A voice for the ages. Go." } }],
   ...overrides,
 });

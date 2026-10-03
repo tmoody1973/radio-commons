@@ -1,4 +1,5 @@
 import type { Passage, Story, StoryCardMatch } from "@/lib/backstory";
+import type { PublicEvent, When } from "@/lib/fieldGuide";
 import { streetAddress } from "@/lib/maps";
 
 export const UNAVAILABLE_SPEECH = "I can't reach Radio Milwaukee's stories right now. Please try again in a minute.";
@@ -74,3 +75,55 @@ export function spokenPlaces(names: string[]): string {
   const list = first.length === 2 ? first.join(" and ") : `${first.slice(0, -1).join(", ")} and ${first.at(-1)}`;
   return `That story mentions ${names.length} mapped places. The first ${first.length === 2 ? "two" : "three"} are ${list}. Want directions to one?`;
 }
+
+export const NO_PLACES_FOR_EVENTS_SPEECH = "Radio Milwaukee hasn't mapped places for that story. Where should I look?";
+export const EVENTS_UNAVAILABLE_SPEECH = "I can't reach Radio Milwaukee's event guide right now.";
+const CALENDAR_OFFER = "Want to add one to your calendar?";
+const MAX_SPOKEN_EVENTS = 3;
+
+const chicago = (ms: number) => {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Chicago", year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "2-digit", hour12: false, weekday: "long",
+  }).formatToParts(ms).map((p) => [p.type, p.value]));
+  return { day: Date.UTC(+parts.year, +parts.month - 1, +parts.day), hour: +parts.hour % 24, minute: +parts.minute, weekday: parts.weekday };
+};
+
+/** "tonight at 8 PM", "tomorrow at 2 PM", "Tuesday at 7 PM", "October 19 at 7 PM": Milwaukee time, the way a person says it. */
+export function eventTime(startAt: string, now: Date): string {
+  const at = chicago(Date.parse(startAt));
+  const today = chicago(now.getTime());
+  const days = Math.round((at.day - today.day) / 86_400_000);
+  const hour12 = at.hour % 12 === 0 ? 12 : at.hour % 12;
+  const time = `${hour12}${at.minute ? `:${String(at.minute).padStart(2, "0")}` : ""} ${at.hour < 12 ? "AM" : "PM"}`;
+  const day = days === 0 ? (at.hour >= 17 ? "tonight" : "today")
+    : days === 1 ? "tomorrow"
+      : days > 1 && days < 7 ? at.weekday
+        : new Intl.DateTimeFormat("en-US", { timeZone: "America/Chicago", month: "long", day: "numeric" }).format(Date.parse(startAt));
+  return `${day} at ${time}`;
+}
+
+const WHEN_PHRASE: Record<When, string> = { tonight: " tonight", today: " today", "this-weekend": " this weekend", "this-week": " this week" };
+const where = (e: PublicEvent) => (e.venue ? ` at ${e.venue.name}` : "");
+const numbered = (lines: string[]) => lines.map((line, i) => `${i + 1}, ${line}`).join("; ");
+
+/** Up to three events, numbered like the screen, each with its venue and time; honest when it had to look farther or found none. */
+export function spokenEvents(events: PublicEvent[], { now, near, widened, when }: { now: Date; near?: string; widened?: boolean; when?: When }): string {
+  const whenPhrase = when ? WHEN_PHRASE[when] : "";
+  if (events.length === 0) return near ? `I don't see anything near ${near}${whenPhrase}.` : `I don't see anything for that${whenPhrase}.`;
+  const lead = near ? (widened ? `Nothing within a mile of ${near}, but within three miles: ` : `Near ${near}: `) : "From Radio Milwaukee's event guide: ";
+  const list = numbered(events.slice(0, MAX_SPOKEN_EVENTS).map((e) => `${e.title}${where(e)}, ${eventTime(e.startAt, now)}`));
+  return `${lead}${list}. ${CALENDAR_OFFER}`;
+}
+
+/** Staff picks in the curator's own words; station events as Radio Milwaukee's. */
+export function spokenPicks(events: PublicEvent[], now: Date): string {
+  if (events.length === 0) return "Radio Milwaukee doesn't have picks posted right now.";
+  const lines = events.slice(0, MAX_SPOKEN_EVENTS).map((e) => {
+    const base = `${e.title}${where(e)}, ${eventTime(e.startAt, now)}`;
+    if (e.pick) return `${e.pick.curator} picks ${base}: "${firstSentenceOf(e.pick.blurb)}"`;
+    return `Radio Milwaukee presents ${base}`;
+  });
+  return `${numbered(lines)}. ${CALENDAR_OFFER}`;
+}
+
+const firstSentenceOf = (text: string) => text.match(/^.*?[.!?](\s|$)/)?.[0].trim() ?? text;

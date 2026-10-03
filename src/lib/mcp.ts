@@ -2,13 +2,14 @@ import { registerAppResource, registerAppTool, RESOURCE_MIME_TYPE } from "@model
 import { createMcpHandler } from "mcp-handler";
 import { z } from "zod";
 import { BackstoryUnavailable, type BackstoryClient, type Story } from "@/lib/backstory";
-import { fullPlacesView, renderView, type CardView } from "@/lib/card";
+import { FieldGuideUnavailable, type FieldGuideClient, type PublicEvent } from "@/lib/fieldGuide";
+import { fullPlacesView, renderView, type CardView, type EventItem } from "@/lib/card";
 import { SITE } from "@/lib/card/tokens";
 import { clusterPins, mapFrame, pinPositions } from "@/lib/map/geo";
 import { createHash } from "node:crypto";
-import { MAP_H, MAP_W, pinnedPlaces } from "@/lib/map/staticMap";
+import { eventMapPoints, MAP_H, MAP_W, pinnedEvents, pinnedPlaces } from "@/lib/map/staticMap";
 import {
-  directAudioUrl, NO_PLACES_SPEECH, NOT_ALLOWED_SPEECH, NOT_FOUND_SPEECH, spokenLatest, spokenMatches, spokenPassages,
+  directAudioUrl, eventTime, EVENTS_UNAVAILABLE_SPEECH, NO_PLACES_FOR_EVENTS_SPEECH, NO_PLACES_SPEECH, spokenEvents, spokenPicks, NOT_ALLOWED_SPEECH, NOT_FOUND_SPEECH, spokenLatest, spokenMatches, spokenPassages,
   spokenPlaces, spokenStory, UNAVAILABLE_SPEECH,
 } from "@/lib/speech";
 import { getStation } from "@/lib/stations";
@@ -28,6 +29,7 @@ const CARD = { _meta: { ui: { resourceUri: CARD_URI } } };
 
 interface Deps {
   backstory: () => BackstoryClient;
+  fieldGuide: () => FieldGuideClient;
   cardHtml: () => string;
 }
 
@@ -40,6 +42,8 @@ interface ToolResult {
 
 const text = (t: string) => [{ type: "text" as const, text: t }];
 const unavailable = (): ToolResult => ({ content: text(UNAVAILABLE_SPEECH), isError: true });
+const eventsUnavailable = (): ToolResult => ({ content: text(EVENTS_UNAVAILABLE_SPEECH), isError: true });
+const WHEN = ["tonight", "today", "this-weekend", "this-week"] as const;
 const clean = (story: Story): Story => ({ ...story, audioUrl: directAudioUrl(story.audioUrl) });
 
 /** Logs every call's duration (the Alexa+ budget is 500 ms); Backstory failures become a plain apology. */
@@ -48,7 +52,7 @@ async function timed(tool: string, run: () => Promise<ToolResult>, fallback: () 
   try {
     return await run();
   } catch (error) {
-    if (!(error instanceof BackstoryUnavailable)) throw error;
+    if (!(error instanceof BackstoryUnavailable) && !(error instanceof FieldGuideUnavailable)) throw error;
     console.error(JSON.stringify({ tool, error: error.message }));
     return fallback();
   } finally {
@@ -171,6 +175,86 @@ export function buildMcpHandler(deps: Deps) {
             const view: CardView = asked.passages.length ? { view: "quote", story, passages: asked.passages } : { view: "story", story };
             return { content: text(spokenPassages(asked.passages)), structuredContent: card(view, { story, passages: asked.passages }) };
           }, unavailable),
+      );
+
+      registerAppTool(
+        server,
+        "find_events",
+        {
+          title: "Find events in Milwaukee",
+          description:
+            "Find upcoming events from Radio Milwaukee's event guide (the MKE Field Guide): by words (\"live music\"), time (tonight, today, this weekend, this week), free only, or near a place from a story the listener is looking at (nearStoryId, optionally nearPlace by name). Use only these results; never invent an event.",
+          inputSchema: z.object({
+            query: z.string().min(1).max(120).optional(),
+            when: z.enum(WHEN).optional(),
+            freeOnly: z.boolean().optional(),
+            nearStoryId: z.string().min(1).max(64).optional(),
+            nearPlace: z.string().min(1).max(80).optional(),
+          }),
+          ...CARD,
+        },
+        async ({ query, when, freeOnly, nearStoryId, nearPlace }) =>
+          timed("find_events", async () => {
+            const now = new Date();
+            const base = { ...(query ? { q: query } : {}), ...(when ? { when } : {}), ...(freeOnly ? { free: true } : {}) };
+            const items = (events: PublicEvent[]): EventItem[] => events.map((event) => ({ event, when: eventTime(event.startAt, now) }));
+            if (!nearStoryId) {
+              const events = (await deps.fieldGuide().events({ ...base, limit: 5 })).slice(0, 5);
+              return {
+                content: text(spokenEvents(events, { now, when })),
+                ...(events.length ? { structuredContent: card({ view: "events", items: items(events) }, { events }) } : {}),
+              };
+            }
+            const story = STORY_ID.test(nearStoryId) ? await deps.backstory().getStory(nearStoryId) : null;
+            if (!story) return { content: text(NOT_FOUND_SPEECH) };
+            const pinned = pinnedPlaces(story);
+            if (pinned.length === 0) return { content: text(NO_PLACES_FOR_EVENTS_SPEECH) };
+            // The place the listener named, else the story's first pinned place.
+            const wanted = nearPlace?.toLowerCase();
+            const index = Math.max(0, wanted ? pinned.findIndex((p) => p.name.toLowerCase().includes(wanted) || wanted.includes(p.name.toLowerCase())) : 0);
+            const place = pinned[index];
+            const near = { lat: place.lat, lng: place.lng };
+            let widened = false;
+            let events = await deps.fieldGuide().events({ ...base, near, radiusMiles: 1, limit: 3 });
+            if (events.length === 0) {
+              widened = true;
+              events = await deps.fieldGuide().events({ ...base, near, radiusMiles: 3, limit: 3 });
+            }
+            events = pinnedEvents(events).slice(0, 3);
+            const speech = spokenEvents(events, { now, near: place.name, widened, when });
+            if (events.length === 0) return { content: text(speech) };
+            // One frame for the picture and the badges: the events in order, then the starred place.
+            const points = eventMapPoints(events, near);
+            const frame = mapFrame(points, MAP_W, MAP_H);
+            const positions = pinPositions(points, frame, MAP_W, MAP_H);
+            const badges = clusterPins(positions.slice(0, events.length));
+            const star = positions[events.length];
+            const url = `${SITE}/api/map?events=${events.map((e) => e.id).join(",")}&anchor=${encodeURIComponent(story.storyId)}&ai=${index}&w=${MAP_W}&h=${MAP_H}&theme=light`;
+            return {
+              content: text(speech),
+              structuredContent: card({ view: "events-map", items: items(events), map: { url, w: MAP_W, h: MAP_H, badges, anchor: { ...star, name: place.name } } }, { events }),
+            };
+          }, eventsUnavailable),
+      );
+
+      registerAppTool(
+        server,
+        "station_picks",
+        {
+          title: "What Radio Milwaukee recommends",
+          description: "This week's Radio Milwaukee staff picks, in the curator's own words, plus upcoming Radio Milwaukee events. Use for 'what is Radio Milwaukee recommending?'.",
+          inputSchema: z.object({}),
+          ...CARD,
+        },
+        async () =>
+          timed("station_picks", async () => {
+            const now = new Date();
+            const events = (await deps.fieldGuide().picks()).slice(0, 3);
+            return {
+              content: text(spokenPicks(events, now)),
+              ...(events.length ? { structuredContent: card({ view: "events", items: events.map((event) => ({ event, when: eventTime(event.startAt, now) })) }, { events }) } : {}),
+            };
+          }, eventsUnavailable),
       );
 
       registerAppResource(server, "Story card", CARD_URI, { description: "A Radio Milwaukee story, quote, list or map, in Alexa+ style." }, async () => ({

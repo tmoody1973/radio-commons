@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { frameBounds, pinPositions } from "@/lib/map/geo";
 import { handleMap, staticMapUrl } from "@/lib/map/staticMap";
-import { fakeBackstory, STORY } from "../fixtures";
+import { EVENT, fakeBackstory, fakeFieldGuide, STORY } from "../fixtures";
 
 const ok = async () => new Response(new Uint8Array([137, 80, 78, 71]), { status: 200, headers: { "content-type": "image/png" } });
 const deps = (over = {}) => ({ backstory: fakeBackstory(), key: "v1.public.secret", fetchImage: ok, ...over });
@@ -58,5 +58,15 @@ describe("handleMap", () => {
     expect((await handleMap(params(`story=${STORY.storyId}&w=301&h=250`), deps())).status).toBe(400);
     expect((await handleMap(params(`story=${STORY.storyId}&w=300&h=250&zz=1`), deps())).status).toBe(400);
     expect((await handleMap(params(`story=${STORY.storyId}&w=300&h=250&n=1&theme=dark&v=abc`), deps())).status).toBe(200);
+  });
+  it("events maps take positions from the Field Guide (and the starred story place), never the address", async () => {
+    let fetched = "";
+    const spy = async (url: string) => { fetched = url; return ok(); };
+    const fieldGuide = fakeFieldGuide();
+    const res = await handleMap(params(`events=${EVENT.id}&anchor=${STORY.storyId}&w=300&h=250&n=1`), deps({ fetchImage: spy, fieldGuide }));
+    expect(res.status).toBe(200);
+    expect(fetched).toContain("bounding-box=");
+    expect((await handleMap(params("events=not-an-id&w=300&h=250"), deps({ fieldGuide }))).status).toBe(400);
+    expect((await handleMap(params(`events=${[1, 2, 3, 4].map(() => EVENT.id).join(",")}&w=300&h=250`), deps({ fieldGuide }))).status).toBe(400);
   });
 });

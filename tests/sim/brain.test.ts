@@ -139,5 +139,11 @@ describe("brain", () => {
     expect(SYSTEM_PROMPT).toMatch(/keep the tool's order and numbers/i);
     expect(SYSTEM_PROMPT).toMatch(/never call one newer or older/i);
   });
+  it("knows the event tools and points to the screen for the calendar", () => {
+    expect(SYSTEM_PROMPT).toContain("find_events");
+    expect(SYSTEM_PROMPT).toMatch(/nearStoryId/);
+    expect(SYSTEM_PROMPT).toContain("station_picks");
+    expect(SYSTEM_PROMPT).toMatch(/tap Add to calendar/i);
+  });
 });
 
