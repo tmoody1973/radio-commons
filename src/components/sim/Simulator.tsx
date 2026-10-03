@@ -72,7 +72,8 @@ export function Simulator() {
         setPhase("idle");
         return;
       }
-      history.current = nextHistory(history.current, body.heard, body.reply);
+      const shown = body.card?.result.structuredContent as { story?: { storyId: string; title: string } } | undefined;
+      history.current = nextHistory(history.current, body.heard, body.reply, shown?.story);
       setTurns((all) => [...all, body.trail]);
       setCaptions(body.reply);
       if (body.card) setCard(body.card);
