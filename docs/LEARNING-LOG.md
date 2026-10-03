@@ -52,3 +52,17 @@
 - Alexa read a list in the right order but then called the older episode "newer"; a one-line rule fixed it.
 
 **What we now believe:** for anything a person looks at, read the platform's design guide first and check every view in a real browser at real size. For anything with coordinates, overlay the result on the real map before trusting it.
+
+## 2026-10-03: events (slice 4)
+
+**What we expected:** wire Alexa to the Field Guide's events and draw them on the map we already had.
+
+**What happened:**
+- The first measurement changed the plan: only 35% of this week's events had a venue on the map. Counting the Field Guide's venue registry raised it to 64%; geocoding 154 venues with Amazon Location (~$1.25) raised it to 97% (62 of 64).
+- The venue list held things a script must not touch: DIY venues whose addresses are deliberately private ("Ask A Punk"), multi-park series in one field, and entries like "WI". They were filtered out before any lookup.
+- The street-matching rule first rejected "108 East Wells Street" against Amazon's "108 E Wells St"; a dry run caught it before anything was written.
+- The first live "near High Stakes" question failed: the Field Guide's first answer after a quiet spell took over 800 ms. A 2-second limit plus waking it when the MCP server starts fixed it.
+- Photo-less event tiles pushed their Details button off the card; only the screenshot showed it.
+- A merge script ran ahead of CI; branch protection refused the merge, which is exactly what it is for.
+
+**What we now believe:** measure the data before designing the feature; it decides more than the code does. Always dry-run anything that writes to someone else's live data, and filter for privacy first.

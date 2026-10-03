@@ -14,10 +14,13 @@ Listener ──voice──▶ Alexa+ ──MCP, Streamable HTTP──▶ radio-c
                                                       └─ stations.ts       stationId "radiomilwaukee"
                                                       ▼
                                        Backstory (Convex): editor-published stories only
+                                       MKE Field Guide: /api/public/events, /api/public/picks (read-only)
 ```
 
 - **`find_station_story`** turns a listener's description into up to three published stories, read back as a short numbered list. It also finds a story by something said in it ("the episode where they talked about stromboli"), but only in episodes whose detailed answers are on. If nothing matches well enough, it says so; it never guesses.
 - **`latest_station_stories`** reads the newest stories, optionally for one show ("What's new on This Bites?").
+- **`find_events`** finds upcoming events from Radio Milwaukee's event guide (the [MKE Field Guide](https://mke-field-guide.vercel.app)): by words, tonight/this weekend, free only, or **near a place from a story on screen** (1 mile, widening once to 3). Near a story it shows a map with the place starred; otherwise a carousel. Every event has **Add to calendar**.
+- **`station_picks`** reads this week's Radio Milwaukee staff picks in the curator's own words, topped up with station events.
 - **`get_station_story`** tells one story: the station's published summary, its source ("From Uniquely Milwaukee, September 2026"), and one next step. With `view: "places"` it shows the story's places numbered on a map.
 - **`ask_station_story`** answers a detail question about one story ("What did they say about the stromboli?") with the episode's own words: up to three short transcript passages, each with the moment it's heard ("At 10:45 …"), which the card can play from. Only published episodes an editor allows (This Bites by default; Uniquely Milwaukee only when switched on), and never a passage naming someone an editor removed or kept off Alexa.
 - **On screens**, every tool returns one card in Amazon's [MCP Design Guide for Alexa+](https://developer.amazon.com/docs/alexaplus/add-ons/mcp-addon-design-guide-overview.html) patterns: a **story card** (artwork, title, ▶ Play episode, Places), a **quote card** (▶ Play from 10:45), a **carousel** (numbered, tap to pick) or a **map** (Amazon Location, numbered pins matching a list; "See all" opens a pan-and-zoom fullscreen map). Cards are authored at Amazon's 768×480 base and scale to the screen, in light and dark.
