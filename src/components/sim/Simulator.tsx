@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChatMessage, TrailEntry } from "@/lib/sim/trail";
 import { nextHistory } from "@/lib/sim/ui";
-import { CardHost, type CardPayload } from "./CardHost";
+import { CardHost, type CardPayload, type DisplayMode, type Theme } from "./CardHost";
 import styles from "./simulator.module.css";
 import { TrailPanel } from "./TrailPanel";
 
@@ -12,6 +12,8 @@ interface TurnResponse { heard: string; reply: string; speech: string; card: Car
 
 const PASSCODE_KEY = "radio-commons-sim-passcode";
 const MAX_RECORD_MS = 15_000;
+const DEVICE_W = 1328; // 1280 screen + bezel
+const DEVICE_H = 848;
 const EXAMPLES = [
   "What was that This Bites episode about frugal dining?",
   "What was that Uniquely Milwaukee story about the art shop in West Allis?",
@@ -31,7 +33,12 @@ export function Simulator() {
   const [status, setStatus] = useState("");
   const [card, setCard] = useState<CardPayload | null>(null);
   const [turns, setTurns] = useState<TrailEntry[][]>([]);
-  const [showTrail, setShowTrail] = useState(false);
+  const [showTrail, setShowTrail] = useState(true); // for judges: what Alexa did, open by default
+  const [heard, setHeard] = useState("");
+  const [theme, setTheme] = useState<Theme>("light");
+  const [displayMode, setDisplayMode] = useState<DisplayMode>("inline");
+  const [scale, setScale] = useState(1);
+  const fit = useRef<HTMLDivElement>(null);
   const [typed, setTyped] = useState("");
   const history = useRef<ChatMessage[]>([]);
   const recorder = useRef<MediaRecorder | null>(null);
@@ -75,8 +82,12 @@ export function Simulator() {
       const shown = body.card?.result.structuredContent as { story?: { storyId: string; title: string } } | undefined;
       history.current = nextHistory(history.current, body.heard, body.reply, shown?.story);
       setTurns((all) => [...all, body.trail]);
+      setHeard(body.heard);
       setCaptions(body.reply);
-      if (body.card) setCard(body.card);
+      if (body.card) {
+        setCard(body.card);
+        setDisplayMode("inline");
+      }
       setPhase("answering");
       if (voice.current) {
         // Streams as Polly speaks, so the answer starts before the whole reply is voiced.
@@ -145,6 +156,21 @@ export function Simulator() {
     return () => { window.removeEventListener("keydown", down); window.removeEventListener("keyup", up); };
   }, [startTalking, stopTalking]);
 
+  // The Echo Show screen is a true 1280×800 stage, scaled down to fit the window.
+  useEffect(() => {
+    const el = fit.current;
+    if (!el) return;
+    const observer = new ResizeObserver(([entry]) => setScale(Math.min(1, entry.contentRect.width / DEVICE_W)));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const askFromCard = useCallback((text: string) => {
+    const form = new FormData();
+    form.set("text", text.slice(0, 300));
+    void send(form);
+  }, [send]);
+
   const ask = (e: React.FormEvent) => {
     e.preventDefault();
     const text = typed.trim().slice(0, 300);
@@ -156,23 +182,40 @@ export function Simulator() {
   };
 
   const lightbar = phase === "listening" ? styles.listening : phase === "thinking" ? styles.thinking : "";
+  const fullscreen = displayMode === "fullscreen" && card;
   return (
     <main className={styles.page}>
+      <header className={styles.top}>
+        <p>Radio Commons · Alexa+ simulator</p>
+        <p className={styles.sub}>Plays Alexa+ around the real Radio Commons MCP server</p>
+      </header>
       <div className={styles.stage}>
-        <div>
-          <div className={styles.device} role="region" aria-label="Simulated Echo Show">
-            <div className={styles.screen}>
-              {card ? (
-                <CardHost card={card} onPlaying={() => voice.current?.pause()} />
-              ) : (
-                <div className={styles.idle}>
-                  <h1>Radio Commons</h1>
-                  <p>Ask about a Radio Milwaukee story you half-remember.</p>
-                  {EXAMPLES.map((e) => <p key={e} className={styles.prompt}>Try: “{e}”</p>)}
-                </div>
-              )}
-              <p className={styles.captions} aria-live="polite">{captions}</p>
-              <div className={`${styles.lightbar} ${lightbar}`} aria-hidden="true" />
+        <div className={styles.left}>
+          <div ref={fit} className={styles.fit} style={{ height: DEVICE_H * scale }}>
+            <div className={styles.device} style={{ transform: `scale(${scale})` }} role="region" aria-label="Simulated Echo Show 8">
+              <div className={styles.screen} data-theme={theme}>
+                {!fullscreen ? (
+                  <div className={styles.conversation}>
+                    {heard ? <p className={styles.heard}>“{heard}”</p> : null}
+                    <p className={styles.captions} aria-live="polite">{captions}</p>
+                  </div>
+                ) : null}
+                {card ? (
+                  <div className={fullscreen ? styles.cardFull : styles.cardArea}>
+                    <CardHost
+                      card={card} theme={theme} displayMode={displayMode}
+                      onPlaying={() => voice.current?.pause()} onAsk={askFromCard} onDisplayMode={setDisplayMode}
+                    />
+                  </div>
+                ) : (
+                  <div className={styles.idle}>
+                    <h1>Radio Commons</h1>
+                    <p>Ask about a Radio Milwaukee story you half-remember.</p>
+                    {EXAMPLES.map((e) => <p key={e} className={styles.prompt}>Try: “{e}”</p>)}
+                  </div>
+                )}
+                <div className={`${styles.lightbar} ${lightbar}`} aria-hidden="true" />
+              </div>
             </div>
           </div>
           <div className={styles.controls}>
@@ -186,7 +229,10 @@ export function Simulator() {
               <input aria-label="Or type a question" placeholder="Or type a question" value={typed} maxLength={300} onChange={(e) => setTyped(e.target.value)} />
               <button type="submit" disabled={phase === "thinking"}>Ask</button>
             </form>
-            <button type="button" className={styles.toggle} aria-expanded={showTrail} onClick={() => setShowTrail((s) => !s)}>
+            <button type="button" className={styles.toggle} aria-pressed={theme === "dark"} onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}>
+              {theme === "dark" ? "Light" : "Dark"} mode
+            </button>
+            <button type="button" className={styles.toggle} aria-expanded={showTrail} onClick={() => setShowTrail((v) => !v)}>
               {showTrail ? "Hide" : "Show"} what Alexa did
             </button>
           </div>
