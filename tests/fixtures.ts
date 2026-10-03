@@ -14,5 +14,8 @@ export const fakeBackstory = (overrides: Partial<BackstoryClient> = {}): Backsto
     attribution: STORY.attribution, publishedAt: STORY.publishedAt, hint: "An art resale shop.", imageUrl: STORY.imageUrl,
   }],
   getStory: async (id) => (id === STORY.storyId ? STORY : null),
+  askStory: async (id) => (id === STORY.storyId
+    ? { status: "ok", passages: [{ text: "We sell <art> and 'antiques'.", startMs: 1_122_000, speaker: "Kim Shine" }] }
+    : { status: "not_found", passages: [] }),
   ...overrides,
 });

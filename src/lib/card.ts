@@ -1,7 +1,7 @@
 import { EXT_APPS_BUNDLE } from "@/generated/ext-apps-bundle";
-import type { Story } from "@/lib/backstory";
+import type { Passage, Story } from "@/lib/backstory";
 import { directionsUrl } from "@/lib/maps";
-import { monthYear } from "@/lib/speech";
+import { clock, monthYear } from "@/lib/speech";
 
 const escape = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
@@ -10,7 +10,7 @@ const MAX_PLACES = 6;
 const MAX_ACTIONS = 3;
 
 /** The card's inner HTML, made on the server so every piece of story text is escaped in one tested place. Sized for an Echo Show: the main action stays visible. */
-export function renderCard(story: Story): string {
+export function renderCard(story: Story, passages: Passage[] = []): string {
   const image = story.imageUrl ? `<img src="${escape(story.imageUrl)}" alt="${escape(story.show)} artwork" width="112" height="112">` : "";
   const extra = story.places.length - MAX_PLACES;
   const places = story.places.length
@@ -23,10 +23,14 @@ export function renderCard(story: Story): string {
   const actions = story.actions.length
     ? `<h3>Things to do</h3><ul class="chips">${story.actions.slice(0, MAX_ACTIONS).map((a) => `<li>${escape(a.label)}</li>`).join("")}</ul>`
     : "";
+  const quoted = passages.length
+    ? `<h3>From the episode</h3><ul class="passages">${passages.map((p) => `<li><button type="button" class="play-from" data-start="${Math.floor(p.startMs / 1000)}" aria-label="Play from ${clock(p.startMs)}">▶ ${clock(p.startMs)}</button> `
+      + `${p.speaker ? `<b>${escape(p.speaker)}:</b> ` : ""}“${escape(p.text)}”</li>`).join("")}</ul>`
+    : "";
   return `<article><header>${image}<div><p class="source">${escape(story.show)} · ${escape(monthYear(story.publishedAt))}</p>`
     + `<h2>${escape(story.title)}</h2>`
     + `<button type="button" class="play" data-audio="${escape(story.audioUrl)}">▶ Play episode</button></div></header>`
-    + `<p class="summary">${escape(story.summary)}</p>${places}${actions}</article>`;
+    + `<p class="summary">${escape(story.summary)}</p>${quoted}${places}${actions}</article>`;
 }
 
 /** The MCP Apps bundle ends `export{…,X as App}`; bind its minified local name so the page can use App inline. */
@@ -43,6 +47,8 @@ header{display:flex;gap:16px;align-items:flex-start}
 img{border:3px solid #1E2124;object-fit:cover;flex:none}
 .summary{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;margin:12px 0 0}
 .more{border-style:dashed}
+.passages{list-style:none;padding:0;display:grid;gap:6px}.passages li{font-size:15px}
+.play-from{margin-right:6px;padding:1px 8px;border:2px solid #1E2124;background:#F7941D;color:#1E2124;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
 .directions{margin-left:6px;padding:1px 8px;border:2px solid #1E2124;background:#F7F1DB;color:#1E2124;font:inherit;font-size:13px;cursor:pointer}
 .source{margin:0;color:#5C6369;font-size:14px}h2{margin:4px 0 8px;font-size:22px}h3{margin:12px 0 4px;font-size:15px}
 ul{margin:0;padding-left:18px}.chips{list-style:none;padding:0;display:flex;flex-wrap:wrap;gap:6px}
@@ -61,9 +67,11 @@ root.addEventListener("click", (event) => {
   const directions = event.target.closest("button.directions");
   // The host decides what opening a map means (a browser tab here; a phone or Maps app on a real device).
   if (directions) { app.openLink({ url: directions.dataset.url }).catch(() => { directions.textContent = "Can't open maps here"; }); return; }
-  const button = event.target.closest("button.play");
+  const from = event.target.closest("button.play-from");
+  const button = from ? root.querySelector("button.play") : event.target.closest("button.play");
   if (!button) return;
   audio = audio || new Audio(button.dataset.audio);
+  if (from) { audio.currentTime = Number(from.dataset.start); if (!audio.paused) return; }
   if (!audio.paused) { audio.pause(); button.textContent = "▶ Play episode"; return; }
   audio.play().then(() => {
     button.textContent = "❚❚ Pause";

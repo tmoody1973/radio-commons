@@ -5,6 +5,7 @@ import { summarize, type ChatMessage, type TrailEntry } from "@/lib/sim/trail";
 /** The trust rules from slice 1, given to the model that plays Alexa+. */
 export const SYSTEM_PROMPT = `You are playing Alexa+ on an Echo Show, using Radio Milwaukee's story tools.
 Answer only from the results of your tools. For a story the listener describes, call find_station_story; when one story matches (or the listener picks one), call get_station_story and speak its answer.
+For a question about details inside a story the listener has found, call ask_station_story and quote its passages word for word, with the time.
 Always say the show and the month. Describe summaries as Radio Milwaukee's, not your own.
 If a tool finds nothing or apologizes, say exactly that and stop. Never answer questions about local stories, people or places from your own knowledge.
 Keep replies short and natural for speaking: at most two sentences (about 45 words), no markdown. Never list more than two places; if there are more, say "and more" (the screen shows them all). End with the one offer the tool suggests.`;
@@ -27,7 +28,7 @@ interface BrainOptions {
 export interface BrainResult {
   reply: string;
   trail: TrailEntry[];
-  /** The last get_station_story result, for the story card. */
+  /** The last get_station_story or ask_station_story result, for the story card. */
   lastStory: Record<string, unknown> | null;
 }
 
@@ -71,7 +72,7 @@ export async function runBrain({ history, tools, callTool, converse, maxToolCall
         const result = await withDeadline(callTool(use.name, use.input), deadline);
         trail.push({ kind: "tool", name: use.name, input: use.input, ms: Date.now() - t0, isError: result.isError, summary: summarize(result.text) });
         if (!result.isError) sourced = true;
-        if (use.name === "get_station_story" && result.structured?.story) lastStory = result.structured;
+        if ((use.name === "get_station_story" || use.name === "ask_station_story") && result.structured?.story) lastStory = result.structured;
         results.push({ toolResult: { toolUseId: use.toolUseId, content: [{ text: result.text }], status: result.isError ? "error" : "success" } });
       }
       messages.push({ role: "user", content: results });

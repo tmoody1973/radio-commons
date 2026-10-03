@@ -1,8 +1,10 @@
-import type { Story, StoryCardMatch } from "@/lib/backstory";
+import type { Passage, Story, StoryCardMatch } from "@/lib/backstory";
 import { streetAddress } from "@/lib/maps";
 
 export const UNAVAILABLE_SPEECH = "I can't reach Radio Milwaukee's stories right now. Please try again in a minute.";
 export const NOT_FOUND_SPEECH = "I couldn't find that Radio Milwaukee story.";
+export const NOT_ALLOWED_SPEECH = "Detailed answers aren't available for this episode.";
+export const NO_PASSAGE_SPEECH = "I couldn't find that in the episode.";
 const NO_MATCH = "I couldn't find a Radio Milwaukee story about that. Try a name, a place or a neighborhood.";
 const PODTRAC = /^https?:\/\/dts\.podtrac\.com\/redirect\.mp3\//;
 
@@ -32,4 +34,19 @@ export function spokenStory(story: Story): string {
     ? `Would you like directions to ${place.name}${street ? ` at ${street}` : ""}, or to hear the episode?`
     : "Would you like to hear the episode?";
   return `From ${source(story)}: Radio Milwaukee's summary says, ${story.summary} ${offer}`;
+}
+
+/** When in the episode: "18:42", or "1:02:05" past an hour. */
+export function clock(ms: number): string {
+  const total = Math.floor(ms / 1000);
+  const [h, m, s] = [Math.floor(total / 3600), Math.floor((total % 3600) / 60), total % 60];
+  const ss = String(s).padStart(2, "0");
+  return h > 0 ? `${h}:${String(m).padStart(2, "0")}:${ss}` : `${m}:${ss}`;
+}
+
+/** The episode's own words, each with its moment and (only if an editor confirmed it) who said it. */
+export function spokenPassages(passages: Passage[]): string {
+  if (passages.length === 0) return NO_PASSAGE_SPEECH;
+  const quotes = passages.map((p) => `At ${clock(p.startMs)}, ${p.speaker ?? "the episode"} says: '${p.text}'`);
+  return `${quotes.join(" ")} Want to hear that part?`;
 }

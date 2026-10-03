@@ -97,4 +97,14 @@ describe("brain", () => {
     });
     expect(sourced.trail.find((e) => e.kind === "reply")).toMatchObject({ sourced: true });
   });
+  it("tells Alexa to quote ask_station_story word for word, and its result becomes the card", async () => {
+    expect(SYSTEM_PROMPT).toContain("ask_station_story");
+    expect(SYSTEM_PROMPT).toContain("word for word");
+    const result = await runBrain({
+      history: [{ role: "user", text: "what did they say about the stromboli" }], tools: TOOLS,
+      callTool: async () => ({ text: "At 18:42 …", structured: { story: { storyId: "s1" }, passages: [] }, isError: false }),
+      converse: scripted(toolUse("ask_station_story", { storyId: "s1", question: "stromboli" }), say("At 18:42, …")),
+    });
+    expect(result.lastStory).toMatchObject({ story: { storyId: "s1" } });
+  });
 });
