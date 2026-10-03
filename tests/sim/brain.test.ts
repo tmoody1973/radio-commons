@@ -104,7 +104,7 @@ describe("brain", () => {
     expect(SYSTEM_PROMPT).toMatch(/never guess a storyId/i);
     const result = await runBrain({
       history: [{ role: "user", text: "what did they say about the stromboli" }], tools: TOOLS,
-      callTool: async () => ({ text: "At 18:42 …", structured: { story: { storyId: "s1" }, passages: [] }, isError: false }),
+      callTool: async () => ({ text: "At 18:42 …", structured: { view: "quote", cardHtml: "<article>", story: { storyId: "s1" }, passages: [] }, isError: false }),
       converse: scripted(toolUse("ask_station_story", { storyId: "s1", question: "stromboli" }), say("At 18:42, …")),
     });
     expect(result.lastStory).toMatchObject({ story: { storyId: "s1" } });
@@ -120,4 +120,20 @@ describe("brain", () => {
   it("searches first for any local place, person, business or event, even when it isn't asked as a story", () => {
     expect(SYSTEM_PROMPT).toMatch(/any question about a Milwaukee place, person, business or event/i);
   });
+  it("knows the new tools and points the listener at the screen for playing and directions", () => {
+    expect(SYSTEM_PROMPT).toContain("latest_station_stories");
+    expect(SYSTEM_PROMPT).toMatch(/view "places"/);
+    expect(SYSTEM_PROMPT).toMatch(/tap ▶ on the screen/i);
+    expect(SYSTEM_PROMPT).toMatch(/tap Directions/i);
+  });
+
+  it("any tool result that carries a card becomes the card, even a list of matches", async () => {
+    const result = await runBrain({
+      history: [{ role: "user", text: "what's new" }], tools: TOOLS,
+      callTool: async () => ({ text: "The newest…", structured: { view: "stories", cardHtml: "<article>", matches: [] }, isError: false }),
+      converse: scripted(toolUse("latest_station_stories", {}), say("The newest…")),
+    });
+    expect(result.lastStory).toMatchObject({ view: "stories" });
+  });
 });
+

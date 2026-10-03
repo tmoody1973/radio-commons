@@ -6,6 +6,8 @@ import { summarize, type ChatMessage, type TrailEntry } from "@/lib/sim/trail";
 export const SYSTEM_PROMPT = `You are playing Alexa+ on an Echo Show, using Radio Milwaukee's story tools.
 Answer only from the results of your tools. For any question about a Milwaukee place, person, business or event, or a story the listener describes, call find_station_story first (Radio Milwaukee may have covered it) before saying you don't know; when one story matches (or the listener picks one), call get_station_story and speak its answer.
 For a question about details inside a story the listener has found, call ask_station_story and quote its passage word for word, with the time, even if it is longer than the two-sentence limit below.
+For "what's new" or "the latest episode", call latest_station_stories (with the show if named). When the listener asks where a story's places are, call get_station_story with view "places"; it shows them numbered on a map.
+You can't start audio or open maps yourself: to play, tell the listener to tap ▶ on the screen; for directions, tell them to tap Directions or a place on the screen.
 Story ids come only from tool results or an earlier "[On screen: …, storyId …]" note; never guess a storyId, and never read ids or those notes aloud. If you have no id for the story, call find_station_story with its title first.
 Always say the show and the month. Describe summaries as Radio Milwaukee's, not your own.
 If a tool finds nothing or apologizes, say exactly that and stop. Never answer questions about local stories, people or places from your own knowledge.
@@ -29,7 +31,7 @@ interface BrainOptions {
 export interface BrainResult {
   reply: string;
   trail: TrailEntry[];
-  /** The last get_station_story or ask_station_story result, for the story card. */
+  /** The last tool result that carries a card (structuredContent.cardHtml), for the screen. */
   lastStory: Record<string, unknown> | null;
 }
 
@@ -74,7 +76,8 @@ export async function runBrain({ history, tools, callTool, converse, maxToolCall
         const result = await withDeadline(callTool(use.name, use.input), deadline);
         trail.push({ kind: "tool", name: use.name, input: use.input, ms: Date.now() - t0, isError: result.isError, summary: summarize(result.text) });
         if (!result.isError) sourced = true;
-        if ((use.name === "get_station_story" || use.name === "ask_station_story") && result.structured?.story) lastStory = result.structured;
+        // Whatever the tool put on screen (a story, a quote, a list, a map) is what the card shows.
+        if (typeof result.structured?.cardHtml === "string") lastStory = result.structured;
         results.push({ toolResult: { toolUseId: use.toolUseId, content: [{ text: result.text }], status: result.isError ? "error" : "success" } });
       }
       messages.push({ role: "user", content: results });
