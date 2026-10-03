@@ -47,3 +47,12 @@ export function clusterPins(pins: Point[], minDistance = 36): Badge[] {
   });
   return badges.map((b) => ({ label: b.numbers.length === 1 ? String(b.numbers[0]) : `${b.numbers.length} places`, numbers: b.numbers, x: b.x, y: b.y }));
 }
+
+/** The south-west and north-east corners of a w×h image of `frame`: the exact area the pins are placed on. */
+export function frameBounds(frame: Frame, w: number, h: number): { sw: LatLng; ne: LatLng } {
+  const scale = 2 ** frame.zoom;
+  const cx = worldX(frame.center.lng);
+  const cy = worldY(frame.center.lat);
+  const at = (dx: number, dy: number) => ({ lat: latOf(cy + dy / scale), lng: lngOf(cx + dx / scale) });
+  return { sw: at(-w / 2, h / 2), ne: at(w / 2, -h / 2) };
+}

@@ -1,5 +1,5 @@
 import { BackstoryUnavailable, type BackstoryClient, type Story } from "@/lib/backstory";
-import { mapFrame, type Frame } from "@/lib/map/geo";
+import { frameBounds, mapFrame, type Frame } from "@/lib/map/geo";
 
 const STATIC_MAP = "https://maps.geo.us-east-1.amazonaws.com/v2/static/map";
 const STORY_ID = /^[a-z0-9]{1,64}$/;
@@ -10,12 +10,12 @@ export const pinnedPlaces = (story: Story) =>
 
 /** Amazon's static map of `frame` at w×h, in its sharp (@2x) form so it stays crisp on a 1.67× screen. */
 export function staticMapUrl(frame: Frame, w: number, h: number, theme: "light" | "dark", key: string): string {
+  // The exact corners of the pins' frame rather than a zoom number: Amazon's zoom convention didn't line up with
+  // the pins in a live check (2026-10-03). Amazon allows at most 14 decimal places; 6 is about 10 cm.
+  const { sw, ne } = frameBounds(frame, w, h);
   const params = new URLSearchParams({
     style: "Standard", // Amazon's default is Satellite, which has no light/dark
-    // Amazon allows at most 14 decimal places; 6 is about 10 cm.
-    center: `${frame.center.lng.toFixed(6)},${frame.center.lat.toFixed(6)}`,
-    // Amazon's static zoom counts 256-px tiles; our frame (and the pins) use 512-px tiles, one level apart.
-    zoom: String(frame.zoom + 1),
+    "bounding-box": [sw.lng, sw.lat, ne.lng, ne.lat].map((n) => n.toFixed(6)).join(","),
     width: String(w),
     height: String(h),
     "color-scheme": theme === "dark" ? "Dark" : "Light",
