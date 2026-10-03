@@ -44,9 +44,14 @@ export function clock(ms: number): string {
   return h > 0 ? `${h}:${String(m).padStart(2, "0")}:${ss}` : `${m}:${ss}`;
 }
 
-/** The episode's own words, each with its moment and (only if an editor confirmed it) who said it. */
+/**
+ * The first passage in the episode's own words, with its moment and (only if an editor confirmed it) who said it.
+ * One quote keeps the spoken answer short enough to say word for word; the card shows every passage.
+ */
 export function spokenPassages(passages: Passage[]): string {
   if (passages.length === 0) return NO_PASSAGE_SPEECH;
-  const quotes = passages.map((p) => `At ${clock(p.startMs)}, ${p.speaker ?? "the episode"} says: '${p.text}'`);
-  return `${quotes.join(" ")} Want to hear that part?`;
+  const [first] = passages;
+  const more = passages.length - 1;
+  const onScreen = more === 0 ? "" : more === 1 ? " One more moment is on the screen." : ` ${more} more moments are on the screen.`;
+  return `At ${clock(first.startMs)}, ${first.speaker ?? "the episode"} says: '${first.text}'${onScreen} Want to hear that part?`;
 }

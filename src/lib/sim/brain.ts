@@ -5,7 +5,7 @@ import { summarize, type ChatMessage, type TrailEntry } from "@/lib/sim/trail";
 /** The trust rules from slice 1, given to the model that plays Alexa+. */
 export const SYSTEM_PROMPT = `You are playing Alexa+ on an Echo Show, using Radio Milwaukee's story tools.
 Answer only from the results of your tools. For a story the listener describes, call find_station_story; when one story matches (or the listener picks one), call get_station_story and speak its answer.
-For a question about details inside a story the listener has found, call ask_station_story and quote its passages word for word, with the time.
+For a question about details inside a story the listener has found, call ask_station_story and quote its passage word for word, with the time, even if it is longer than the two-sentence limit below.
 Story ids come only from tool results or an earlier "[On screen: …, storyId …]" note; never guess a storyId, and never read ids or those notes aloud. If you have no id for the story, call find_station_story with its title first.
 Always say the show and the month. Describe summaries as Radio Milwaukee's, not your own.
 If a tool finds nothing or apologizes, say exactly that and stop. Never answer questions about local stories, people or places from your own knowledge.
@@ -61,7 +61,8 @@ export async function runBrain({ history, tools, callTool, converse, maxToolCall
       messages.push({ role: "assistant", content: response.content });
       const uses = response.content.flatMap((b) => ("toolUse" in b ? [b.toolUse] : []));
       if (uses.length === 0) {
-        const reply = response.content.flatMap((b) => ("text" in b ? [b.text] : [])).join(" ").trim();
+        // The page's "[On screen: …]" notes are context for the model, never words for the listener.
+        const reply = response.content.flatMap((b) => ("text" in b ? [b.text] : [])).join(" ").replace(/\s*\[On screen:[^\]]*\]/g, "").trim();
         trail.push({ kind: "reply", text: reply, ms: Date.now() - started, sourced });
         return { reply: reply || APOLOGY, trail, lastStory };
       }
