@@ -14,6 +14,10 @@ export const fakeBackstory = (overrides: Partial<BackstoryClient> = {}): Backsto
     attribution: STORY.attribution, publishedAt: STORY.publishedAt, hint: "An art resale shop.", imageUrl: STORY.imageUrl,
   }],
   getStory: async (id) => (id === STORY.storyId ? STORY : null),
+  latestStoryCards: async () => [
+    { storyId: "s3", title: "Newest", show: "This Bites", showSlug: "this-bites", attribution: "a", publishedAt: Date.UTC(2026, 9, 2, 15), hint: "h", imageUrl: null },
+    { storyId: "s2", title: "Older", show: "This Bites", showSlug: "this-bites", attribution: "a", publishedAt: Date.UTC(2026, 8, 25, 15), hint: "h", imageUrl: null },
+  ],
   askStory: async (id) => (id === STORY.storyId
     ? { status: "ok", passages: [{ text: "We sell <art> and 'antiques'.", startMs: 1_122_000, speaker: "Kim Shine" }] }
     : { status: "not_found", passages: [] }),

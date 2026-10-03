@@ -1,15 +1,31 @@
 import { registerAppResource, registerAppTool, RESOURCE_MIME_TYPE } from "@modelcontextprotocol/ext-apps/server";
 import { createMcpHandler } from "mcp-handler";
 import { z } from "zod";
-import { BackstoryUnavailable, type BackstoryClient } from "@/lib/backstory";
-import { renderCard } from "@/lib/card";
-import { directAudioUrl, NOT_ALLOWED_SPEECH, NOT_FOUND_SPEECH, spokenMatches, spokenPassages, spokenStory, UNAVAILABLE_SPEECH } from "@/lib/speech";
+import { BackstoryUnavailable, type BackstoryClient, type Story } from "@/lib/backstory";
+import { fullPlacesView, renderView, type CardView } from "@/lib/card";
+import { SITE } from "@/lib/card/tokens";
+import { clusterPins, mapFrame, pinPositions } from "@/lib/map/geo";
+import { pinnedPlaces } from "@/lib/map/staticMap";
+import {
+  directAudioUrl, NO_PLACES_SPEECH, NOT_ALLOWED_SPEECH, NOT_FOUND_SPEECH, spokenLatest, spokenMatches, spokenPassages,
+  spokenPlaces, spokenStory, UNAVAILABLE_SPEECH,
+} from "@/lib/speech";
 import { getStation } from "@/lib/stations";
 
 export const CARD_URI = "ui://radio-commons/story-card.html";
 const STORY_ID = /^[a-z0-9]{1,64}$/;
-// Show artwork lives on f.prxu.org; episode audio on Dovetail (tracker hop already removed).
-const CARD_CSP = { resourceDomains: ["https://f.prxu.org", "https://dovetail.prxu.org", "https://dovetail-cdn.prxu.org"] };
+// Show artwork on f.prxu.org, audio on Dovetail, our logo and map pictures, fonts, and the fullscreen map (library + Amazon tiles).
+const CARD_CSP = {
+  resourceDomains: [
+    "https://f.prxu.org", "https://dovetail.prxu.org", "https://dovetail-cdn.prxu.org", SITE,
+    "https://fonts.googleapis.com", "https://fonts.gstatic.com", "https://unpkg.com",
+  ],
+  connectDomains: ["https://maps.geo.us-east-1.amazonaws.com", "https://unpkg.com"],
+};
+const MAP_W = 300; // the inline map at the card's 768-px base canvas
+const MAP_H = 250;
+const INLINE_PLACES = 3;
+const CARD = { _meta: { ui: { resourceUri: CARD_URI } } };
 
 interface Deps {
   backstory: () => BackstoryClient;
@@ -25,6 +41,7 @@ interface ToolResult {
 
 const text = (t: string) => [{ type: "text" as const, text: t }];
 const unavailable = (): ToolResult => ({ content: text(UNAVAILABLE_SPEECH), isError: true });
+const clean = (story: Story): Story => ({ ...story, audioUrl: directAudioUrl(story.audioUrl) });
 
 /** Logs every call's duration (the Alexa+ budget is 500 ms); Backstory failures become a plain apology. */
 async function timed(tool: string, run: () => Promise<ToolResult>, fallback: () => ToolResult): Promise<ToolResult> {
@@ -40,27 +57,71 @@ async function timed(tool: string, run: () => Promise<ToolResult>, fallback: () 
   }
 }
 
+/** The places view: Amazon's map of the first places with numbered badges, plus the fullscreen map's data. */
+function placesCard(story: Story) {
+  const pinned = pinnedPlaces(story);
+  const first = pinned.slice(0, INLINE_PLACES);
+  const frame = mapFrame(first, MAP_W, MAP_H);
+  const badges = clusterPins(pinPositions(first, frame, MAP_W, MAP_H));
+  const url = `${SITE}/api/map?story=${encodeURIComponent(story.storyId)}&w=${MAP_W}&h=${MAP_H}&n=${first.length}&theme=light`;
+  const groups = new Map<string, { numbers: number[]; lat: number; lng: number }>();
+  pinned.forEach((p, i) => {
+    const key = `${p.lat},${p.lng}`;
+    const group = groups.get(key) ?? { numbers: [], lat: p.lat, lng: p.lng };
+    group.numbers.push(i + 1);
+    groups.set(key, group);
+  });
+  return {
+    cardHtml: renderView({ view: "places", story, map: { url, w: MAP_W, h: MAP_H, badges } }),
+    fullHtml: fullPlacesView(story),
+    mapPlaces: [...groups.values()],
+  };
+}
+
 export function buildMcpHandler(deps: Deps) {
   const station = getStation();
   const shows = station.shows.map((s) => s.slug) as [string, ...string[]];
+  const card = (view: CardView, extra: Record<string, unknown> = {}) => ({ stationId: station.stationId, view: view.view, cardHtml: renderView(view), ...extra });
   return createMcpHandler(
     (server) => {
-      server.registerTool(
+      registerAppTool(
+        server,
         "find_station_story",
         {
           title: "Find a Radio Milwaukee story",
           description:
-            "Find a Radio Milwaukee podcast story a listener remembers, by topic, person, place or neighborhood. Returns up to three published stories. Use only these results; never invent a story.",
+            "Find a Radio Milwaukee podcast story a listener remembers, by topic, person, place, neighborhood or something said in it. Returns up to three published stories. Use only these results; never invent a story.",
           inputSchema: z.object({ description: z.string().min(1).max(200), show: z.enum(shows).optional() }),
+          ...CARD,
         },
         async ({ description, show }) =>
           timed("find_station_story", async () => {
             const matches = (await deps.backstory().searchStoryCards(description, show)).slice(0, 3);
-            // The ids also go in text: some hosts give the model only `content`, and it needs them for get_station_story.
+            // The ids also go in text: some hosts give the model only `content`, and it needs them for the next tool.
             const ids = JSON.stringify({ matches: matches.map(({ storyId, title, show }) => ({ storyId, title, show })) });
             return {
               content: [...text(spokenMatches(matches)), ...text(ids)],
-              structuredContent: { stationId: station.stationId, matches },
+              structuredContent: matches.length ? card({ view: "stories", matches }, { matches }) : { stationId: station.stationId, matches },
+            };
+          }, unavailable),
+      );
+
+      registerAppTool(
+        server,
+        "latest_station_stories",
+        {
+          title: "The newest Radio Milwaukee stories",
+          description: "List the newest published Radio Milwaukee stories, optionally for one show, numbered so the listener can pick one. Use for 'what's new' or 'the latest episode'.",
+          inputSchema: z.object({ show: z.enum(shows).optional() }),
+          ...CARD,
+        },
+        async ({ show }) =>
+          timed("latest_station_stories", async () => {
+            const matches = (await deps.backstory().latestStoryCards(show)).slice(0, 3);
+            const ids = JSON.stringify({ matches: matches.map(({ storyId, title, show }) => ({ storyId, title, show })) });
+            return {
+              content: [...text(spokenLatest(matches)), ...text(ids)],
+              structuredContent: matches.length ? card({ view: "stories", matches }, { matches }) : { stationId: station.stationId, matches },
             };
           }, unavailable),
       );
@@ -71,16 +132,21 @@ export function buildMcpHandler(deps: Deps) {
         {
           title: "Tell me about a Radio Milwaukee story",
           description:
-            "Tell the listener about one Radio Milwaukee story. Speak only from this record, always say the show and month, and describe the summary as Radio Milwaukee's, not your own.",
-          inputSchema: z.object({ storyId: z.string().min(1).max(64) }),
-          _meta: { ui: { resourceUri: CARD_URI } },
+            "Tell the listener about one Radio Milwaukee story. Speak only from this record, always say the show and month, and describe the summary as Radio Milwaukee's, not your own. Use view \"places\" when the listener asks where the story's places are; it shows them on a map.",
+          inputSchema: z.object({ storyId: z.string().min(1).max(64), view: z.enum(["story", "places"]).optional() }),
+          ...CARD,
         },
-        async ({ storyId }) =>
+        async ({ storyId, view }) =>
           timed("get_station_story", async () => {
-            const story = STORY_ID.test(storyId) ? await deps.backstory().getStory(storyId) : null;
-            if (!story) return { content: text(NOT_FOUND_SPEECH) };
-            const clean = { ...story, audioUrl: directAudioUrl(story.audioUrl) };
-            return { content: text(spokenStory(clean)), structuredContent: { stationId: station.stationId, story: clean, cardHtml: renderCard(clean) } };
+            const found = STORY_ID.test(storyId) ? await deps.backstory().getStory(storyId) : null;
+            if (!found) return { content: text(NOT_FOUND_SPEECH) };
+            const story = clean(found);
+            if (view === "places") {
+              const names = pinnedPlaces(story).map((p) => p.name);
+              if (names.length === 0) return { content: text(NO_PLACES_SPEECH), structuredContent: card({ view: "story", story }, { story }) };
+              return { content: text(spokenPlaces(names)), structuredContent: { stationId: station.stationId, view: "places", story, ...placesCard(story) } };
+            }
+            return { content: text(spokenStory(story)), structuredContent: card({ view: "story", story }, { story }) };
           }, unavailable),
       );
 
@@ -92,26 +158,24 @@ export function buildMcpHandler(deps: Deps) {
           description:
             "Answer a listener's detail question about one Radio Milwaukee story using the station's own words. Quote the passages exactly, say when in the episode each is heard, and never add facts. If detailed answers aren't available or nothing matches, say so.",
           inputSchema: z.object({ storyId: z.string().min(1).max(64), question: z.string().min(1).max(200) }),
-          _meta: { ui: { resourceUri: CARD_URI } },
+          ...CARD,
         },
         async ({ storyId, question }) =>
           timed("ask_station_story", async () => {
             if (!STORY_ID.test(storyId)) return { content: text(NOT_FOUND_SPEECH) };
-            const [story, asked] = await Promise.all([deps.backstory().getStory(storyId), deps.backstory().askStory(storyId, question)]);
-            if (!story || asked.status === "not_found") return { content: text(NOT_FOUND_SPEECH) };
+            const [found, asked] = await Promise.all([deps.backstory().getStory(storyId), deps.backstory().askStory(storyId, question)]);
+            if (!found || asked.status === "not_found") return { content: text(NOT_FOUND_SPEECH) };
             if (asked.status === "not_allowed") return { content: text(NOT_ALLOWED_SPEECH) };
-            const clean = { ...story, audioUrl: directAudioUrl(story.audioUrl) };
-            return {
-              content: text(spokenPassages(asked.passages)),
-              structuredContent: { stationId: station.stationId, story: clean, passages: asked.passages, cardHtml: renderCard(clean, asked.passages) },
-            };
+            const story = clean(found);
+            const view: CardView = asked.passages.length ? { view: "quote", story, passages: asked.passages } : { view: "story", story };
+            return { content: text(spokenPassages(asked.passages)), structuredContent: card(view, { story, passages: asked.passages }) };
           }, unavailable),
       );
 
-      registerAppResource(server, "Story card", CARD_URI, { description: "A Radio Milwaukee story with its source, places and episode." }, async () => ({
+      registerAppResource(server, "Story card", CARD_URI, { description: "A Radio Milwaukee story, quote, list or map, in Alexa+ style." }, async () => ({
         contents: [{ uri: CARD_URI, mimeType: RESOURCE_MIME_TYPE, text: deps.cardHtml(), _meta: { ui: { csp: CARD_CSP } } }],
       }));
     },
-    { serverInfo: { name: "radio-commons", version: "0.1.0" } },
+    { serverInfo: { name: "radio-commons", version: "0.2.0" } },
   );
 }

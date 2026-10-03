@@ -21,7 +21,9 @@ const source = (item: { show: string; publishedAt: number }) => `${item.show}, $
 
 export function spokenMatches(matches: StoryCardMatch[]): string {
   if (matches.length === 0) return NO_MATCH;
-  if (matches.length === 1) return `I found one Radio Milwaukee story: ${matches[0].title}, from ${source(matches[0])}.`;
+  // A story found in its transcript carries where: "Mentioned at 10:45: …".
+  const where = (m: StoryCardMatch) => (m.hint.startsWith("Mentioned at ") ? ` ${m.hint}` : "");
+  if (matches.length === 1) return `I found one Radio Milwaukee story: ${matches[0].title}, from ${source(matches[0])}.${where(matches[0])}`;
   const list = matches.map((m, i) => `${i + 1}, ${m.title}, from ${source(m)}`).join("; ");
   return `I found ${matches.length} Radio Milwaukee stories: ${list}. Which one?`;
 }
@@ -54,4 +56,21 @@ export function spokenPassages(passages: Passage[]): string {
   const more = passages.length - 1;
   const onScreen = more === 0 ? "" : more === 1 ? " One more moment is on the screen." : ` ${more} more moments are on the screen.`;
   return `At ${clock(first.startMs)}, ${first.speaker ?? "the episode"} says: '${first.text}'${onScreen} Want to hear that part?`;
+}
+
+export const NO_PLACES_SPEECH = "Radio Milwaukee hasn't mapped places for that story.";
+
+/** The newest stories, numbered like the carousel so "the second one" works. */
+export function spokenLatest(matches: StoryCardMatch[]): string {
+  if (matches.length === 0) return "I couldn't find any recent Radio Milwaukee stories.";
+  return `The newest Radio Milwaukee stories: ${matches.map((m, i) => `${i + 1}, ${m.title}, from ${source(m)}`).join("; ")}. Which one?`;
+}
+
+/** The mapped places, first three by name, matching the numbered list on screen. */
+export function spokenPlaces(names: string[]): string {
+  if (names.length === 0) return NO_PLACES_SPEECH;
+  if (names.length === 1) return `That story mentions one mapped place: ${names[0]}. Want directions?`;
+  const first = names.slice(0, 3);
+  const list = first.length === 2 ? first.join(" and ") : `${first.slice(0, -1).join(", ")} and ${first.at(-1)}`;
+  return `That story mentions ${names.length} mapped places. The first ${first.length === 2 ? "two" : "three"} are ${list}. Want directions to one?`;
 }

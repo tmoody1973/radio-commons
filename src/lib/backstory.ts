@@ -32,6 +32,8 @@ export class BackstoryUnavailable extends Error {}
 export interface BackstoryClient {
   searchStoryCards(text: string, showSlug?: string): Promise<StoryCardMatch[]>;
   getStory(storyId: string): Promise<Story | null>;
+  /** The newest published stories, optionally for one show. */
+  latestStoryCards(showSlug?: string): Promise<StoryCardMatch[]>;
   /** Short, guarded transcript passages from one published episode (Backstory decides what's allowed). */
   askStory(storyId: string, question: string): Promise<AskResult>;
 }
@@ -62,6 +64,7 @@ export function createBackstoryClient({ query, timeoutMs = 350 }: { query: Query
     searchStoryCards: (text, showSlug) =>
       call("public:searchStoryCards", showSlug ? { text, showSlug } : { text }, z.array(matchSchema)),
     getStory: (storyId) => call("public:getStory", { storyId }, storySchema.nullable()),
+    latestStoryCards: (showSlug) => call("public:latestStoryCards", showSlug ? { showSlug } : {}, z.array(matchSchema)),
     askStory: (storyId, question) => call("public:askStory", { storyId, question }, askSchema),
   };
 }
