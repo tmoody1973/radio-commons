@@ -88,6 +88,10 @@ describe("events speech", () => {
       "1, Tarik Moody picks Samara Joy at Jazz Gallery, tonight at 8 PM: \"A voice for the ages.\"; 2, Radio Milwaukee presents Friko at Jazz Gallery, tonight at 8 PM. Want to add one to your calendar?",
     );
   });
+  it("a Concert Picks pick without a write-up says where it's from, not a placeholder quote", () => {
+    const listed = { ...EVENT, title: "Chance the Rapper", pick: { curator: "Brett Krzykowski", role: "Radio Milwaukee", blurb: "On Radio Milwaukee's MKE Concert Picks this week." } };
+    expect(spokenPicks([listed], NOW)).toBe("1, Brett Krzykowski picks Chance the Rapper at Jazz Gallery, tonight at 8 PM, from Radio Milwaukee's MKE Concert Picks. Want to add one to your calendar?");
+  });
   it("after-midnight shows asked about in the evening are still tonight; midnight is 'midnight'", () => {
     const TEN_PM = new Date("2026-10-04T03:00:00Z"); // Saturday 10 PM
     expect(eventTime("2026-10-04T05:30:00Z", TEN_PM)).toBe("tonight at 12:30 AM");

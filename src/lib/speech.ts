@@ -148,6 +148,8 @@ export function spokenPicks(events: PublicEvent[], now: Date): string {
   if (events.length === 0) return "Radio Milwaukee doesn't have picks posted right now.";
   const lines = events.slice(0, MAX_SPOKEN_EVENTS).map((e) => {
     const base = `${e.title}${where(e)}, ${eventTime(e.startAt, now)}`;
+    // The Field Guide's Concert Picks import gives listed shows without a write-up this stock blurb: say the source instead.
+    if (e.pick && e.pick.blurb.startsWith("On Radio Milwaukee's MKE Concert Picks")) return `${e.pick.curator} picks ${base}, from Radio Milwaukee's MKE Concert Picks`;
     if (e.pick) return `${e.pick.curator} picks ${base}: "${firstSentenceOf(e.pick.blurb)}"`;
     // Station listings are often titled "88Nine presents: …"; don't say "presents" twice.
     return `Radio Milwaukee presents ${base.replace(/^(88nine|hyfin|radio milwaukee|414 music|rhythm lab)\s+presents:?\s*/i, "")}`;
