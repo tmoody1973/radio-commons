@@ -73,14 +73,16 @@ Vercel: set `BACKSTORY_CONVEX_URL` for Production and Preview, then `vercel depl
 
 ## Connect to Alexa+
 
-Follow Amazon's [Alexa+ MCP quickstart](https://developer.amazon.com/docs/alexaplus/add-ons/mcp-toolkit-quickstart.html): install the Alexa AI CLI (`@alexa-ai/cli`, from Amazon's private registry after your AWS account is allowlisted), run `alexa-ai configure`, then
+The Alexa+ add-on lives in [`alexa/addon-package/addon.json`](alexa/addon-package/addon.json): Amazon's add-on manifest, with an `MCP` integration pointing Alexa+ at `https://radio-commons.vercel.app/api/mcp`. `tests/alexaAddon.test.ts` checks it against the server (endpoint, a tool behind every example phrase, privacy page, icons), and `npm run alexa:smoke` calls the endpoint it names the way Alexa+ does.
+
+Deploy it with Amazon's Alexa AI CLI (`@alexa-ai/cli`, per the [Alexa+ MCP quickstart](https://developer.amazon.com/docs/alexaplus/add-ons/mcp-toolkit-quickstart.html)), after `alexa-ai configure`:
 
 ```bash
-alexa-ai new mcp --name "Radio Milwaukee Stories" --locale en-US --mcp-server-url "https://radio-commons.vercel.app/api/mcp"
-alexa-ai deploy
+npm run alexa:deploy        # alexa-ai deploy, from alexa/; prints the Add-on ID
+alexa-ai configure-account-linking --addon-id <id> --stage development --client-id <Clerk listener OAuth client id>
 ```
 
-and test in the Alexa+ web simulator.
+Account linking uses the listener Clerk app (OAuth 2.1, PKCE S256, refresh tokens, RFC 8707 `resource`); register every Alexa redirect URI in Clerk. Then test in the Alexa+ web simulator.
 
 ## Docs
 

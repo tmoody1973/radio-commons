@@ -1,0 +1,78 @@
+{
+  "manifestVersion": "1.0",
+  "storeListing": {
+    "distributionCountries": [
+      "US"
+    ],
+    "locales": {
+      "en-US": {
+        "default": "DEFAULT",
+        "name": {
+          "value": "Radio Milwaukee",
+          "spokenForm": {
+            "format": "ipa",
+            "value": " "
+          }
+        },
+        "shortDescription": "Radio Milwaukee stories, songs and local shows",
+        "fullDescription": "Find Radio Milwaukee podcast stories you half-remember, the songs 88Nine, HYFIN, Rhythm Lab and 414 Music just played, and concerts coming up in Milwaukee, Madison and Chicago. Link your Radio Milwaukee account to save songs to your Finds and your Apple Music library.",
+        "examplePhrases": [
+          "What was that This Bites episode about frugal dining",
+          "What were the last five songs on 88Nine",
+          "What concerts are coming up in Milwaukee this weekend",
+          "Save that song",
+          "What is new from Radio Milwaukee"
+        ],
+        "privacyAndCompliance": {
+          "privacyPolicyUrl": "https://radio-commons.vercel.app/privacy"
+        },
+        "mediaAssets": {
+          "icons": {
+            "light": [
+              {
+                "size": "72x72",
+                "uri": "https://radio-commons.vercel.app/brand/alexa/icon-72x72.png"
+              },
+              {
+                "size": "64x64",
+                "uri": "https://radio-commons.vercel.app/brand/alexa/icon-64x64.png"
+              },
+              {
+                "size": "88x88",
+                "uri": "https://radio-commons.vercel.app/brand/alexa/icon-88x88.png"
+              },
+              {
+                "size": "126x126",
+                "uri": "https://radio-commons.vercel.app/brand/alexa/icon-126x126.png"
+              },
+              {
+                "size": "180x180",
+                "uri": "https://radio-commons.vercel.app/brand/alexa/icon-180x180.png"
+              },
+              {
+                "size": "241x241",
+                "uri": "https://radio-commons.vercel.app/brand/alexa/icon-241x241.png"
+              }
+            ],
+            "dark": []
+          },
+          "carouselImages": [],
+          "bannerImages": []
+        }
+      }
+    }
+  },
+  "integrations": [
+    {
+      "type": "MCP",
+      "config": {
+        "endpoints": {
+          "default": {
+            "type": "HTTPS",
+            "uri": "https://radio-commons.vercel.app/api/mcp"
+          }
+        }
+      }
+    }
+  ]
+}
