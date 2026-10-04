@@ -2,6 +2,7 @@ import { backstoryFromEnv, type BackstoryClient } from "@/lib/backstory";
 import { storyCardPage } from "@/lib/card";
 import { fieldGuideFromEnv } from "@/lib/fieldGuide";
 import { buildMcpHandler } from "@/lib/mcp";
+import { playlistFromEnv, type PlaylistClient } from "@/lib/playlist";
 
 // Convex and Vercel's default region are both in US East; keep the function there.
 export const preferredRegion = "iad1";
@@ -15,6 +16,10 @@ if (process.env.BACKSTORY_CONVEX_URL) void backstory().searchStoryCards("warm up
 // Wake the Field Guide too: its first answer after a quiet spell is slow (server and database both starting).
 if (process.env.BACKSTORY_CONVEX_URL) void fieldGuideFromEnv().picks().catch(() => undefined);
 
-const handler = buildMcpHandler({ backstory, fieldGuide: fieldGuideFromEnv, cardHtml: storyCardPage });
+// Created on first use, so a build without the playlist env vars never constructs it.
+let playlistClient: PlaylistClient | undefined;
+const playlist = () => (playlistClient ??= playlistFromEnv());
+
+const handler = buildMcpHandler({ backstory, fieldGuide: fieldGuideFromEnv, playlist, cardHtml: storyCardPage });
 
 export { handler as DELETE, handler as GET, handler as POST };

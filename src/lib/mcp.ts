@@ -2,6 +2,7 @@ import { registerAppResource, registerAppTool, RESOURCE_MIME_TYPE } from "@model
 import { createMcpHandler } from "mcp-handler";
 import { z } from "zod";
 import { BackstoryUnavailable, type BackstoryClient, type Story } from "@/lib/backstory";
+import { PlaylistUnavailable, type PlaylistClient } from "@/lib/playlist";
 import { FieldGuideUnavailable, type FieldGuideClient, type PublicEvent } from "@/lib/fieldGuide";
 import { fullPlacesView, renderView, type CardView, type EventItem } from "@/lib/card";
 import { SITE } from "@/lib/card/tokens";
@@ -10,7 +11,7 @@ import { createHash } from "node:crypto";
 import { eventMapPoints, MAP_H, MAP_W, pinnedEvents, pinnedPlaces } from "@/lib/map/staticMap";
 import {
   directAudioUrl, eventTime, EVENTS_UNAVAILABLE_SPEECH, NO_PLACES_FOR_EVENTS_SPEECH, NO_PLACES_SPEECH, spokenEvents, spokenPicks, NOT_ALLOWED_SPEECH, NOT_FOUND_SPEECH, spokenLatest, spokenMatches, spokenPassages,
-  spokenPlaces, spokenStory, UNAVAILABLE_SPEECH,
+  spokenPlaces, spokenRecall, spokenStory, spokenTrackFacts, UNAVAILABLE_SPEECH,
 } from "@/lib/speech";
 import { getStation } from "@/lib/stations";
 
@@ -30,6 +31,7 @@ const CARD = { _meta: { ui: { resourceUri: CARD_URI } } };
 interface Deps {
   backstory: () => BackstoryClient;
   fieldGuide: () => FieldGuideClient;
+  playlist: () => PlaylistClient;
   cardHtml: () => string;
 }
 
@@ -77,7 +79,7 @@ async function timed(tool: string, run: () => Promise<ToolResult>, fallback: () 
   try {
     return await run();
   } catch (error) {
-    if (!(error instanceof BackstoryUnavailable) && !(error instanceof FieldGuideUnavailable)) throw error;
+    if (!(error instanceof BackstoryUnavailable) && !(error instanceof FieldGuideUnavailable) && !(error instanceof PlaylistUnavailable)) throw error;
     console.error(JSON.stringify({ tool, error: error.message }));
     return fallback();
   } finally {
@@ -284,6 +286,50 @@ export function buildMcpHandler(deps: Deps) {
               ...(events.length ? { structuredContent: card({ view: "events", items: events.map((event) => ({ event, when: eventTime(event.startAt, now) })) }, { events }) } : {}),
             };
           }, eventsUnavailable),
+      );
+
+      registerAppTool(
+        server,
+        "find_song_played",
+        {
+          title: "Find a song Radio Milwaukee played",
+          description:
+            "Find a song Radio Milwaukee played on one of its stations, by station and time window, optionally with descriptive cues like 'horns'. Returns numbered matches with playIds; pass a playId to save_find or get_track_story. Use for 'what was that song on 88Nine this morning?' and 'the one before that' (beforePlayId).",
+          inputSchema: z.object({
+            station: z.enum(["hyfin", "88nine", "414music", "rhythmlab"]),
+            from: z.number(),
+            to: z.number(),
+            cues: z.array(z.string().max(30)).max(5).optional(),
+            beforePlayId: z.string().max(64).optional(),
+            afterPlayId: z.string().max(64).optional(),
+          }),
+          ...CARD,
+        },
+        async (args) =>
+          timed("find_song_played", async () => {
+            const result = await deps.playlist().findSongPlayed(args);
+            const matches = result.matches.map(({ label, playId, trackId, artist, title, playedAt }) => ({ label, playId, trackId, artist, title, playedAt }));
+            return {
+              content: [...text(spokenRecall(result)), ...text(JSON.stringify({ matches }))],
+              structuredContent: { stationId: station.stationId, matches, status: result.status },
+            };
+          }, unavailable),
+      );
+
+      registerAppTool(
+        server,
+        "get_track_story",
+        {
+          title: "More about a song Radio Milwaukee played",
+          description: "Tell the listener more about a song Radio Milwaukee played, by trackId or playId from find_song_played. Speak only from this record.",
+          inputSchema: z.object({ trackId: z.string().max(64).optional(), playId: z.string().max(64).optional() }),
+          ...CARD,
+        },
+        async (args) =>
+          timed("get_track_story", async () => {
+            const facts = await deps.playlist().getTrackFacts(args);
+            return { content: text(spokenTrackFacts(facts)), structuredContent: { ...facts } };
+          }, unavailable),
       );
 
       registerAppResource(server, "Story card", CARD_URI, { description: "A Radio Milwaukee story, quote, list or map, in Alexa+ style." }, async () => ({

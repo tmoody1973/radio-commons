@@ -1,5 +1,6 @@
 import type { Passage, Story, StoryCardMatch } from "@/lib/backstory";
 import type { PublicEvent, When } from "@/lib/fieldGuide";
+import type { RecallResult, TrackFacts } from "@/lib/playlist";
 import { streetAddress } from "@/lib/maps";
 
 export const UNAVAILABLE_SPEECH = "I can't reach Radio Milwaukee's stories right now. Please try again in a minute.";
@@ -158,3 +159,21 @@ export function spokenPicks(events: PublicEvent[], now: Date): string {
 }
 
 const firstSentenceOf = (text: string) => text.match(/^.*?[.!?](\s|$)/)?.[0].trim() ?? text;
+
+export function spokenRecall(result: RecallResult): string {
+  const [top, ...rest] = result.matches;
+  if (result.status === "unknown_station") return "I don't know that station.";
+  if (!top) return "I couldn't find anything Radio Milwaukee played then. Try a wider time.";
+  const lead = `That was likely "${top.title}" by ${top.artist}.`;
+  if (result.status === "ok") return lead;
+  const others = rest.map((m) => `"${m.title}" by ${m.artist}`).join(", or ");
+  const caveat = result.status === "cues_unchecked" ? " I couldn't check that detail, so here's what played around then." : "";
+  return `${lead}${caveat}${others ? ` Or it might be ${others}.` : ""}`;
+}
+
+export function spokenTrackFacts(facts: TrackFacts): string {
+  if (facts.status !== "ok") return "I don't have more on that song.";
+  const f = facts as TrackFacts & { title?: string; artist?: string; year?: number | null; label?: string | null };
+  const details = [f.year ? `released in ${f.year}` : null, f.label ? `on ${f.label}` : null].filter(Boolean).join(", ");
+  return `"${f.title}" by ${f.artist}${details ? `, ${details}` : ""}.`;
+}

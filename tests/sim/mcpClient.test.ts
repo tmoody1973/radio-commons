@@ -1,15 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { buildMcpHandler } from "@/lib/mcp";
 import { connectMcp } from "@/lib/sim/mcpClient";
-import { fakeBackstory, fakeFieldGuide } from "../fixtures";
+import { fakeBackstory, fakeFieldGuide, fakePlaylist } from "../fixtures";
 
-const handler = buildMcpHandler({ backstory: () => fakeBackstory(), fieldGuide: () => fakeFieldGuide(), cardHtml: () => "<!doctype html><title>card</title>" });
+const handler = buildMcpHandler({ backstory: () => fakeBackstory(), fieldGuide: () => fakeFieldGuide(), playlist: () => fakePlaylist(), cardHtml: () => "<!doctype html><title>card</title>" });
 const inProcessFetch = ((input: RequestInfo | URL, init?: RequestInit) => handler(new Request(input, init))) as typeof fetch;
 
 describe("simulator MCP client", () => {
   it("lists our tools, calls them, and reads the card, like Alexa+ would", async () => {
     const mcp = await connectMcp("http://localhost/api/mcp", inProcessFetch);
-    expect(mcp.tools.map((t) => t.name).sort()).toEqual(["ask_station_story", "find_events", "find_station_story", "get_station_story", "latest_station_stories", "station_picks"]);
+    expect(mcp.tools.map((t) => t.name).sort()).toEqual(["ask_station_story", "find_events", "find_song_played", "find_station_story", "get_station_story", "get_track_story", "latest_station_stories", "station_picks"]);
     expect(mcp.tools[0].inputSchema).toMatchObject({ type: "object" });
     const found = await mcp.callTool("find_station_story", { description: "art shop" });
     expect(found.text).toMatch(/^I found one Radio Milwaukee story/);

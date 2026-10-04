@@ -1,21 +1,22 @@
 import { describe, expect, it } from "vitest";
 import { BackstoryUnavailable } from "@/lib/backstory";
 import { FieldGuideUnavailable, type EventQuery } from "@/lib/fieldGuide";
-import { EVENT, fakeBackstory, fakeFieldGuide, STORY } from "./fixtures";
+import { PlaylistUnavailable } from "@/lib/playlist";
+import { EVENT, fakeBackstory, fakeFieldGuide, fakePlaylist, STORY } from "./fixtures";
 import { buildMcpHandler } from "@/lib/mcp";
 import { INITIALIZE, mcpPost } from "./mcp-wire";
 
-const handlerWith = (backstory = fakeBackstory(), fieldGuide = fakeFieldGuide()) =>
-  buildMcpHandler({ backstory: () => backstory, fieldGuide: () => fieldGuide, cardHtml: () => "<!doctype html><title>card</title>" });
+const handlerWith = (backstory = fakeBackstory(), fieldGuide = fakeFieldGuide(), playlist = fakePlaylist()) =>
+  buildMcpHandler({ backstory: () => backstory, fieldGuide: () => fieldGuide, playlist: () => playlist, cardHtml: () => "<!doctype html><title>card</title>" });
 const call = (name: string, args: Record<string, unknown>) => ({ method: "tools/call", params: { name, arguments: args } });
 
 describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
-  it("initializes on protocol 2025-11-25 and lists the six tools", async () => {
+  it("initializes on protocol 2025-11-25 and lists the eight tools", async () => {
     const handler = handlerWith();
     const init = await mcpPost(handler, INITIALIZE);
     expect(init.message.result?.protocolVersion).toBe("2025-11-25");
     const tools = await mcpPost(handler, { method: "tools/list" }, 2);
-    expect(tools.message.result.tools.map((t: { name: string }) => t.name).sort()).toEqual(["ask_station_story", "find_events", "find_station_story", "get_station_story", "latest_station_stories", "station_picks"]);
+    expect(tools.message.result.tools.map((t: { name: string }) => t.name).sort()).toEqual(["ask_station_story", "find_events", "find_song_played", "find_station_story", "get_station_story", "get_track_story", "latest_station_stories", "station_picks"]);
   });
 
   it("find_station_story returns matches and a spoken shortlist", async () => {
@@ -181,5 +182,25 @@ describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
     const { message } = await mcpPost(handlerWith(fakeBackstory(), down), call("find_events", { query: "jazz" }));
     expect(message.result.isError).toBe(true);
     expect(message.result.content[0].text).toBe("I can't reach Radio Milwaukee's event guide right now.");
+  });
+  it("lists the recall tools alongside the story tools", async () => {
+    const tools = await mcpPost(handlerWith(), { method: "tools/list" }, 2);
+    const names = tools.message.result.tools.map((t: { name: string }) => t.name);
+    expect(names).toEqual(expect.arrayContaining(["find_song_played", "get_track_story"]));
+  });
+  it("find_song_played returns playIds Alexa can save and speaks the top match", async () => {
+    const { message } = await mcpPost(handlerWith(), call("find_song_played", { station: "88nine", from: 0, to: 3_600_000 }));
+    expect(message.result.structuredContent.matches[0]).toMatchObject({ playId: "play_1", label: "1" });
+    expect(message.result.content[0].text).toMatch(/Victory Dance/);
+  });
+  it("find_song_played turns a playlist outage into a plain apology", async () => {
+    const down = fakePlaylist({ findSongPlayed: async () => { throw new PlaylistUnavailable("down"); } });
+    const { message } = await mcpPost(handlerWith(undefined, undefined, down), call("find_song_played", { station: "88nine", from: 0, to: 1 }));
+    expect(message.result.isError).toBe(true);
+  });
+  it("get_track_story speaks the facts", async () => {
+    const facts = fakePlaylist({ getTrackFacts: async () => ({ status: "ok", title: "Victory Dance", artist: "Ezra Collective", year: 2024, label: "Partisan" }) });
+    const { message } = await mcpPost(handlerWith(undefined, undefined, facts), call("get_track_story", { trackId: "track_1" }));
+    expect(message.result.content[0].text).toBe('"Victory Dance" by Ezra Collective, released in 2024, on Partisan.');
   });
 });
