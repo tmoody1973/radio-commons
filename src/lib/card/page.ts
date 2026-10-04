@@ -43,6 +43,7 @@ blockquote{margin:0;font-size:40px;line-height:1.1;font-weight:700}blockquote.q-
 .badge{position:absolute;top:10px;left:10px}
 .tile-title{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin:10px 12px 2px;font-size:18px;font-weight:700;line-height:1.2}
 .tile-date{margin:0 12px 12px;font-size:14px;color:var(--muted)}
+.song{cursor:default}.song .tile-art{height:160px}.song .tile-actions{margin-top:auto}
 .split{display:flex;gap:20px;min-height:0}.mapbox{position:relative;flex:none;border-radius:12px;overflow:hidden}.mapbox img{display:block}
 .pin{position:absolute;transform:translate(-50%,-50%);min-width:30px;height:30px;padding:0 8px;box-sizing:border-box;border-radius:9999px;background:var(--accent);color:var(--on-accent);border:2px solid #fff;font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center;white-space:nowrap}
 .list{flex:1;display:flex;flex-direction:column;gap:8px;min-width:0}
@@ -99,6 +100,7 @@ app.ontoolresult = (result) => {
   const data = result && result.structuredContent;
   if (!data || typeof data.cardHtml !== "string") { root.textContent = "Story unavailable."; return; }
   current = data;
+  if (audio) audio.pause(); // a new answer replaces the card, so its sound stops too
   audio = null;
   applyContext();
 };
@@ -161,6 +163,23 @@ function play(button) {
   }).catch(() => { button.lastChild.textContent = " Can't play here"; });
 }
 
+// List tiles each carry their own preview: one plays at a time, and its button reads "Pause" while it does.
+function rowLabel(button, playing) {
+  if (!button.dataset.label) button.dataset.label = button.lastChild.textContent;
+  button.lastChild.textContent = playing ? " Pause" : button.dataset.label;
+}
+function playRow(button) {
+  const same = audio && audio.dataset.row === button.dataset.audio;
+  if (same && !audio.paused) { audio.pause(); return; }
+  if (audio && !same) audio.pause();
+  if (!same) { audio = new Audio(button.dataset.audio); audio.dataset.row = button.dataset.audio; }
+  audio.onpause = () => rowLabel(button, false);
+  audio.play().then(() => {
+    rowLabel(button, true);
+    window.parent.postMessage({ type: "radio-commons:playing" }, "*");
+  }).catch(() => { button.lastChild.textContent = " Can't play here"; });
+}
+
 // The host pauses the card when the listener says "stop" or "pause" (Alexa handles those on the device itself).
 window.addEventListener("message", (event) => {
   if (event.source === window.parent && event.data && event.data.type === "radio-commons:pause") pauseAudio();
@@ -176,6 +195,7 @@ root.addEventListener("click", (event) => {
   if (has("directions")) { app.openLink({ url: button.dataset.url }).catch(() => { button.textContent = "Can't open maps here"; }); return; }
   if (has("fullscreen")) { app.requestDisplayMode({ mode: "fullscreen" }).then(applyContext).catch(() => {}); return; }
   if (has("close")) { app.requestDisplayMode({ mode: "inline" }).then(applyContext).catch(() => {}); return; }
+  if (has("row-play")) { playRow(button); return; }
   if (has("play") || has("play-from")) play(button);
 });
 

@@ -69,3 +69,24 @@ describe("song card", () => {
     expect(creditLines({ ...FACTS, facts: {} } as TrackFacts)).toEqual([]);
   });
 });
+
+describe("songs list card", () => {
+  const two = [songCardFromMatch(MATCH, "88nine"), songCardFromMatch({ ...MATCH, playId: "play_2", title: "Lauren", artist: "Men I Trust", previewUrl: null }, "88nine")];
+
+  it("numbers each song so 'save number 2' matches the screen", () => {
+    const html = renderView({ view: "songs", songs: two });
+    expect(html).toMatch(/class="badge">1<[\s\S]*class="badge">2</);
+  });
+
+  it("gives each song its own preview player and a Save that names it", () => {
+    const html = renderView({ view: "songs", songs: two });
+    expect(html.match(/class="secondary row-play" data-audio=/g)).toHaveLength(1);
+    expect(html).toContain('data-ask="Save number 2, &quot;Lauren&quot; by Men I Trust"');
+  });
+
+  it("shows artwork tiles and escapes song text", () => {
+    const html = renderView({ view: "songs", songs: two });
+    expect(html).toContain('class="tile-art"');
+    expect(html).not.toContain(XSS);
+  });
+});

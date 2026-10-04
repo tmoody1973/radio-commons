@@ -1,4 +1,4 @@
-import type { RecallMatch, Station, TrackFacts } from "@/lib/playlist";
+import type { RecallMatch, RecentSong, Station, TrackFacts } from "@/lib/playlist";
 import { localClock } from "@/lib/stationTime";
 
 /** What the song card shows; built from a recall match or from a track's facts. */
@@ -11,7 +11,7 @@ export interface SongCard {
   lines: string[];
 }
 
-const STATION_NAMES: Record<Station, string> = { "88nine": "88Nine", hyfin: "HYFIN", "414music": "414 Music", rhythmlab: "Rhythm Lab" };
+export const STATION_NAMES: Record<Station, string> = { "88nine": "88Nine", hyfin: "HYFIN", "414music": "414 Music", rhythmlab: "Rhythm Lab" };
 const ARTWORK_PX = 600;
 const MAX_NAMES_PER_CREDIT = 3;
 const CREDIT_LABELS = [["producer", "Produced by"], ["writer", "Written by"]] as const;
@@ -47,6 +47,16 @@ export const songCardFromMatch = (match: RecallMatch, station: Station): SongCar
   artworkUrl: sizedArtwork(match.artworkUrl),
   previewUrl: match.previewUrl,
   lines: showLine(match.upcomingShows),
+});
+
+/** A row in the "last few songs" list: just the time, since the station is in the spoken answer. */
+export const songCardFromRecent = (song: RecentSong): SongCard => ({
+  title: song.title,
+  artist: song.artist,
+  meta: localClock(song.playedAt),
+  artworkUrl: sizedArtwork(song.artworkUrl),
+  previewUrl: song.previewUrl,
+  lines: [],
 });
 
 export function songCardFromFacts(facts: TrackFacts): SongCard {

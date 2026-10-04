@@ -16,6 +16,10 @@ const recallSchema = z.object({
   status: z.enum(["ok", "options", "cues_unchecked", "no_spins", "unknown_station"]),
   matches: z.array(matchSchema),
 }).passthrough();
+const publicPlaySchema = z.object({
+  _id: z.string(), artist: z.string(), title: z.string(), playedAt: z.number(),
+  artworkUrl: z.string().nullable(), previewUrl: z.string().nullable(),
+}).passthrough();
 const factsSchema = z.object({ status: z.enum(["ok", "not_found"]) }).passthrough();
 const savedOkSchema = z.object({
   status: z.literal("ok"), findId: z.string(), appleMusic: z.enum(["not_linked", "pending"]),
@@ -33,6 +37,7 @@ const linkedSchema = z.object({ linked: z.literal(true) });
 export type RecallResult = z.infer<typeof recallSchema>;
 export type TrackFacts = z.infer<typeof factsSchema>;
 export type RecallMatch = z.infer<typeof matchSchema>;
+export interface RecentSong { playId: string; artist: string; title: string; playedAt: number; artworkUrl: string | null; previewUrl: string | null }
 export type FindRow = z.infer<typeof findSchema>;
 export type SavedFind = z.infer<typeof savedSchema>;
 export type Station = "hyfin" | "88nine" | "414music" | "rhythmlab";
@@ -42,6 +47,7 @@ export class PlaylistUnavailable extends Error {}
 export interface PlaylistClient {
   findSongPlayed(args: { station: Station; from: number; to: number; cues?: string[]; beforePlayId?: string; afterPlayId?: string }): Promise<RecallResult>;
   getTrackFacts(args: { trackId?: string; playId?: string }): Promise<TrackFacts>;
+  recentSongs(station: Station, count: number): Promise<RecentSong[]>;
   saveFind(listenerId: string, playId: string): Promise<SavedFind>;
   listFinds(listenerId: string, limit?: number): Promise<FindRow[]>;
   deleteFinds(listenerId: string): Promise<z.infer<typeof deletedSchema>>;
@@ -79,6 +85,10 @@ export function createPlaylistClient({ query, mutation, action, serverKey, timeo
   return {
     findSongPlayed: (args) => call(query, "alexa:findSongPlayed", args, recallSchema),
     getTrackFacts: (args) => call(query, "alexa:getTrackFacts", args, factsSchema),
+    // The same newest-first public playlist the website widget shows (station IDs and promos already removed).
+    recentSongs: async (station, count) =>
+      (await call(query, "plays:recentByStation", { stationSlug: station, limit: count }, z.array(publicPlaySchema)))
+        .map(({ _id, artist, title, playedAt, artworkUrl, previewUrl }) => ({ playId: _id, artist, title, playedAt, artworkUrl, previewUrl })),
     saveFind: (listenerId, playId) => call(mutation, "finds:save", keyed({ listenerId, playId }), savedSchema),
     listFinds: (listenerId, limit) => call(query, "finds:list", keyed(limit === undefined ? { listenerId } : { listenerId, limit }), z.array(findSchema)),
     deleteFinds: (listenerId) => call(mutation, "finds:deleteAllForListener", keyed({ listenerId }), deletedSchema),

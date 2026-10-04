@@ -18,12 +18,12 @@ const PLAYLIST_TOOLS = ["find_song_played", "get_track_story", "save_find", "lis
 const call = (name: string, args: Record<string, unknown>) => ({ method: "tools/call", params: { name, arguments: args } });
 
 describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
-  it("initializes on protocol 2025-11-25 and lists the eleven tools", async () => {
+  it("initializes on protocol 2025-11-25 and lists the twelve tools", async () => {
     const handler = handlerWith();
     const init = await mcpPost(handler, INITIALIZE);
     expect(init.message.result?.protocolVersion).toBe("2025-11-25");
     const tools = await mcpPost(handler, { method: "tools/list" }, 2);
-    expect(tools.message.result.tools.map((t: { name: string }) => t.name).sort()).toEqual(["ask_station_story", "delete_my_finds", "find_events", "find_song_played", "find_station_story", "get_station_story", "get_track_story", "latest_station_stories", "list_finds", "save_find", "station_picks"]);
+    expect(tools.message.result.tools.map((t: { name: string }) => t.name).sort()).toEqual(["ask_station_story", "delete_my_finds", "find_events", "find_song_played", "find_station_story", "get_station_story", "get_track_story", "latest_station_stories", "list_finds", "recent_songs", "save_find", "station_picks"]);
   });
 
   it("find_station_story returns matches and a spoken shortlist", async () => {
@@ -229,6 +229,33 @@ describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
     const { message } = await mcpPost(handlerWith(undefined, undefined, facts), call("get_track_story", { playId: "play_1" }));
     expect(message.result.structuredContent.cardHtml).toContain("Produced by Femi Koleoso");
     expect(message.result.content[0].text).toContain("produced by Femi Koleoso");
+  });
+  it("recent_songs lists the latest plays newest first, speaks three and shows them all", async () => {
+    const asked: unknown[] = [];
+    const songs = ["Lauren", "Eddie My Love", "Birdhouse In Your Soul", "Valerie", "Heavy Foot"].map((title, i) => ({
+      playId: `play_${i}`, artist: `Artist ${i}`, title, playedAt: Date.UTC(2026, 9, 4, 21, 40 - i * 4), artworkUrl: null, previewUrl: null,
+    }));
+    const playlist = fakePlaylist({ recentSongs: async (station, count) => { asked.push([station, count]); return songs.slice(0, count); } });
+    const { message } = await mcpPost(handlerWith(undefined, undefined, playlist), call("recent_songs", { station: "88nine", count: 5 }));
+    expect(asked).toEqual([["88nine", 5]]);
+    expect(message.result.content[0].text).toBe('The last 5 on 88Nine, newest first: "Lauren" by Artist 0, "Eddie My Love" by Artist 1, "Birdhouse In Your Soul" by Artist 2, and 2 more on screen.');
+    expect(message.result.structuredContent.view).toBe("songs");
+    expect(message.result.structuredContent.songs.map((s: { number: number; playId: string }) => [s.number, s.playId])).toEqual([[1, "play_0"], [2, "play_1"], [3, "play_2"], [4, "play_3"], [5, "play_4"]]);
+  });
+  it("recent_songs defaults to five", async () => {
+    const asked: number[] = [];
+    const playlist = fakePlaylist({ recentSongs: async (_station, count) => { asked.push(count); return []; } });
+    const { message } = await mcpPost(handlerWith(undefined, undefined, playlist), call("recent_songs", { station: "hyfin" }));
+    expect(asked).toEqual([5]);
+    expect(message.result.content[0].text).toMatch(/haven't logged any songs/i);
+  });
+  it("find_song_played with several guesses shows them as a list", async () => {
+    const two = fakePlaylist({ findSongPlayed: async () => ({ status: "options", matches: [
+      { label: "1", playId: "play_1", artist: "A", title: "One", playedAt: Date.UTC(2026, 9, 4, 19), trackId: null, matchReason: null, artworkUrl: null, previewUrl: null, upcomingShows: [] },
+      { label: "2", playId: "play_2", artist: "B", title: "Two", playedAt: Date.UTC(2026, 9, 4, 19, 4), trackId: null, matchReason: null, artworkUrl: null, previewUrl: null, upcomingShows: [] },
+    ] }) });
+    const { message } = await mcpPost(handlerWith(undefined, undefined, two), call("find_song_played", { station: "88nine", startTime: "14:00", endTime: "14:30" }));
+    expect(message.result.structuredContent.view).toBe("songs");
   });
   it("find_song_played turns local times into the epoch window the playlist expects", async () => {
     const seen: { from: number; to: number }[] = [];
