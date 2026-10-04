@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { cardAfterTurn, nextHistory, trailLabel } from "@/lib/sim/ui";
+import { LINK_ACCOUNT_SPEECH } from "@/lib/speech";
+import { cardAfterTurn, needsAccountLink, nextHistory, trailLabel } from "@/lib/sim/ui";
 
 describe("simulator page helpers", () => {
   it("keeps the last 20 messages of the conversation", () => {
@@ -20,6 +21,12 @@ describe("simulator page helpers", () => {
     expect(cardAfterTurn("old", null, [tool])).toBeNull();
     expect(cardAfterTurn("old", null, [])).toBe("old");
     expect(cardAfterTurn("old", "new", [tool])).toBe("new");
+  });
+  it("offers the Link button when a Finds tool asked the listener to link their account", () => {
+    const refused = { kind: "tool" as const, name: "save_find", input: {}, ms: 3, isError: true, summary: LINK_ACCOUNT_SPEECH };
+    expect(needsAccountLink([refused])).toBe(true);
+    expect(needsAccountLink([{ ...refused, isError: false, summary: "Saved." }])).toBe(false);
+    expect(needsAccountLink([{ kind: "error", text: "boom" }])).toBe(false);
   });
   it("skips an empty heard turn", () => {
     expect(nextHistory([], "", "Sorry, I didn't catch that.")).toEqual([]);
