@@ -5,7 +5,7 @@ import { isOpenableLink } from "@/lib/maps";
 import { buildMcpHandler } from "@/lib/mcp";
 import { spokenPassages, spokenStory } from "@/lib/speech";
 import { getStation } from "@/lib/stations";
-import { EVENT, fakeBackstory, fakeFieldGuide, STORY } from "./fixtures";
+import { EVENT, fakeBackstory, fakeFieldGuide, fakePlaylist, STORY } from "./fixtures";
 import { mcpPost } from "./mcp-wire";
 
 const SONG_AUDIO = "https://cpa.ds.npr.org/s921/audio/2026/09/glitzy-effort.mp3";
@@ -96,6 +96,7 @@ describe("music stories", () => {
     const handler = buildMcpHandler({
       backstory: () => fakeBackstory({ getStory: async () => PREMIERE }),
       fieldGuide: () => fakeFieldGuide({ events: async () => [releaseShow] }),
+      playlist: () => fakePlaylist(),
       cardHtml: () => "<!doctype html><title>card</title>",
     });
     const call = { method: "tools/call", params: { name: "get_station_story", arguments: { storyId: PREMIERE.storyId } } };

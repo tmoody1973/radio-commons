@@ -1,4 +1,5 @@
 import type { ChatMessage, TrailEntry } from "@/lib/sim/trail";
+import { LINK_ACCOUNT_SPEECH } from "@/lib/speech";
 
 const MAX_HISTORY = 20;
 
@@ -36,3 +37,7 @@ export function cardAfterTurn<T>(previous: T | null, next: T | null, trail: Trai
   if (next) return next;
   return trail.some((entry) => entry.kind === "tool") ? null : previous;
 }
+
+/** A Finds tool asked the listener to link their account (refused in the tool, or a 401 from the server). */
+export const needsAccountLink = (trail: TrailEntry[]) =>
+  trail.some((entry) => entry.kind === "tool" && entry.isError && entry.summary === LINK_ACCOUNT_SPEECH);

@@ -1,4 +1,5 @@
 import type { BackstoryClient, Story } from "@/lib/backstory";
+import type { PlaylistClient } from "@/lib/playlist";
 import type { FieldGuideClient, PublicEvent } from "@/lib/fieldGuide";
 
 export const STORY = {
@@ -37,5 +38,24 @@ export const EVENT = {
 export const fakeFieldGuide = (overrides: Partial<FieldGuideClient> = {}): FieldGuideClient => ({
   events: async () => [EVENT],
   picks: async () => [{ ...EVENT, title: "Samara Joy", pick: { curator: "Tarik Moody", role: "Host", blurb: "A voice for the ages. Go." } }],
+  ...overrides,
+});
+
+export const fakePlaylist = (overrides: Partial<PlaylistClient> = {}): PlaylistClient => ({
+  findSongPlayed: async () => ({
+    status: "ok",
+    matches: [{
+      label: "1", playId: "play_1", artist: "Ezra Collective", title: "Victory Dance", playedAt: Date.UTC(2026, 9, 3, 18),
+      trackId: "track_1", matchReason: null, artworkUrl: null, previewUrl: null, upcomingShows: [],
+    }],
+  }),
+  getTrackFacts: async () => ({ status: "ok" }),
+  saveFind: async () => ({ status: "ok", findId: "find_1", appleMusic: "not_linked", artist: "Ezra Collective", title: "Victory Dance", alreadySaved: false }),
+  listFinds: async () => [{
+    label: "1", findId: "find_1", playId: "play_1", trackId: "track_1", artist: "Ezra Collective", title: "Victory Dance",
+    stationSlug: "hyfin", savedAt: Date.UTC(2026, 9, 3, 19), appleMusic: { status: "not_linked", reason: null }, artworkUrl: null, previewUrl: null,
+  }],
+  deleteFinds: async () => ({ deletedFinds: 1, deletedLink: false }),
+  connectAppleMusic: async () => undefined,
   ...overrides,
 });
