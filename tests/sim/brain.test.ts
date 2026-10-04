@@ -150,6 +150,10 @@ describe("brain", () => {
     expect(SYSTEM_PROMPT).toMatch(/Watch on radiomilwaukee\.org/);
     expect(SYSTEM_PROMPT).toMatch(/never (sing|quote).*lyrics/i);
   });
+  it("a request to play or hear something is a request to find it first (live: 'Play the new Glitzy song' called no tool)", () => {
+    expect(SYSTEM_PROMPT).toMatch(/asks to play or hear[^.]*call find_station_story/i);
+    expect(SYSTEM_PROMPT).toMatch(/never answer a play request without/i);
+  });
   it("points to Reserve for booking", () => {
     expect(SYSTEM_PROMPT).toMatch(/tap Reserve/);
   });
