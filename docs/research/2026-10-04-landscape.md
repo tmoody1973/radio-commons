@@ -58,33 +58,37 @@ The difference: a streaming service knows the catalog; the station knows Milwauk
 
 ## Ready-to-adapt versions
 
-*Drafts. Rewrite them in your own voice before using them; the facts and sources above are what they rest on.*
+Starting points only. They describe the full product as planned for Oct 23 — stories, events and music — so trim any feature that hasn't shipped by then. The facts above are what they rest on.
 
-**Devpost, "Inspiration" or "What's unique" (about 90 words)**
+**Devpost, "Inspiration" (about 120 words)**
 
-> Alexa+ can already turn newspaper articles into AI-voiced podcasts, and companies like Priceline and Lyft can plug their own tools into it. But no radio station — in the US or abroad — had brought its own journalism there, and public radio's old Alexa skills don't carry over to Alexa+. Radio Commons is, as far as we can find, the first MCP server built by a radio station itself for its listeners: the station's own reporters and hosts, every fact approved by an editor, and every answer leading back to a real place, event or show in Milwaukee. Next: the songs on 88Nine, with the station's own knowledge of local artists.
+> Alexa+ can already turn newspaper articles into AI-voiced podcasts, and Spotify and Amazon Music answer song requests from their catalogs. But no radio station — in the US or abroad — had brought itself into the assistant, and public radio's old Alexa skills don't carry over to Alexa+. Radio Commons is, as far as we can find, the first MCP server built by a radio station itself for its listeners. Ask about a story you half-remember and Alexa plays the moment the host said it. Ask what's playing on 88Nine and hear the story behind the song, including Milwaukee artists the streaming catalogs barely know, from the station's own premieres and artist interviews. Then find the place, the show or tonight's event. Every fact is approved by a station editor.
 
-**Demo voiceover (one line, about 15 seconds)**
+**Demo voiceover (about 15 seconds)**
 
-> "Alexa+ can read you the news in a synthetic voice. Radio Commons does something nobody else has: it brings you back to your local station — its people, its places, the exact moment a story was told."
+> "Alexa+ can read you the news in a synthetic voice. Radio Commons brings you back to your local station: the moment a story was told, the story behind the song on the air, and where to go next in Milwaukee."
 
-**Portfolio case study, "The opportunity" (PM framing)**
+**Portfolio case study, "The opportunity"**
 
-> Before building, I mapped what already existed. News agencies (Reuters, Bloomberg) had MCP servers for enterprise customers; Amazon had launched AI-generated podcasts from newspaper content and opened Alexa+ to outside MCP servers — but only to travel, ticketing and smart-home brands. Public radio's voice-assistant presence was still a "play the stream" skill that doesn't work on Alexa+. That gap — local, trusted, audio-first journalism inside the assistant — set the product bet: keep the station's real voices and editorial control, and make every answer lead somewhere in the community.
+> Before building, I mapped what already existed. News agencies (Reuters, Bloomberg) had MCP servers for enterprise customers. Amazon had launched AI-generated podcasts from newspaper content and opened Alexa+ to outside MCP servers, but only to travel, ticketing and smart-home brands. Music was the same story: Spotify, Apple Music and Amazon Music answered requests from catalogs that barely know Milwaukee's artists, while the station knows them through its premieres, sessions and interviews. Public radio's voice-assistant presence was still a "play the stream" skill that doesn't work on Alexa+. That gap — local, trusted, audio-first journalism and music inside the assistant — set the product bet: keep the station's real voices and editorial control, and make every answer lead somewhere in the community: a place, a show, a song.
 
-**LinkedIn post (draft)**
+**LinkedIn post**
 
 > Amazon opened Alexa+ to outside developers this summer. The first partners: Priceline, Lyft, Fandango, Headspace.
 >
 > No news. No radio. No local anything.
 >
-> So for the Alexa+ hackathon I built Radio Commons for Radio Milwaukee: ask Alexa about a story you half-remember, and it plays the moment the host said it, shows the place on a map, and tells you what's happening nearby tonight from our event guide. Next up: the stories behind the local songs on 88Nine. Every fact approved by a station editor.
+> So for the Alexa+ hackathon I built Radio Commons for Radio Milwaukee:
 >
-> I checked the US and public broadcasters abroad: as far as I can find, it's the first MCP server a radio station has built itself for its listeners. Here's what I learned building it 👇
+> - Ask about a story you half-remember, and Alexa plays the moment the host said it and shows the place on a map.
+> - Ask what's playing on 88Nine, and hear the story behind the song, even for Milwaukee artists Spotify barely knows, from our own premieres and artist interviews.
+> - Ask what's on tonight, and get nearby shows and events from our event guide, plus what our staff recommends.
+>
+> Every fact approved by a station editor. I checked the US and public broadcasters abroad: as far as I can find, it's the first MCP server a radio station has built itself for its listeners. Here's what I learned building it.
 
-**Short post (Bluesky / Threads; 296 characters, over X's 280)**
+**Short post (Bluesky / Threads; 295 characters, over X's 280)**
 
-> Alexa+ can write you an AI podcast from the news. I built the opposite: Radio Commons puts Radio Milwaukee's real hosts, local places, events and, soon, the stories behind local songs into Alexa+. Every fact editor-approved. The first station-built MCP server for listeners, as far as I can find.
+> Alexa+ can write you an AI podcast from the news. I built the opposite: Radio Commons brings Radio Milwaukee into Alexa+: real hosts, the story behind the song on 88Nine, local artists, places and shows. Every fact editor-approved. First station-built MCP server for listeners, as far as I know.
 
 ## Sources
 
