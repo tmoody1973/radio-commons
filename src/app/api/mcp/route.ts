@@ -1,6 +1,8 @@
+import { withMcpAuth } from "mcp-handler";
 import { backstoryFromEnv, type BackstoryClient } from "@/lib/backstory";
 import { storyCardPage } from "@/lib/card";
 import { fieldGuideFromEnv } from "@/lib/fieldGuide";
+import { gateAuthTools, RESOURCE_METADATA_PATH, verifyListenerToken } from "@/lib/listenerAuth";
 import { buildMcpHandler } from "@/lib/mcp";
 import { playlistFromEnv, type PlaylistClient } from "@/lib/playlist";
 
@@ -22,4 +24,7 @@ const playlist = () => (playlistClient ??= playlistFromEnv());
 
 const handler = buildMcpHandler({ backstory, fieldGuide: fieldGuideFromEnv, playlist, cardHtml: storyCardPage });
 
-export { handler as DELETE, handler as GET, handler as POST };
+// Optional auth: anonymous listeners keep every non-Finds tool; a valid listener token unlocks the Finds tools.
+const authed = withMcpAuth(gateAuthTools(handler), verifyListenerToken, { required: false, resourceMetadataPath: RESOURCE_METADATA_PATH });
+
+export { authed as DELETE, authed as GET, authed as POST };

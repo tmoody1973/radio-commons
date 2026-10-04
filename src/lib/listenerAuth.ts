@@ -1,0 +1,74 @@
+import { createPublicKey, verify, type KeyObject } from "node:crypto";
+import type { AuthInfo } from "@modelcontextprotocol/server";
+import { getPublicOrigin } from "mcp-handler";
+
+export const AUTH_TOOLS = ["save_find", "list_finds", "delete_my_finds"] as const;
+const AUTH_TOOL_SET = new Set<string>(AUTH_TOOLS);
+export const RESOURCE_METADATA_PATH = "/.well-known/oauth-protected-resource";
+const ACCESS_TOKEN_TYPES = new Set(["at+jwt", "application/at+jwt"]);
+
+export type ListenerAuthInfo = AuthInfo & { extra: { userId: string } };
+
+interface AccessTokenClaims {
+  iss?: unknown;
+  sub?: unknown;
+  exp?: unknown;
+  client_id?: unknown;
+  azp?: unknown;
+  scope?: unknown;
+}
+
+const decodeSegment = (segment: string): Record<string, unknown> => JSON.parse(Buffer.from(segment, "base64url").toString("utf8"));
+
+// Env files often store a PEM on one line with literal "\n"s.
+const publicKeyFrom = (pem: string): KeyObject => createPublicKey(pem.replace(/\\n/g, "\n"));
+
+/** RS256 signature and header check. Returns the claims only when the signature is good. */
+function verifiedClaims(token: string, key: KeyObject): AccessTokenClaims | undefined {
+  const [header, payload, signature] = token.split(".");
+  if (!header || !payload || !signature) return undefined;
+  const { alg, typ } = decodeSegment(header);
+  // Pinning alg stops alg-confusion; requiring at+jwt keeps Clerk session tokens (same key, same issuer) out.
+  if (alg !== "RS256" || !ACCESS_TOKEN_TYPES.has(String(typ))) return undefined;
+  const signatureValid = verify("RSA-SHA256", Buffer.from(`${header}.${payload}`), key, Buffer.from(signature, "base64url"));
+  return signatureValid ? decodeSegment(payload) : undefined;
+}
+
+/**
+ * Checks a listener's Clerk OAuth access token locally (no network call, so it fits the 500 ms budget).
+ * Clerk doesn't set `aud`, so the token is bound to us by issuer + our Alexa+ OAuth client id instead.
+ * Undefined = anonymous: a bad token never errors, the listener just can't use the Finds tools.
+ */
+export async function verifyListenerToken(_req: Request, bearer?: string): Promise<ListenerAuthInfo | undefined> {
+  const { CLERK_LISTENER_ISSUER: issuer, CLERK_LISTENER_JWT_KEY: pem, CLERK_LISTENER_OAUTH_CLIENT_ID: clientId } = process.env;
+  if (!bearer || !issuer || !pem || !clientId) return undefined;
+  try {
+    const claims = verifiedClaims(bearer, publicKeyFrom(pem));
+    if (!claims || claims.iss !== issuer || typeof claims.sub !== "string" || !claims.sub) return undefined;
+    if (typeof claims.exp !== "number" || claims.exp <= Date.now() / 1000) return undefined;
+    if ((claims.client_id ?? claims.azp) !== clientId) return undefined;
+    const scopes = typeof claims.scope === "string" ? claims.scope.split(" ").filter(Boolean) : [];
+    return { token: bearer, clientId, scopes, expiresAt: claims.exp, extra: { userId: claims.sub } };
+  } catch {
+    return undefined; // malformed token or key; never log the token
+  }
+}
+
+/** Amazon wants HTTP 401 for an auth-needing tool without a token; MCP tools can't set status, so the route does it. */
+export function gateAuthTools(handler: (req: Request) => Promise<Response>) {
+  return async (req: Request): Promise<Response> => {
+    if (req.method !== "POST" || (req as Request & { auth?: unknown }).auth) return handler(req);
+    const body = (await req.clone().json().catch(() => null)) as { method?: string; params?: { name?: string } } | null;
+    if (body?.method !== "tools/call" || !AUTH_TOOL_SET.has(body.params?.name ?? "")) return handler(req);
+    const metadata = `${getPublicOrigin(req)}${RESOURCE_METADATA_PATH}`;
+    return new Response(JSON.stringify({ error: "account_linking_required" }), {
+      status: 401,
+      headers: { "content-type": "application/json", "www-authenticate": `Bearer resource_metadata="${metadata}"` },
+    });
+  };
+}
+
+export function listenerIdFrom(extra: { authInfo?: { extra?: { userId?: unknown } } }): string | undefined {
+  const id = extra.authInfo?.extra?.userId;
+  return typeof id === "string" ? id : undefined;
+}
