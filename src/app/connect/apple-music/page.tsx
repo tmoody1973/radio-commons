@@ -3,7 +3,7 @@
 import { SignIn, useAuth } from "@clerk/nextjs";
 import { ConvexHttpClient } from "convex/browser";
 import { makeFunctionReference } from "convex/server";
-import { useCallback, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { TOKENS } from "@/lib/card/tokens";
 
 const MUSICKIT_SRC = "https://js-cdn.music.apple.com/musickit/v3/musickit.js";
@@ -11,7 +11,7 @@ const THEME_CSS = `
 .connect{--screen:${TOKENS.light.screen};--card:${TOKENS.light.card};--text:${TOKENS.light.text};--muted:${TOKENS.light.muted}}
 @media (prefers-color-scheme: dark){.connect{--screen:${TOKENS.dark.screen};--card:${TOKENS.dark.card};--text:${TOKENS.dark.text};--muted:${TOKENS.dark.muted}}}`;
 
-type Phase = "idle" | "working" | "connected" | "unavailable" | "error";
+type Phase = "loading" | "ready" | "working" | "connected" | "unavailable" | "error";
 
 interface MusicKitInstance { authorize(): Promise<string> }
 interface MusicKitGlobal {
@@ -39,41 +39,69 @@ async function fetchDeveloperToken(): Promise<string | null> {
   return result?.token ?? null;
 }
 
-async function authorizeAndLink(): Promise<Phase> {
+async function prepareMusicKit(): Promise<MusicKitGlobal | null> {
   const developerToken = await fetchDeveloperToken();
-  if (!developerToken) return "unavailable";
+  if (!developerToken) return null;
   const musicKit = await loadMusicKit();
   await musicKit.configure({ developerToken, app: { name: "Radio Milwaukee", build: "1" } });
-  const musicUserToken = await musicKit.getInstance().authorize();
-  const response = await fetch("/api/connect/apple-music", { method: "POST", body: JSON.stringify({ musicUserToken }) });
+  return musicKit;
+}
+
+async function linkMusicUserToken(musicUserToken: string): Promise<Phase> {
+  const response = await fetch("/api/connect/apple-music", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ musicUserToken }),
+  });
+  if (response.status === 503) return "unavailable";
   return response.ok ? "connected" : "error";
 }
 
-const MESSAGES: Record<Exclude<Phase, "idle" | "working">, string> = {
-  connected: "Connected. Say “save it” to Alexa after any song.",
-  unavailable: "Apple Music isn’t available right now. Please try again later.",
-  error: "We couldn’t connect Apple Music. Please try again.",
+const MESSAGES: Record<"connected" | "unavailable" | "error", string> = {
+  connected: "Connected. Say \u201csave it\u201d to Alexa after any song.",
+  unavailable: "Apple Music isn\u2019t available right now. Please try again later.",
+  error: "We couldn\u2019t connect Apple Music. Please try again.",
 };
 
 function ConnectCard() {
-  const [phase, setPhase] = useState<Phase>("idle");
-  const connect = useCallback(async () => {
+  const [phase, setPhase] = useState<Phase>("loading");
+  const [configured, setConfigured] = useState(false);
+  const musicKit = useRef<MusicKitGlobal | null>(null);
+
+  // Everything async happens here so the click handler can open Apple's popup inside the user's tap.
+  useEffect(() => {
+    let cancelled = false;
+    prepareMusicKit().then(
+      (ready) => {
+        musicKit.current = ready;
+        if (cancelled) return;
+        setConfigured(ready !== null);
+        setPhase(ready ? "ready" : "unavailable");
+      },
+      () => { if (!cancelled) setPhase("error"); },
+    );
+    return () => { cancelled = true; };
+  }, []);
+
+  const connect = async () => {
+    if (!musicKit.current) return;
     setPhase("working");
     try {
-      setPhase(await authorizeAndLink());
+      const musicUserToken = await musicKit.current.getInstance().authorize();
+      setPhase(await linkMusicUserToken(musicUserToken));
     } catch {
       setPhase("error"); // the cause may carry a token, so it is never logged or shown
     }
-  }, []);
+  };
 
   return (
     <>
       <p style={{ color: "var(--muted)" }}>Link Apple Music so songs you save with Alexa land in your library.</p>
-      {phase !== "idle" && phase !== "working" && <p role="status">{MESSAGES[phase]}</p>}
-      {phase !== "connected" && (
+      {(phase === "connected" || phase === "unavailable" || phase === "error") && <p role="status">{MESSAGES[phase]}</p>}
+      {phase !== "connected" && phase !== "unavailable" && (
         <button
           onClick={connect}
-          disabled={phase === "working"}
+          disabled={!configured || phase === "working"}
           style={{ background: TOKENS.accent, color: TOKENS.onAccent, border: 0, borderRadius: 999, padding: "12px 24px", fontSize: 16, fontWeight: 600, cursor: "pointer" }}
         >
           {phase === "working" ? "Connecting…" : "Connect Apple Music"}
