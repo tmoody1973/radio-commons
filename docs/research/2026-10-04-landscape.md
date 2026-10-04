@@ -42,9 +42,9 @@ Radio Commons has three parts: stories, events and music. Music is the newest an
 
 **Radio Milwaukee's music side, as of Oct 4, 2026**
 
-- **Built:** Ladies First, the HYFIN interview series with women musicians: 17 episodes transcribed and analyzed, awaiting editor review. Staff picks and music events come through the event guide (the "free music" carousel, "What is Radio Milwaukee recommending?").
+- **Built:** Ladies First (17 interviews, two live); Milwaukee Music Premieres (30, with the song playable) and Studio Milwaukee Sessions (24, set lists) as editor-reviewed stories; MKE Concert Picks as weekly staff picks (12 the first week). Music events come through the event guide.
 - **In progress:** a tool that enriches the station's live playlist data (the database behind the playlists on the station's websites) with facts about each song and artist.
-- **Planned:** "What's playing?" and "Tell me about this song" on Alexa; Milwaukee Music Premieres (station-written facts about local tracks); MKE Concert Picks matched to events; Studio Milwaukee Sessions from their articles and set lists.
+- **Planned:** "What's playing?" and "Tell me about this song" on Alexa, from the playlist data.
 
 The difference: a streaming service knows the catalog; the station knows Milwaukee's artists. Premieres and sessions are station-written records of local music that the big catalogs mostly lack.
 

@@ -66,3 +66,17 @@
 - A merge script ran ahead of CI; branch protection refused the merge, which is exactly what it is for.
 
 **What we now believe:** measure the data before designing the feature; it decides more than the code does. Always dry-run anything that writes to someone else's live data, and filter for privacy first.
+
+## 2026-10-04: music coverage (slice 5)
+
+**What we expected:** premieres, sessions and Concert Picks would be "just text" — read the articles, pull out the facts, done.
+
+**What happened:**
+- Reading the real articles first changed the design: premieres quote lyrics, session and premiere audio carry "not downloadable" flags, and Concert Picks have no collection — only a title pattern and a regular list ("Oct. 2: Bright Eyes w/… @ Turner Hall, 7:30 p.m.") that a plain program can read without AI.
+- CDS marks quoted lyrics consistently (italic lines joined by line breaks), so they could be removed before the AI ever saw the text. Glitzy's verses were stored zero times.
+- The first Concert Picks spotlight test failed for a good reason: the intro's roll call ("Hotline TNT! Mt. Joy! Bright Eyes!") was being treated as Bright Eyes' write-up.
+- The fresh reviewer found the import would fail every time in production: the live database connection can't run transactions, while the in-memory test database can. Tests passed; production wouldn't have. A test on a database that refuses transactions now pins it.
+- The reviewer also found the daily job would re-import the same article each morning, bringing back picks staff had deleted.
+- The first live import matched 12 of 20 shows; Alexa then read the stock blurb as if the writer had said it, until the wording was fixed.
+
+**What we now believe:** read the actual source documents before designing — the structure decides what needs AI and what doesn't. Test against the production driver's limits, not just the test database's. And a fresh reviewer earns its cost: two of its findings would have broken the feature on day one.
