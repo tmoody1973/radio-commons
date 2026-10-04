@@ -24,7 +24,8 @@ const CLOCK_TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 // Playlist play ids are long lowercase ids; a list number like "1" fails here so Alexa retries with the real one.
 const DEFAULT_RECENT_SONGS = 5;
 const SEARCH_RESULTS_SHOWN = 5;
-const SEARCH_DEPTH_PER_STATION = 20;
+// ~500 plays scanned per station (about a day); deeper scans take 1-2 s and miss the playlist timeout.
+const SEARCH_DEPTH_PER_STATION = 100;
 const MUSIC_STATIONS = ["88nine", "hyfin", "rhythmlab", "414music"] as const;
 const STATION_SLUG = z.enum(MUSIC_STATIONS);
 const MAX_RECENT_SONGS = 10;
@@ -359,7 +360,7 @@ export function buildMcpHandler(deps: Deps) {
         "search_playlist",
         {
           title: "Search Radio Milwaukee's playlists",
-          description: "Search what Radio Milwaukee's stations played over about the last two weeks, by artist or song title. Use for 'when did you last play Nas?', 'have you played the new Thao song?', 'what Kendrick have you played?'. Searches every station unless one is named. Returns numbered songs, newest first, with playIds for save_find and get_track_story.",
+          description: "Search what Radio Milwaukee's stations played over about the last day, by artist or song title. Use for 'when did you last play Nas?', 'have you played the new Thao song?', 'what Kendrick have you played?'. Searches every station unless one is named. Returns numbered songs, newest first, with playIds for save_find and get_track_story.",
           inputSchema: z.object({ query: z.string().min(2).max(100), station: STATION_SLUG.optional() }),
           ...CARD,
         },

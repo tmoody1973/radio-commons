@@ -89,7 +89,7 @@ export function createPlaylistClient({ query, mutation, action, serverKey, timeo
   return {
     findSongPlayed: (args) => call(query, "alexa:findSongPlayed", args, recallSchema),
     getTrackFacts: (args) => call(query, "alexa:getTrackFacts", args, factsSchema),
-    // The website widget's search: artist or title substring, newest first, about two weeks back.
+    // The website widget's search: artist or title substring, newest first; depth grows with limit.
     searchPlays: async (station, text, limit) => toRecentSongs(await call(query, "plays:searchByStation", { stationSlug: station, q: text, limit }, z.array(publicPlaySchema))),
     // The same newest-first public playlist the website widget shows (station IDs and promos already removed).
     recentSongs: async (station, count) =>
