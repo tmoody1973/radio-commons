@@ -1,10 +1,12 @@
 import type { Passage, Story, StoryCardMatch } from "@/lib/backstory";
 import type { PublicEvent, When } from "@/lib/fieldGuide";
-import type { RecallResult, TrackFacts } from "@/lib/playlist";
+import type { FindRow, RecallResult, SavedFind, TrackFacts } from "@/lib/playlist";
 import { localClock } from "@/lib/stationTime";
 import { streetAddress } from "@/lib/maps";
 
 export const UNAVAILABLE_SPEECH = "I can't reach Radio Milwaukee's stories right now. Please try again in a minute.";
+export const PLAYLIST_UNAVAILABLE_SPEECH = "I can't reach Radio Milwaukee's playlist right now. Please try again in a moment.";
+export const LINK_ACCOUNT_SPEECH = "Link your Radio Milwaukee account to save songs.";
 export const NOT_FOUND_SPEECH = "I couldn't find that Radio Milwaukee story.";
 export const NOT_ALLOWED_SPEECH = "Detailed answers aren't available for this episode.";
 export const NO_PASSAGE_SPEECH = "I couldn't find that in the episode.";
@@ -177,4 +179,22 @@ export function spokenTrackFacts(facts: TrackFacts): string {
   const f = facts as TrackFacts & { title?: string; artist?: string; year?: number | null; label?: string | null };
   const details = [f.year ? `released in ${f.year}` : null, f.label ? `on ${f.label}` : null].filter(Boolean).join(", ");
   return `"${f.title}" by ${f.artist}${details ? `, ${details}` : ""}.`;
+}
+
+export function spokenSaved(saved: SavedFind): string {
+  if (saved.status === "not_found") return "I couldn't find that play anymore — which song did you mean?";
+  const already = saved.alreadySaved ? "It was already in your Finds, so I moved it to the top" : `Saved "${saved.title}" by ${saved.artist} to your 88Nine Finds`;
+  return saved.appleMusic === "pending" ? `${already}, and I'm adding it to Apple Music.` : `${already}.`;
+}
+
+export function spokenFinds(finds: FindRow[]): string {
+  if (finds.length === 0) return "Your Finds are empty. After I name a song, say 'save it'.";
+  const items = finds.map((f) => `${f.label}: "${f.title}" by ${f.artist}`).join("; ");
+  const reconnect = finds.some((f) => f.appleMusic.status === "expired") ? " Apple Music needs reconnecting at radiomilwaukee.org slash connect." : "";
+  return `Your latest Finds — ${items}.${reconnect}`;
+}
+
+export function spokenDeleted({ deletedFinds, deletedLink }: { deletedFinds: number; deletedLink: boolean }): string {
+  const finds = `${deletedFinds} ${deletedFinds === 1 ? "find" : "finds"}`;
+  return `Done. I deleted ${finds}${deletedLink ? " and disconnected Apple Music" : ""}.`;
 }

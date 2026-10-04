@@ -1,24 +1,29 @@
-import { describe, expect, it } from "vitest";
+import { createSign, generateKeyPairSync } from "node:crypto";
+import { describe, expect, it, vi } from "vitest";
+import { withMcpAuth } from "mcp-handler";
+import { gateAuthTools, verifyListenerToken } from "@/lib/listenerAuth";
+import { PLAYLIST_UNAVAILABLE_SPEECH } from "@/lib/speech";
 import { BackstoryUnavailable } from "@/lib/backstory";
 import { FieldGuideUnavailable, type EventQuery } from "@/lib/fieldGuide";
 import { PlaylistUnavailable } from "@/lib/playlist";
 import { EVENT, fakeBackstory, fakeFieldGuide, fakePlaylist, STORY } from "./fixtures";
 import { buildMcpHandler } from "@/lib/mcp";
 import { localWindow } from "@/lib/stationTime";
-import { INITIALIZE, mcpPost } from "./mcp-wire";
+import { INITIALIZE, mcpPost, mcpPostAs, mcpRequest, send } from "./mcp-wire";
 
 const NOW = new Date("2026-10-04T20:00:00Z");
 const handlerWith = (backstory = fakeBackstory(), fieldGuide = fakeFieldGuide(), playlist = fakePlaylist()) =>
   buildMcpHandler({ backstory: () => backstory, fieldGuide: () => fieldGuide, playlist: () => playlist, now: () => NOW, cardHtml: () => "<!doctype html><title>card</title>" });
+const PLAYLIST_TOOLS = ["find_song_played", "get_track_story", "save_find", "list_finds", "delete_my_finds"];
 const call = (name: string, args: Record<string, unknown>) => ({ method: "tools/call", params: { name, arguments: args } });
 
 describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
-  it("initializes on protocol 2025-11-25 and lists the eight tools", async () => {
+  it("initializes on protocol 2025-11-25 and lists the eleven tools", async () => {
     const handler = handlerWith();
     const init = await mcpPost(handler, INITIALIZE);
     expect(init.message.result?.protocolVersion).toBe("2025-11-25");
     const tools = await mcpPost(handler, { method: "tools/list" }, 2);
-    expect(tools.message.result.tools.map((t: { name: string }) => t.name).sort()).toEqual(["ask_station_story", "find_events", "find_song_played", "find_station_story", "get_station_story", "get_track_story", "latest_station_stories", "station_picks"]);
+    expect(tools.message.result.tools.map((t: { name: string }) => t.name).sort()).toEqual(["ask_station_story", "delete_my_finds", "find_events", "find_song_played", "find_station_story", "get_station_story", "get_track_story", "latest_station_stories", "list_finds", "save_find", "station_picks"]);
   });
 
   it("find_station_story returns matches and a spoken shortlist", async () => {
@@ -93,9 +98,9 @@ describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
     expect(message.result.structuredContent).toBeUndefined();
   });
 
-  it("every tool shows the one Radio Milwaukee card", async () => {
+  it("every story and events tool shows the one Radio Milwaukee card", async () => {
     const tools = (await mcpPost(handlerWith(), { method: "tools/list" })).message.result.tools;
-    for (const tool of tools) expect(tool._meta?.ui?.resourceUri).toBe("ui://radio-commons/story-card.html");
+    for (const tool of tools.filter((t: { name: string }) => !PLAYLIST_TOOLS.includes(t.name))) expect(tool._meta?.ui?.resourceUri).toBe("ui://radio-commons/story-card.html");
   });
 
   it("find_station_story shows the matches as a numbered carousel", async () => {
@@ -205,10 +210,79 @@ describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
     const down = fakePlaylist({ findSongPlayed: async () => { throw new PlaylistUnavailable("down"); } });
     const { message } = await mcpPost(handlerWith(undefined, undefined, down), call("find_song_played", { station: "88nine", startTime: "08:00", endTime: "09:00" }));
     expect(message.result.isError).toBe(true);
+    expect(message.result.content[0].text).toBe(PLAYLIST_UNAVAILABLE_SPEECH);
   });
   it("get_track_story speaks the facts", async () => {
     const facts = fakePlaylist({ getTrackFacts: async () => ({ status: "ok", title: "Victory Dance", artist: "Ezra Collective", year: 2024, label: "Partisan" }) });
     const { message } = await mcpPost(handlerWith(undefined, undefined, facts), call("get_track_story", { trackId: "track_1" }));
     expect(message.result.content[0].text).toBe('"Victory Dance" by Ezra Collective, released in 2024, on Partisan.');
+  });
+  describe("Finds tools", () => {
+    it("save_find saves for the linked listener and confirms by voice", async () => {
+      const saved: string[] = [];
+      const playlist = fakePlaylist({ saveFind: async (listenerId, playId) => { saved.push(`${listenerId}:${playId}`); return { status: "ok", findId: "f1", appleMusic: "pending", artist: "Ezra Collective", title: "Victory Dance", alreadySaved: false }; } });
+      const { message } = await mcpPostAs(handlerWith(undefined, undefined, playlist), call("save_find", { playId: "play_1" }), "user_1");
+      expect(saved).toEqual(["user_1:play_1"]);
+      expect(message.result.content[0].text).toMatch(/Saved .*Victory Dance.* adding it to Apple Music/);
+    });
+    it("save_find without a playId fails validation, not a crash", async () => {
+      const { message } = await mcpPostAs(handlerWith(), call("save_find", {}), "user_1");
+      expect(message.error ?? message.result?.isError).toBeTruthy();
+    });
+    it("save_find for a missing play asks which song", async () => {
+      const playlist = fakePlaylist({ saveFind: async () => ({ status: "not_found" }) });
+      const { message } = await mcpPostAs(handlerWith(undefined, undefined, playlist), call("save_find", { playId: "gone" }), "user_1");
+      expect(message.result.content[0].text).toMatch(/which song/i);
+    });
+    it("list_finds returns numbered finds with labels", async () => {
+      const { message } = await mcpPostAs(handlerWith(), call("list_finds", {}), "user_1");
+      expect(message.result.structuredContent.finds[0]).toMatchObject({ label: "1", title: "Victory Dance" });
+      expect(message.result.content[0].text).toMatch(/1: "Victory Dance" by Ezra Collective/);
+    });
+    it("delete_my_finds reports what was removed", async () => {
+      const playlist = fakePlaylist({ deleteFinds: async () => ({ deletedFinds: 3, deletedLink: true }) });
+      const { message } = await mcpPostAs(handlerWith(undefined, undefined, playlist), call("delete_my_finds", {}), "user_1");
+      expect(message.result.content[0].text).toMatch(/3/);
+    });
+    it.each([["save_find", { playId: "play_1" }], ["list_finds", {}], ["delete_my_finds", {}]])("%s refuses on its own without a linked listener and never touches the playlist", async (name, args) => {
+      const never = async () => { throw new Error("playlist must not be called"); };
+      const playlist = fakePlaylist({ saveFind: never, listFinds: never, deleteFinds: never });
+      const { message } = await mcpPost(handlerWith(undefined, undefined, playlist), call(name, args));
+      expect(message.result.isError).toBe(true);
+      expect(message.result.structuredContent).toEqual({ error: "account_linking_required" });
+      expect(message.result.content[0].text).toBe("Link your Radio Milwaukee account to save songs.");
+    });
+    it.each([["save_find", { playId: "play_1" }], ["list_finds", {}], ["delete_my_finds", {}]])("%s turns a playlist outage into the playlist apology", async (name, args) => {
+      const down = async () => { throw new PlaylistUnavailable("down"); };
+      const playlist = fakePlaylist({ saveFind: down, listFinds: down, deleteFinds: down });
+      const { message } = await mcpPostAs(handlerWith(undefined, undefined, playlist), call(name, args), "user_1");
+      expect(message.result).toMatchObject({ isError: true, content: [{ text: PLAYLIST_UNAVAILABLE_SPEECH }] });
+    });
+    it("playlist tools do not advertise the story card, since they return none", async () => {
+      const { message } = await mcpPost(handlerWith(), { method: "tools/list" });
+      for (const tool of message.result.tools.filter((t: { name: string }) => PLAYLIST_TOOLS.includes(t.name))) {
+        expect(tool._meta?.ui).toBeUndefined();
+      }
+    });
+    it("a real bearer reaches save_find as the listener id through withMcpAuth", async () => {
+      const { publicKey, privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+      const b64 = (value: object) => Buffer.from(JSON.stringify(value)).toString("base64url");
+      const input = `${b64({ alg: "RS256", typ: "at+jwt", kid: "ins_1" })}.${b64({ iss: "https://issuer.example", sub: "user_42", client_id: "alexa-client", scope: "openid", exp: Math.floor(Date.now() / 1000) + 3600 })}`;
+      const token = `${input}.${createSign("RSA-SHA256").update(input).sign(privateKey).toString("base64url")}`;
+      vi.stubEnv("CLERK_LISTENER_ISSUER", "https://issuer.example");
+      vi.stubEnv("CLERK_LISTENER_OAUTH_CLIENT_ID", "alexa-client");
+      vi.stubEnv("CLERK_LISTENER_JWT_KEY", publicKey.export({ type: "spki", format: "pem" }).toString());
+      try {
+        const saved: string[] = [];
+        const playlist = fakePlaylist({ saveFind: async (listenerId, playId) => { saved.push(`${listenerId}:${playId}`); return { status: "ok", findId: "f1", appleMusic: "not_linked", artist: "A", title: "T", alreadySaved: false }; } });
+        const wrapped = withMcpAuth(gateAuthTools(handlerWith(undefined, undefined, playlist)), verifyListenerToken, { required: false });
+        const { message } = await send(wrapped, mcpRequest(call("save_find", { playId: "play_9" }), 1, { authorization: `Bearer ${token}` }));
+        expect(message.result.isError).toBeFalsy();
+        expect(saved).toEqual(["user_42:play_9"]);
+        expect((await send(wrapped, mcpRequest(call("save_find", { playId: "play_9" })))).status).toBe(401);
+      } finally {
+        vi.unstubAllEnvs();
+      }
+    });
   });
 });

@@ -3,6 +3,7 @@ import { createMcpHandler } from "mcp-handler";
 import { z } from "zod";
 import { BackstoryUnavailable, type BackstoryClient, type Story } from "@/lib/backstory";
 import { PlaylistUnavailable, type PlaylistClient } from "@/lib/playlist";
+import { listenerIdFrom } from "@/lib/listenerAuth";
 import { FieldGuideUnavailable, type FieldGuideClient, type PublicEvent } from "@/lib/fieldGuide";
 import { fullPlacesView, renderView, type CardView, type EventItem } from "@/lib/card";
 import { SITE } from "@/lib/card/tokens";
@@ -10,8 +11,8 @@ import { clusterPins, mapFrame, pinPositions } from "@/lib/map/geo";
 import { createHash } from "node:crypto";
 import { eventMapPoints, MAP_H, MAP_W, pinnedEvents, pinnedPlaces } from "@/lib/map/staticMap";
 import {
-  directAudioUrl, eventTime, EVENTS_UNAVAILABLE_SPEECH, NO_PLACES_FOR_EVENTS_SPEECH, NO_PLACES_SPEECH, spokenEvents, spokenPicks, NOT_ALLOWED_SPEECH, NOT_FOUND_SPEECH, spokenLatest, spokenMatches, spokenPassages,
-  spokenPlaces, spokenRecall, spokenStory, spokenTrackFacts, UNAVAILABLE_SPEECH,
+  directAudioUrl, eventTime, EVENTS_UNAVAILABLE_SPEECH, NO_PLACES_FOR_EVENTS_SPEECH, NO_PLACES_SPEECH, spokenEvents, spokenPicks, NOT_ALLOWED_SPEECH, NOT_FOUND_SPEECH, LINK_ACCOUNT_SPEECH, PLAYLIST_UNAVAILABLE_SPEECH, spokenFinds, spokenLatest, spokenMatches, spokenPassages,
+  spokenPlaces, spokenRecall, spokenDeleted, spokenSaved, spokenStory, spokenTrackFacts, UNAVAILABLE_SPEECH,
 } from "@/lib/speech";
 import { localWindow } from "@/lib/stationTime";
 import { getStation } from "@/lib/stations";
@@ -47,6 +48,9 @@ interface ToolResult {
 
 const text = (t: string) => [{ type: "text" as const, text: t }];
 const unavailable = (): ToolResult => ({ content: text(UNAVAILABLE_SPEECH), isError: true });
+const playlistUnavailable = (): ToolResult => ({ content: text(PLAYLIST_UNAVAILABLE_SPEECH), isError: true });
+const ACCOUNT_LINKING_REQUIRED = { error: "account_linking_required" };
+const accountLinkingRequired = (): ToolResult => ({ content: text(LINK_ACCOUNT_SPEECH), isError: true, structuredContent: ACCOUNT_LINKING_REQUIRED });
 const eventsUnavailable = (): ToolResult => ({ content: text(EVENTS_UNAVAILABLE_SPEECH), isError: true });
 const WHEN = ["tonight", "today", "this-weekend", "this-week"] as const;
 const clean = (story: Story): Story => {
@@ -292,13 +296,12 @@ export function buildMcpHandler(deps: Deps) {
           }, eventsUnavailable),
       );
 
-      registerAppTool(
-        server,
+      server.registerTool(
         "find_song_played",
         {
           title: "Find a song Radio Milwaukee played",
           description:
-            "Find a song Radio Milwaukee played on one of its stations, by station and time window, optionally with descriptive cues like 'horns'. Returns numbered matches with playIds; pass a playId to save_find or get_track_story. Use for 'what was that song on 88Nine this morning?' and 'the one before that' (beforePlayId; pass the same window again). Times are Milwaukee local time, 24-hour HH:MM. Map 'this morning' to 06:00-12:00, 'this afternoon' 12:00-17:00, 'tonight'/'this evening' 17:00-23:59, 'around 8:15' to 08:00-08:30. day is 'today' (default) or 'yesterday'.",
+            "Find a song Radio Milwaukee played on one of its stations, by station and time window, optionally with descriptive cues like 'horns'. Returns numbered matches with playIds; pass a playId to save_find or get_track_story. Use for 'what was that song on 88Nine this morning?' and 'the one before that' (beforePlayId; pass the same window again). Times are Milwaukee local time, 24-hour HH:MM. Map 'this morning' to 06:00-12:00, 'this afternoon' 12:00-17:00, 'tonight'/'this evening' 17:00-23:59, 'around 8:15' to 08:00-08:30. day is 'today' (default) or 'yesterday'. Use afterPlayId for 'the one after that'. If endTime is earlier than startTime, the window crosses midnight.",
           inputSchema: z.object({
             station: z.enum(["hyfin", "88nine", "414music", "rhythmlab"]),
             day: z.enum(["today", "yesterday"]).optional(),
@@ -308,7 +311,6 @@ export function buildMcpHandler(deps: Deps) {
             beforePlayId: z.string().max(64).optional(),
             afterPlayId: z.string().max(64).optional(),
           }),
-          ...CARD,
         },
         async ({ day, startTime, endTime, ...rest }) =>
           timed("find_song_played", async () => {
@@ -319,23 +321,69 @@ export function buildMcpHandler(deps: Deps) {
               content: [...text(spokenRecall(result)), ...text(JSON.stringify({ matches }))],
               structuredContent: { stationId: station.stationId, matches, status: result.status },
             };
-          }, unavailable),
+          }, playlistUnavailable),
       );
 
-      registerAppTool(
-        server,
+      server.registerTool(
         "get_track_story",
         {
           title: "More about a song Radio Milwaukee played",
           description: "Tell the listener more about a song Radio Milwaukee played, by trackId or playId from find_song_played. Speak only from this record.",
           inputSchema: z.object({ trackId: z.string().max(64).optional(), playId: z.string().max(64).optional() }),
-          ...CARD,
         },
         async (args) =>
           timed("get_track_story", async () => {
             const facts = await deps.playlist().getTrackFacts(args);
             return { content: text(spokenTrackFacts(facts)), structuredContent: { ...facts } };
-          }, unavailable),
+          }, playlistUnavailable),
+      );
+
+      server.registerTool(
+        "save_find",
+        {
+          title: "Save a song to 88Nine Finds",
+          description: "Save a song the listener heard on Radio Milwaukee to their 88Nine Finds (and Apple Music if connected). Requires a linked account. Pass the playId from find_song_played. Use for 'save it', 'save that song'.",
+          inputSchema: z.object({ playId: z.string().min(1).max(64) }),
+        },
+        async ({ playId }, context) =>
+          timed("save_find", async () => {
+            const listenerId = listenerIdFrom(context.http ?? {});
+            if (!listenerId) return accountLinkingRequired();
+            const saved = await deps.playlist().saveFind(listenerId, playId);
+            return { content: text(spokenSaved(saved)), structuredContent: { ...saved } };
+          }, playlistUnavailable),
+      );
+
+      server.registerTool(
+        "list_finds",
+        {
+          title: "List my Finds",
+          description: "List the listener's saved Radio Milwaukee Finds, newest first, numbered. Requires a linked account. Use for 'what's in my Finds?'.",
+          inputSchema: z.object({ limit: z.number().int().min(1).max(10).optional() }),
+        },
+        async ({ limit }, context) =>
+          timed("list_finds", async () => {
+            const listenerId = listenerIdFrom(context.http ?? {});
+            if (!listenerId) return accountLinkingRequired();
+            const finds = await deps.playlist().listFinds(listenerId, limit);
+            return { content: text(spokenFinds(finds)), structuredContent: { finds } };
+          }, playlistUnavailable),
+      );
+
+      server.registerTool(
+        "delete_my_finds",
+        {
+          title: "Delete my Finds",
+          description: "Permanently delete all of the listener's Finds and disconnect Apple Music. Requires a linked account. Only call after the listener has clearly confirmed.",
+          inputSchema: z.object({}),
+        },
+        async (_args, context) =>
+          timed("delete_my_finds", async () => {
+            const listenerId = listenerIdFrom(context.http ?? {});
+            if (!listenerId) return accountLinkingRequired();
+            const deleted = await deps.playlist().deleteFinds(listenerId);
+            return { content: text(spokenDeleted(deleted)), structuredContent: { ...deleted } };
+          }, playlistUnavailable),
       );
 
       registerAppResource(server, "Story card", CARD_URI, { description: "A Radio Milwaukee story, quote, list or map, in Alexa+ style." }, async () => ({
