@@ -1,6 +1,11 @@
-// Calls a deployed Radio Commons MCP endpoint the way Alexa+ does (Streamable HTTP, protocol 2025-11-25).
-//   node scripts/smoke.mjs https://radio-commons.vercel.app/api/mcp ["what to search"] [timing-runs]
-const [url = "http://localhost:3000/api/mcp", query = "frugal dining", runs = "0"] = process.argv.slice(2);
+// Calls a Radio Commons MCP endpoint the way Alexa+ does (Streamable HTTP, protocol 2025-11-25).
+//   node scripts/smoke.mjs [url] ["what to search"] [timing-runs]
+// With no url it calls the endpoint registered in the Alexa+ add-on manifest, exactly what Alexa+ will call.
+import { readFileSync } from "node:fs";
+
+const addon = JSON.parse(readFileSync(new URL("../alexa/addon-package/addon.json", import.meta.url), "utf8"));
+const addonEndpoint = addon.integrations.find((integration) => integration.type === "MCP").config.endpoints.default.uri;
+const [url = addonEndpoint, query = "frugal dining", runs = "0"] = process.argv.slice(2);
 let id = 0;
 
 async function rpc(method, params) {
