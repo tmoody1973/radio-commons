@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { runBrain, SYSTEM_PROMPT, type Converse } from "@/lib/sim/brain";
+import { runBrain, spokenReply, SYSTEM_PROMPT, type Converse } from "@/lib/sim/brain";
 
 const TOOLS = [
   { name: "find_station_story", description: "find", inputSchema: { type: "object" } },
@@ -156,5 +156,11 @@ describe("brain", () => {
   });
   it("points to Reserve for booking", () => {
     expect(SYSTEM_PROMPT).toMatch(/tap Reserve/);
+  });
+});
+
+describe("spokenReply", () => {
+  it("drops screen notes and markdown so captions and speech are plain words", () => {
+    expect(spokenReply("Glitzy's \"Effort\" from *Say Sorry / You're Right* and **more**. [On screen: card, storyId abc]")).toBe("Glitzy's \"Effort\" from Say Sorry / You're Right and more.");
   });
 });

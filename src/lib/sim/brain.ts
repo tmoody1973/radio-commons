@@ -2,6 +2,11 @@ import { BedrockRuntimeClient, ConverseCommand, type Message, type Tool } from "
 import type { McpTool, McpToolResult } from "@/lib/sim/mcpClient";
 import { summarize, type ChatMessage, type TrailEntry } from "@/lib/sim/trail";
 
+/** What the listener hears and reads: no "[On screen: …]" notes (context for the model) and no markdown asterisks. */
+export function spokenReply(text: string): string {
+  return text.replace(/\s*\[On screen:[^\]]*\]/g, "").replace(/\*{1,2}([^*]+)\*{1,2}/g, "$1").trim();
+}
+
 /** The trust rules from slice 1, given to the model that plays Alexa+. */
 export const SYSTEM_PROMPT = `You are playing Alexa+ on an Echo Show, using Radio Milwaukee's story tools.
 Answer only from the results of your tools. For any question about a Milwaukee place, person, business or event, or a story the listener describes, call find_station_story first (Radio Milwaukee may have covered it) before saying you don't know; when one story matches (or the listener picks one), call get_station_story and speak its answer.
@@ -66,7 +71,7 @@ export async function runBrain({ history, tools, callTool, converse, maxToolCall
       const uses = response.content.flatMap((b) => ("toolUse" in b ? [b.toolUse] : []));
       if (uses.length === 0) {
         // The page's "[On screen: …]" notes are context for the model, never words for the listener.
-        const reply = response.content.flatMap((b) => ("text" in b ? [b.text] : [])).join(" ").replace(/\s*\[On screen:[^\]]*\]/g, "").trim();
+        const reply = spokenReply(response.content.flatMap((b) => ("text" in b ? [b.text] : [])).join(" "));
         trail.push({ kind: "reply", text: reply, ms: Date.now() - started, sourced });
         return { reply: reply || APOLOGY, trail, lastStory };
       }
