@@ -13,9 +13,11 @@ import {
   directAudioUrl, eventTime, EVENTS_UNAVAILABLE_SPEECH, NO_PLACES_FOR_EVENTS_SPEECH, NO_PLACES_SPEECH, spokenEvents, spokenPicks, NOT_ALLOWED_SPEECH, NOT_FOUND_SPEECH, spokenLatest, spokenMatches, spokenPassages,
   spokenPlaces, spokenRecall, spokenStory, spokenTrackFacts, UNAVAILABLE_SPEECH,
 } from "@/lib/speech";
+import { localWindow } from "@/lib/stationTime";
 import { getStation } from "@/lib/stations";
 
 export const CARD_URI = "ui://radio-commons/story-card.html";
+const CLOCK_TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 const STORY_ID = /^[a-z0-9]{1,64}$/;
 // Show artwork on f.prxu.org, audio on Dovetail, our logo and map pictures, fonts, and the fullscreen map (library + Amazon tiles).
 const CARD_CSP = {
@@ -32,6 +34,7 @@ interface Deps {
   backstory: () => BackstoryClient;
   fieldGuide: () => FieldGuideClient;
   playlist: () => PlaylistClient;
+  now?: () => Date;
   cardHtml: () => string;
 }
 
@@ -111,6 +114,7 @@ function placesCard(story: Story) {
 }
 
 export function buildMcpHandler(deps: Deps) {
+  const now = deps.now ?? (() => new Date());
   const station = getStation();
   const shows = station.shows.map((s) => s.slug) as [string, ...string[]];
   const card = (view: CardView, extra: Record<string, unknown> = {}) => ({ stationId: station.stationId, view: view.view, cardHtml: renderView(view), ...extra });
@@ -294,20 +298,22 @@ export function buildMcpHandler(deps: Deps) {
         {
           title: "Find a song Radio Milwaukee played",
           description:
-            "Find a song Radio Milwaukee played on one of its stations, by station and time window, optionally with descriptive cues like 'horns'. Returns numbered matches with playIds; pass a playId to save_find or get_track_story. Use for 'what was that song on 88Nine this morning?' and 'the one before that' (beforePlayId).",
+            "Find a song Radio Milwaukee played on one of its stations, by station and time window, optionally with descriptive cues like 'horns'. Returns numbered matches with playIds; pass a playId to save_find or get_track_story. Use for 'what was that song on 88Nine this morning?' and 'the one before that' (beforePlayId; pass the same window again). Times are Milwaukee local time, 24-hour HH:MM. Map 'this morning' to 06:00-12:00, 'this afternoon' 12:00-17:00, 'tonight'/'this evening' 17:00-23:59, 'around 8:15' to 08:00-08:30. day is 'today' (default) or 'yesterday'.",
           inputSchema: z.object({
             station: z.enum(["hyfin", "88nine", "414music", "rhythmlab"]),
-            from: z.number(),
-            to: z.number(),
+            day: z.enum(["today", "yesterday"]).optional(),
+            startTime: z.string().regex(CLOCK_TIME),
+            endTime: z.string().regex(CLOCK_TIME),
             cues: z.array(z.string().max(30)).max(5).optional(),
             beforePlayId: z.string().max(64).optional(),
             afterPlayId: z.string().max(64).optional(),
           }),
           ...CARD,
         },
-        async (args) =>
+        async ({ day, startTime, endTime, ...rest }) =>
           timed("find_song_played", async () => {
-            const result = await deps.playlist().findSongPlayed(args);
+            const window = localWindow({ day: day ?? "today", startTime, endTime }, now());
+            const result = await deps.playlist().findSongPlayed({ ...rest, ...window });
             const matches = result.matches.map(({ label, playId, trackId, artist, title, playedAt }) => ({ label, playId, trackId, artist, title, playedAt }));
             return {
               content: [...text(spokenRecall(result)), ...text(JSON.stringify({ matches }))],

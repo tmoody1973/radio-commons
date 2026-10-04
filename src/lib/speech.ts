@@ -1,6 +1,7 @@
 import type { Passage, Story, StoryCardMatch } from "@/lib/backstory";
 import type { PublicEvent, When } from "@/lib/fieldGuide";
 import type { RecallResult, TrackFacts } from "@/lib/playlist";
+import { localClock } from "@/lib/stationTime";
 import { streetAddress } from "@/lib/maps";
 
 export const UNAVAILABLE_SPEECH = "I can't reach Radio Milwaukee's stories right now. Please try again in a minute.";
@@ -164,7 +165,7 @@ export function spokenRecall(result: RecallResult): string {
   const [top, ...rest] = result.matches;
   if (result.status === "unknown_station") return "I don't know that station.";
   if (!top) return "I couldn't find anything Radio Milwaukee played then. Try a wider time.";
-  const lead = `That was likely "${top.title}" by ${top.artist}.`;
+  const lead = `That was likely "${top.title}" by ${top.artist}, at ${localClock(top.playedAt)}`; // the clock already ends in "p.m." / "a.m."
   if (result.status === "ok") return lead;
   const others = rest.map((m) => `"${m.title}" by ${m.artist}`).join(", or ");
   const caveat = result.status === "cues_unchecked" ? " I couldn't check that detail, so here's what played around then." : "";

@@ -4,10 +4,12 @@ import { FieldGuideUnavailable, type EventQuery } from "@/lib/fieldGuide";
 import { PlaylistUnavailable } from "@/lib/playlist";
 import { EVENT, fakeBackstory, fakeFieldGuide, fakePlaylist, STORY } from "./fixtures";
 import { buildMcpHandler } from "@/lib/mcp";
+import { localWindow } from "@/lib/stationTime";
 import { INITIALIZE, mcpPost } from "./mcp-wire";
 
+const NOW = new Date("2026-10-04T20:00:00Z");
 const handlerWith = (backstory = fakeBackstory(), fieldGuide = fakeFieldGuide(), playlist = fakePlaylist()) =>
-  buildMcpHandler({ backstory: () => backstory, fieldGuide: () => fieldGuide, playlist: () => playlist, cardHtml: () => "<!doctype html><title>card</title>" });
+  buildMcpHandler({ backstory: () => backstory, fieldGuide: () => fieldGuide, playlist: () => playlist, now: () => NOW, cardHtml: () => "<!doctype html><title>card</title>" });
 const call = (name: string, args: Record<string, unknown>) => ({ method: "tools/call", params: { name, arguments: args } });
 
 describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
@@ -188,14 +190,20 @@ describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
     const names = tools.message.result.tools.map((t: { name: string }) => t.name);
     expect(names).toEqual(expect.arrayContaining(["find_song_played", "get_track_story"]));
   });
-  it("find_song_played returns playIds Alexa can save and speaks the top match", async () => {
-    const { message } = await mcpPost(handlerWith(), call("find_song_played", { station: "88nine", from: 0, to: 3_600_000 }));
+  it("find_song_played returns playIds Alexa can save and speaks the top match with its local time", async () => {
+    const { message } = await mcpPost(handlerWith(), call("find_song_played", { station: "88nine", startTime: "12:00", endTime: "13:00" }));
     expect(message.result.structuredContent.matches[0]).toMatchObject({ playId: "play_1", label: "1" });
-    expect(message.result.content[0].text).toMatch(/Victory Dance/);
+    expect(message.result.content[0].text).toBe('That was likely "Victory Dance" by Ezra Collective, at 1:00 p.m.');
+  });
+  it("find_song_played turns local times into the epoch window the playlist expects", async () => {
+    const seen: { from: number; to: number }[] = [];
+    const spy = fakePlaylist({ findSongPlayed: async ({ from, to }) => { seen.push({ from, to }); return { status: "ok", matches: [] }; } });
+    await mcpPost(handlerWith(undefined, undefined, spy), call("find_song_played", { station: "88nine", day: "yesterday", startTime: "08:00", endTime: "08:30" }));
+    expect(seen).toEqual([localWindow({ day: "yesterday", startTime: "08:00", endTime: "08:30" }, NOW)]);
   });
   it("find_song_played turns a playlist outage into a plain apology", async () => {
     const down = fakePlaylist({ findSongPlayed: async () => { throw new PlaylistUnavailable("down"); } });
-    const { message } = await mcpPost(handlerWith(undefined, undefined, down), call("find_song_played", { station: "88nine", from: 0, to: 1 }));
+    const { message } = await mcpPost(handlerWith(undefined, undefined, down), call("find_song_played", { station: "88nine", startTime: "08:00", endTime: "09:00" }));
     expect(message.result.isError).toBe(true);
   });
   it("get_track_story speaks the facts", async () => {
