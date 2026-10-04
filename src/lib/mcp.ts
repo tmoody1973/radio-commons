@@ -44,7 +44,32 @@ const text = (t: string) => [{ type: "text" as const, text: t }];
 const unavailable = (): ToolResult => ({ content: text(UNAVAILABLE_SPEECH), isError: true });
 const eventsUnavailable = (): ToolResult => ({ content: text(EVENTS_UNAVAILABLE_SPEECH), isError: true });
 const WHEN = ["tonight", "today", "this-weekend", "this-week"] as const;
-const clean = (story: Story): Story => ({ ...story, audioUrl: directAudioUrl(story.audioUrl) });
+const clean = (story: Story): Story => {
+  const audioUrl = directAudioUrl(story.audioUrl);
+  // Premiere audio plays (Tarik, 2026-10-04) unless PLAY_PREMIERE_AUDIO=off; then the card links to the article.
+  const off = process.env.PLAY_PREMIERE_AUDIO === "off" && story.contentType === "premiere";
+  const song = story.song && off ? { ...story.song, audioUrl: null } : story.song;
+  return { ...story, audioUrl: off ? "" : audioUrl, song };
+};
+
+const chicagoDay = (iso: string) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Chicago" }).format(new Date(iso));
+
+/**
+ * The premiere's release show as a Field Guide event (same Milwaukee day, venue named), for Add to calendar; null when
+ * there is none or the guide can't be reached. ponytail: the guide's default window is this week, so a release show
+ * further out isn't found yet; a date range in the public API if that matters before the show week.
+ */
+async function releaseEventFor(story: Story, fieldGuide: () => FieldGuideClient): Promise<PublicEvent | null> {
+  const show = story.song?.releaseShow;
+  if (!show) return null;
+  try {
+    const events = await fieldGuide().events({ q: story.song!.artist });
+    const venue = show.venue.toLowerCase();
+    return events.find((e) => chicagoDay(e.startAt) === show.date && (e.venue?.name ?? "").toLowerCase().includes(venue)) ?? null;
+  } catch {
+    return null;
+  }
+}
 
 /** Logs every call's duration (the Alexa+ budget is 500 ms); Backstory failures become a plain apology. */
 async function timed(tool: string, run: () => Promise<ToolResult>, fallback: () => ToolResult): Promise<ToolResult> {
@@ -154,7 +179,8 @@ export function buildMcpHandler(deps: Deps) {
               if (names.length === 0) return { content: text(NO_PLACES_SPEECH), structuredContent: card({ view: "story", story }, { story }) };
               return { content: text(spokenPlaces(names, reservable)), structuredContent: { stationId: station.stationId, view: "places", story, ...placesCard(story) } };
             }
-            return { content: text(spokenStory(story)), structuredContent: card({ view: "story", story }, { story }) };
+            const releaseEvent = story.contentType === "premiere" ? await releaseEventFor(story, deps.fieldGuide) : null;
+            return { content: text(spokenStory(story)), structuredContent: card({ view: "story", story, releaseEvent }, { story }) };
           }, unavailable),
       );
 
@@ -176,7 +202,7 @@ export function buildMcpHandler(deps: Deps) {
             if (asked.status === "not_allowed") return { content: text(NOT_ALLOWED_SPEECH) };
             const story = clean(found);
             const view: CardView = asked.passages.length ? { view: "quote", story, passages: asked.passages } : { view: "story", story };
-            return { content: text(spokenPassages(asked.passages)), structuredContent: card(view, { story, passages: asked.passages }) };
+            return { content: text(spokenPassages(asked.passages, story.contentType)), structuredContent: card(view, { story, passages: asked.passages }) };
           }, unavailable),
       );
 

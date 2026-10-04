@@ -10,6 +10,7 @@ const STORY: Story = {
   permalink: null, imageUrl: null, mentions: [], topics: [],
   places: [{ name: "414 Art Revival", category: "venue", lat: 43.01, lng: -88.01, neighborhood: null, quote: "q" }],
   actions: [{ kind: "visit", label: "Visit 414 Art Revival", quote: "q", place: "414 Art Revival" }],
+  contentType: "episode", song: null,
 };
 const MATCH = { storyId: "s1", title: "T1", show: "This Bites", showSlug: "this-bites", attribution: "This Bites, September 2026", publishedAt: Date.UTC(2026, 8, 4, 15), hint: "h", imageUrl: null };
 

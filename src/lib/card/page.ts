@@ -23,6 +23,8 @@ body{margin:0;background:var(--screen);color:var(--text);font:16px/1.35 Figtree,
 .meta{margin:0;font-size:16px;font-weight:600;color:var(--muted)}
 h2{margin:4px 0 0;font-size:28px;line-height:1.12}
 .line{margin:6px 0 0;font-size:16px;color:var(--muted)}
+.line.small{font-size:14px}
+.setlist{margin:8px 0 0;padding-left:22px;font-size:15px;line-height:1.35}
 .body{display:flex;gap:24px;align-items:center}.info{min-width:0}
 .art{width:180px;height:180px;border-radius:12px;object-fit:cover;flex:none}.ph{background:var(--inner)}
 .actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:14px}

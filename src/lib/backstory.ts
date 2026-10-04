@@ -7,7 +7,7 @@ const matchSchema = z.object({
   storyId: z.string(), title: z.string(), show: z.string(), showSlug: z.string(), attribution: z.string(),
   publishedAt: z.number(), hint: z.string(), imageUrl: z.string().nullable(),
 });
-const storySchema = z.object({
+export const storySchema = z.object({
   storyId: z.string(), show: z.string(), title: z.string(), summary: z.string(), publishedAt: z.number(),
   attribution: z.string(), audioUrl: z.string(), permalink: z.string().nullable(), imageUrl: z.string().nullable().default(null),
   mentions: z.array(z.object({ entityType: z.string(), name: z.string(), quote: z.string(), startMs: z.number(), relatedPlace: z.string().nullable() })),
@@ -18,6 +18,14 @@ const storySchema = z.object({
   })),
   topics: z.array(z.object({ topic: z.string(), confidence: z.number(), quote: z.string() })),
   actions: z.array(z.object({ kind: z.string(), label: z.string(), quote: z.string(), place: z.string().nullable() })),
+  // Premieres and sessions are articles with a song record; older payloads are episodes.
+  contentType: z.enum(["episode", "premiere", "session"]).default("episode"),
+  song: z.object({
+    artist: z.string(), title: z.string().nullable(), album: z.string().nullable(), releaseDate: z.string().nullable(),
+    credits: z.array(z.object({ role: z.string(), name: z.string() })),
+    releaseShow: z.object({ venue: z.string(), date: z.string() }).nullable(), setList: z.array(z.string()).nullable(),
+    audioUrl: z.string().nullable(),
+  }).nullable().default(null),
 });
 
 const passageSchema = z.object({ text: z.string(), startMs: z.number(), speaker: z.string().nullable() });

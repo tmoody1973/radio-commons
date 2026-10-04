@@ -3,14 +3,14 @@ import type { PublicEvent } from "@/lib/fieldGuide";
 import type { Badge } from "@/lib/map/geo";
 import { pinnedPlaces } from "@/lib/map/staticMap";
 import { directionsUrl, streetAddress } from "@/lib/maps";
-import { clock, monthYear } from "@/lib/speech";
+import { ARTICLE_SOURCE, clock, longDate, monthYear } from "@/lib/speech";
 import { SITE } from "./tokens";
 
 export interface MapData { url: string; w: number; h: number; badges: Badge[]; anchor?: { x: number; y: number; name: string } }
 /** An event with its time already put into words ("tonight at 8 PM"), so rendering stays clock-free. */
 export interface EventItem { event: PublicEvent; when: string }
 export type CardView =
-  | { view: "story"; story: Story }
+  | { view: "story"; story: Story; releaseEvent?: PublicEvent | null }
   | { view: "quote"; story: Story; passages: Passage[] }
   | { view: "stories"; matches: StoryCardMatch[] }
   | { view: "places"; story: Story; map: MapData }
@@ -34,7 +34,48 @@ function placesLine(story: Story): string {
   return names.slice(0, 3).join(", ") + (more > 0 ? ` and ${more} more place${more === 1 ? "" : "s"}` : "");
 }
 
-function storyView(story: Story): string {
+/** A premiere: the song, album and release date, credits, release show; ▶ plays the song when it may. */
+function premiereView(story: Story, releaseEvent: PublicEvent | null): string {
+  const song = story.song!;
+  const head = song.title ? `${song.artist} — “${song.title}”` : song.artist;
+  const sub = [song.album, song.releaseDate ? `out ${longDate(song.releaseDate)}` : null].filter(Boolean).join(" · ");
+  const credits = song.credits.map((c) => `${c.name} (${c.role})`).join(", ");
+  const show = song.releaseShow ? `Release show: ${song.releaseShow.venue}, ${longDate(song.releaseShow.date)}` : "";
+  const read = (cls: string) => (story.permalink ? `<button type="button" class="${cls} details" data-url="${escape(story.permalink)}">Read the premiere</button>` : "");
+  const primary = song.audioUrl ? `<button type="button" class="primary play" data-audio="${escape(song.audioUrl)}">${PLAY} Play song</button>` : read("primary");
+  const secondary = releaseEvent
+    ? `<button type="button" class="secondary calendar" data-url="${escape(releaseEvent.calendarUrl)}">${CAL} Add to calendar</button>`
+    : song.audioUrl ? read("secondary") : "";
+  return `<article class="card story music">${LOGO}<div class="body">${art(story.imageUrl, story.show, "art")}<div class="info">`
+    + `<p class="meta">${escape(story.show)} · ${escape(monthYear(story.publishedAt))}</p><h2>${escape(head)}</h2>`
+    + (sub ? `<p class="line">${escape(sub)}</p>` : "")
+    + (credits ? `<p class="line small">${escape(credits)}</p>` : "")
+    + (show ? `<p class="line small">${escape(show)}</p>` : "")
+    + `<div class="actions">${primary}${secondary}</div></div></div></article>`;
+}
+
+/** A session: who played and the set list; the session lives on radiomilwaukee.org, never as audio here (decision 012). */
+function sessionView(story: Story): string {
+  const set = (story.song?.setList ?? []).slice(0, 6).map((title) => `<li>${escape(title)}</li>`).join("");
+  const watch = story.permalink ? `<button type="button" class="primary details" data-url="${escape(story.permalink)}">Watch on radiomilwaukee.org</button>` : "";
+  return `<article class="card story music">${LOGO}<div class="body">${art(story.imageUrl, story.show, "art")}<div class="info">`
+    + `<p class="meta">${escape(story.show)} · ${escape(monthYear(story.publishedAt))}</p><h2>${escape(story.title)}</h2>`
+    + (set ? `<ol class="setlist">${set}</ol>` : "")
+    + `<div class="actions">${watch}</div></div></div></article>`;
+}
+
+/** A premiere or session with no approved song record: the article, never its audio. */
+function articleView(story: Story): string {
+  const read = story.permalink ? `<button type="button" class="primary details" data-url="${escape(story.permalink)}">Read it on radiomilwaukee.org</button>` : "";
+  return `<article class="card story music">${LOGO}<div class="body">${art(story.imageUrl, story.show, "art")}<div class="info">`
+    + `<p class="meta">${escape(story.show)} · ${escape(monthYear(story.publishedAt))}</p><h2>${escape(story.title)}</h2>`
+    + `<div class="actions">${read}</div></div></div></article>`;
+}
+
+function storyView(story: Story, releaseEvent: PublicEvent | null = null): string {
+  if (story.contentType === "premiere" && story.song) return premiereView(story, releaseEvent);
+  if (story.contentType === "session" && story.song) return sessionView(story);
+  if (story.contentType !== "episode") return articleView(story);
   const pinned = pinnedPlaces(story);
   const secondary = pinned.length > 1
     ? `<button type="button" class="secondary ask" data-ask="Where are the places from that episode?">${PIN} Places</button>`
@@ -49,9 +90,21 @@ function storyView(story: Story): string {
     + `</div></div></article>`;
 }
 
+/** An article's words: no timeline to play from, so the card says whose words they are and offers the song or the page. */
+function articleQuoteView(story: Story, first: Passage, contentType: "premiere" | "session"): string {
+  const action = contentType === "premiere" && story.song?.audioUrl
+    ? `<button type="button" class="primary play" data-audio="${escape(story.song.audioUrl)}">${PLAY} Play song</button>`
+    : story.permalink ? `<button type="button" class="primary details" data-url="${escape(story.permalink)}">Read it on radiomilwaukee.org</button>` : "";
+  return `<article class="card quote"><div class="top">${LOGO}<div class="source">${art(story.imageUrl, story.show, "thumb")}<span>${escape(story.show)} · ${escape(story.title)}</span></div></div>`
+    + `<div class="said"><p class="meta">From ${escape(ARTICLE_SOURCE[contentType])}</p>`
+    + `<blockquote${first.text.length > 180 ? ' class="q-long"' : first.text.length > 90 ? ' class="q-mid"' : ""}>“${escape(first.text)}”</blockquote></div>`
+    + `<div class="actions">${action}</div></article>`;
+}
+
 function quoteView(story: Story, passages: Passage[]): string {
   const [first, ...rest] = passages;
   if (!first) return storyView(story);
+  if (story.contentType !== "episode") return articleQuoteView(story, first, story.contentType);
   const audio = escape(story.audioUrl);
   const from = (p: Passage, cls: string, label: string) => `<button type="button" class="${cls} play-from" data-start="${Math.floor(p.startMs / 1000)}" data-audio="${audio}">${PLAY} ${label}</button>`;
   const others = rest.length
@@ -144,7 +197,7 @@ export function fullPlacesView(story: Story): string {
 /** The card's HTML for one view, made on the server so every piece of story text is escaped in one tested place. */
 export function renderView(card: CardView): string {
   switch (card.view) {
-    case "story": return storyView(card.story);
+    case "story": return storyView(card.story, card.releaseEvent ?? null);
     case "quote": return quoteView(card.story, card.passages);
     case "stories": return storiesView(card.matches);
     case "places": return placesView(card.story, card.map);
