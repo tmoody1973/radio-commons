@@ -82,9 +82,9 @@ The difference: a streaming service knows the catalog; the station knows Milwauk
 >
 > I checked the US and public broadcasters abroad: as far as I can find, it's the first MCP server a radio station has built itself for its listeners. Here's what I learned building it 👇
 
-**Short post (Bluesky / X / Threads)**
+**Short post (Bluesky / Threads; 296 characters, over X's 280)**
 
-> Alexa+ can now write you an AI podcast from newspaper stories. I built the opposite: Radio Commons puts Radio Milwaukee's real hosts, local places and events into Alexa+ — every fact approved by a station editor. First radio station to build its own MCP server for listeners, as far as I can find.
+> Alexa+ can write you an AI podcast from the news. I built the opposite: Radio Commons puts Radio Milwaukee's real hosts, local places, events and, soon, the stories behind local songs into Alexa+. Every fact editor-approved. The first station-built MCP server for listeners, as far as I can find.
 
 ## Sources
 
