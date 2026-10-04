@@ -50,23 +50,26 @@ export interface PlaylistClient {
 type Call = (name: string, args: Record<string, unknown>) => Promise<unknown>;
 
 /** Every call races a timeout (the Alexa+ round trip must stay under 500 ms) and validates the reply. */
+// Connecting Apple Music is a once-per-listener web call, outside any 500 ms Alexa turn.
+const CONNECT_TIMEOUT_MS = 5000;
+
 export function createPlaylistClient({ query, mutation, action, serverKey, timeoutMs = 350 }: {
   query: Call; mutation: Call; action: Call; serverKey: string; timeoutMs?: number;
 }): PlaylistClient {
-  async function call<T>(fn: Call, name: string, args: Record<string, unknown>, schema: z.ZodType<T>): Promise<T> {
+  async function call<T>(fn: Call, name: string, args: Record<string, unknown>, schema: z.ZodType<T>, limitMs = timeoutMs): Promise<T> {
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       const result = await Promise.race([
         fn(name, args),
         new Promise<never>((_, reject) => {
-          timer = setTimeout(() => reject(new PlaylistUnavailable(`${name} timed out after ${timeoutMs} ms`)), timeoutMs);
+          timer = setTimeout(() => reject(new PlaylistUnavailable(`${name} timed out`)), limitMs);
         }),
       ]);
       const parsed = schema.safeParse(result);
       if (!parsed.success) throw new PlaylistUnavailable(`${name} returned an unexpected shape`);
       return parsed.data;
     } catch (error) {
-      throw error instanceof PlaylistUnavailable ? error : new PlaylistUnavailable(`${name} failed: ${String(error)}`);
+      throw error instanceof PlaylistUnavailable ? error : new PlaylistUnavailable(`${name} failed`, { cause: error }); // Convex error text can echo args (secrets), so keep it out of the message
     } finally {
       clearTimeout(timer);
     }
@@ -79,7 +82,7 @@ export function createPlaylistClient({ query, mutation, action, serverKey, timeo
     listFinds: (listenerId, limit) => call(query, "finds:list", keyed(limit === undefined ? { listenerId } : { listenerId, limit }), z.array(findSchema)),
     deleteFinds: (listenerId) => call(mutation, "finds:deleteAllForListener", keyed({ listenerId }), deletedSchema),
     async connectAppleMusic(listenerId, musicUserToken) {
-      await call(action, "appleMusicLinks:connect", keyed({ listenerId, musicUserToken }), linkedSchema);
+      await call(action, "appleMusicLinks:connect", keyed({ listenerId, musicUserToken }), linkedSchema, CONNECT_TIMEOUT_MS);
     },
   };
 }

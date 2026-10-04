@@ -64,4 +64,42 @@ describe("playlist client", () => {
     const result = await client.findSongPlayed({ station: "88nine", from: 0, to: 1 });
     expect(result.matches[0]).toMatchObject({ matchKey: "k" });
   });
+
+  const LEAKY = "ArgumentValidationError: Value: {serverKey:'server-key', musicUserToken:'mut-123'}";
+
+  it("never puts secrets from a thrown mutation error into the message", async () => {
+    const client = createPlaylistClient({ ...base, mutation: async () => { throw new Error(LEAKY); } });
+    const error = await client.saveFind("user_1", "play_1").catch((e) => e);
+    expect(error).toBeInstanceOf(PlaylistUnavailable);
+    expect(error.message).not.toContain("server-key");
+    expect(error.message).not.toContain("mut-123");
+    expect((error.cause as Error).message).toBe(LEAKY);
+  });
+
+  it("never puts secrets from a thrown action error into the message", async () => {
+    const client = createPlaylistClient({ ...base, action: async () => { throw new Error(LEAKY); } });
+    const error = await client.connectAppleMusic("user_1", "mut-123").catch((e) => e);
+    expect(error).toBeInstanceOf(PlaylistUnavailable);
+    expect(error.message).not.toContain("server-key");
+    expect(error.message).not.toContain("mut-123");
+  });
+
+  it("does not send a serverKey on the public findSongPlayed query", async () => {
+    const calls: Record<string, unknown>[] = [];
+    const client = createPlaylistClient({
+      ...base,
+      query: async (_name, args) => {
+        calls.push(args);
+        return { status: "no_spins", matches: [] };
+      },
+    });
+    await client.findSongPlayed({ station: "88nine", from: 0, to: 1 });
+    expect(calls[0]).not.toHaveProperty("serverKey");
+  });
+
+  it("gives connectAppleMusic a longer timeout than the Alexa-turn default", async () => {
+    const slowAction = () => new Promise((resolve) => setTimeout(() => resolve({ linked: true }), 50));
+    const client = createPlaylistClient({ ...base, action: slowAction, timeoutMs: 5 });
+    await expect(client.connectAppleMusic("user_1", "tok")).resolves.toBeUndefined();
+  });
 });
