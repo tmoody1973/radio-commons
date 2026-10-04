@@ -51,6 +51,7 @@ function spokenSession(story: Story): string {
 export function spokenStory(story: Story): string {
   if (story.contentType === "premiere" && story.song) return spokenPremiere(story);
   if (story.contentType === "session" && story.song) return spokenSession(story);
+  if (story.contentType !== "episode") return `From Radio Milwaukee's ${source(story)}: ${story.summary} It's on radiomilwaukee.org.`;
   const place = story.places.find((p) => p.lat !== null && p.lng !== null);
   const street = streetAddress(place?.address, place?.name);
   const offer = place

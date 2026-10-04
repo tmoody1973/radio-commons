@@ -47,8 +47,9 @@ const WHEN = ["tonight", "today", "this-weekend", "this-week"] as const;
 const clean = (story: Story): Story => {
   const audioUrl = directAudioUrl(story.audioUrl);
   // Premiere audio plays (Tarik, 2026-10-04) unless PLAY_PREMIERE_AUDIO=off; then the card links to the article.
-  const song = story.song && process.env.PLAY_PREMIERE_AUDIO === "off" ? { ...story.song, audioUrl: null } : story.song;
-  return { ...story, audioUrl, song };
+  const off = process.env.PLAY_PREMIERE_AUDIO === "off" && story.contentType === "premiere";
+  const song = story.song && off ? { ...story.song, audioUrl: null } : story.song;
+  return { ...story, audioUrl: off ? "" : audioUrl, song };
 };
 
 const chicagoDay = (iso: string) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Chicago" }).format(new Date(iso));

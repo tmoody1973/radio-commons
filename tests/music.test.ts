@@ -76,6 +76,16 @@ describe("music stories", () => {
     expect(spokenStory(SESSION)).toBe("From Radio Milwaukee's Studio Milwaukee Sessions, August 2026: Tank & The Bangas played Boxes & Squares, Move and Don't Count Yourself Out. Tank & The Bangas played a joyous set. The session is on radiomilwaukee.org.");
   });
 
+  it("a premiere or session with no approved song record is an article: no Play episode, no offer to hear it", () => {
+    const bare = { ...PREMIERE, song: null };
+    const html = renderView({ view: "story", story: bare });
+    expect(html).not.toContain("Play episode");
+    expect(html).not.toContain("data-audio");
+    expect(html).toContain(`class="primary details" data-url="${PREMIERE.permalink}"`);
+    expect(spokenStory(bare)).toBe("From Radio Milwaukee's Milwaukee Music Premiere, October 2026: Glitzy debut a single from their first album. It's on radiomilwaukee.org.");
+    expect(spokenStory({ ...SESSION, song: null })).toBe("From Radio Milwaukee's Studio Milwaukee Sessions, August 2026: Tank & The Bangas played a joyous set. It's on radiomilwaukee.org.");
+  });
+
   it("session and premiere pages can be opened; other sites can't", () => {
     expect(isOpenableLink(SESSION.permalink!)).toBe(true);
     expect(isOpenableLink("https://example.com/x")).toBe(false);
@@ -96,5 +106,6 @@ describe("music stories", () => {
     const off = await mcpPost(handler, call, 3);
     expect(off.message.result.structuredContent.cardHtml).not.toContain("data-audio");
     expect(off.message.result.content[0].text).toMatch(/Want to read about it\?$/);
+    expect(off.message.result.structuredContent.story.audioUrl).toBe("");
   });
 });

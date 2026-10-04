@@ -64,9 +64,18 @@ function sessionView(story: Story): string {
     + `<div class="actions">${watch}</div></div></div></article>`;
 }
 
+/** A premiere or session with no approved song record: the article, never its audio. */
+function articleView(story: Story): string {
+  const read = story.permalink ? `<button type="button" class="primary details" data-url="${escape(story.permalink)}">Read it on radiomilwaukee.org</button>` : "";
+  return `<article class="card story music">${LOGO}<div class="body">${art(story.imageUrl, story.show, "art")}<div class="info">`
+    + `<p class="meta">${escape(story.show)} · ${escape(monthYear(story.publishedAt))}</p><h2>${escape(story.title)}</h2>`
+    + `<div class="actions">${read}</div></div></div></article>`;
+}
+
 function storyView(story: Story, releaseEvent: PublicEvent | null = null): string {
   if (story.contentType === "premiere" && story.song) return premiereView(story, releaseEvent);
-  if (story.contentType === "session") return sessionView(story);
+  if (story.contentType === "session" && story.song) return sessionView(story);
+  if (story.contentType !== "episode") return articleView(story);
   const pinned = pinnedPlaces(story);
   const secondary = pinned.length > 1
     ? `<button type="button" class="secondary ask" data-ask="Where are the places from that episode?">${PIN} Places</button>`
