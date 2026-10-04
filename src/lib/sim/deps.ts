@@ -3,6 +3,7 @@ import { BedrockRuntimeClient } from "@aws-sdk/client-bedrock-runtime";
 import { PollyClient } from "@aws-sdk/client-polly";
 import { bedrockConverse } from "@/lib/sim/brain";
 import { connectMcp } from "@/lib/sim/mcpClient";
+import { sessionSecret } from "@/lib/sim/session";
 import { deepgramTranscribe } from "@/lib/sim/stt";
 import type { McpSession } from "@/lib/sim/mcpClient";
 import type { SpeakDeps } from "@/lib/sim/speak";
@@ -28,6 +29,27 @@ function sharedMcp(): Promise<McpSession> {
   return shared;
 }
 
+const MAX_LINKED_CONNECTIONS = 20;
+// Keyed by the token's hash so the raw token never sits in a map key; a refreshed token gets a new connection.
+const linked = new Map<string, Promise<McpSession>>();
+/** One connection per linked listener token, at most 20 (oldest evicted); a failed connect is retried next turn. */
+function perTokenMcp(accessToken: string): Promise<McpSession> {
+  const key = createHash("sha256").update(accessToken).digest("hex");
+  const cached = linked.get(key);
+  if (cached) return cached;
+  if (linked.size >= MAX_LINKED_CONNECTIONS) {
+    const [oldestKey, oldest] = linked.entries().next().value!;
+    linked.delete(oldestKey);
+    void oldest.then((session) => session.close()).catch(() => undefined);
+  }
+  const connecting = connectMcp(mcpUrl(), { bearer: accessToken }).catch((error) => {
+    linked.delete(key);
+    throw error;
+  });
+  linked.set(key, connecting);
+  return connecting;
+}
+
 const awsConfig = () => ({
   region: process.env.SIM_AWS_REGION ?? "us-east-1",
   credentials: { accessKeyId: required("SIM_AWS_ACCESS_KEY_ID"), secretAccessKey: required("SIM_AWS_SECRET_ACCESS_KEY") },
@@ -47,7 +69,7 @@ export function turnDepsFromEnv(): TurnDeps {
     passcode: required("SIM_PASSCODE"),
     speechSecret: speechSecret(),
     transcribe: deepgramTranscribe(required("DEEPGRAM_API_KEY")),
-    mcp: sharedMcp,
+    mcp: (accessToken) => (accessToken ? perTokenMcp(accessToken) : sharedMcp()),
     converse: bedrockConverse(bedrock, HAIKU),
   };
 }
@@ -55,4 +77,12 @@ export function turnDepsFromEnv(): TurnDeps {
 export function speakDepsFromEnv(): SpeakDeps {
   polly ??= new PollyClient(awsConfig());
   return { secret: speechSecret(), synthesize: pollyStream(polly, process.env.SIM_POLLY_VOICE ?? "Ruth") };
+}
+
+/** Account linking settings; null (linking off) unless every one is set, including a usable session secret. */
+export function linkConfigFromEnv() {
+  const { CLERK_LISTENER_OAUTH_CLIENT_ID: clientId, CLERK_LISTENER_OAUTH_CLIENT_SECRET: clientSecret, SIM_PUBLIC_ORIGIN: origin } = process.env;
+  const secret = sessionSecret();
+  if (!clientId || !clientSecret || !origin || !secret) return null;
+  return { clientId, clientSecret, secret, redirectUri: `${origin.replace(/\/$/, "")}/api/sim/link/callback` };
 }

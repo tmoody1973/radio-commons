@@ -1,8 +1,13 @@
+import { creditLines } from "@/lib/card/song";
 import type { Passage, Story, StoryCardMatch } from "@/lib/backstory";
 import type { PublicEvent, When } from "@/lib/fieldGuide";
+import type { FindRow, RecallResult, SavedFind, TrackFacts } from "@/lib/playlist";
+import { localClock } from "@/lib/stationTime";
 import { streetAddress } from "@/lib/maps";
 
 export const UNAVAILABLE_SPEECH = "I can't reach Radio Milwaukee's stories right now. Please try again in a minute.";
+export const PLAYLIST_UNAVAILABLE_SPEECH = "I can't reach Radio Milwaukee's playlist right now. Please try again in a moment.";
+export const LINK_ACCOUNT_SPEECH = "Link your Radio Milwaukee account to save songs.";
 export const NOT_FOUND_SPEECH = "I couldn't find that Radio Milwaukee story.";
 export const NOT_ALLOWED_SPEECH = "Detailed answers aren't available for this episode.";
 export const NO_PASSAGE_SPEECH = "I couldn't find that in the episode.";
@@ -158,3 +163,60 @@ export function spokenPicks(events: PublicEvent[], now: Date): string {
 }
 
 const firstSentenceOf = (text: string) => text.match(/^.*?[.!?](\s|$)/)?.[0].trim() ?? text;
+
+export function spokenRecall(result: RecallResult): string {
+  const [top, ...rest] = result.matches;
+  if (result.status === "unknown_station") return "I don't know that station.";
+  if (!top) return "I couldn't find anything Radio Milwaukee played then. Try a wider time.";
+  const lead = `That was likely "${top.title}" by ${top.artist}, at ${localClock(top.playedAt)}`; // the clock already ends in "p.m." / "a.m."
+  if (result.status === "ok") return lead;
+  const others = rest.map((m) => `"${m.title}" by ${m.artist}`).join(", or ");
+  const caveat = result.status === "cues_unchecked" ? " I couldn't check that detail, so here's what played around then." : "";
+  return `${lead}${caveat}${others ? ` Or it might be ${others}.` : ""}`;
+}
+
+export function spokenTrackFacts(facts: TrackFacts): string {
+  if (facts.status !== "ok") return "I don't have more on that song.";
+  const f = facts as TrackFacts & { title?: string; artist?: string; year?: number | null; label?: string | null };
+  const producedBy = creditLines(facts).find((line) => line.startsWith("Produced by"));
+  const details = [f.year ? `released in ${f.year}` : null, f.label ? `on ${f.label}` : null, producedBy ? producedBy.replace("Produced", "produced") : null].filter(Boolean).join(", ");
+  return `"${f.title}" by ${f.artist}${details ? `, ${details}` : ""}.`;
+}
+
+const SPOKEN_LIST_MAX = 3; // longer spoken lists lose listeners; the screen carries the rest
+
+/** "The last 5 on 88Nine, newest first: A, B, C, and 2 more on screen." */
+export function spokenRecent(stationName: string, songs: { artist: string; title: string }[]): string {
+  if (songs.length === 0) return `I haven't logged any songs on ${stationName} yet.`;
+  const said = songs.slice(0, SPOKEN_LIST_MAX).map((song) => `"${song.title}" by ${song.artist}`);
+  if (songs.length === 1) return `The last song on ${stationName} was ${said[0]}.`;
+  const rest = songs.length - said.length;
+  return `The last ${songs.length} on ${stationName}, newest first: ${said.join(", ")}${rest ? `, and ${rest} more on screen` : ""}.`;
+}
+
+const milwaukeeDay = (ms: number) => new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", timeZone: "America/Chicago" }).format(ms);
+
+/** "'One Mic' by Nas last played on HYFIN, October 3 at 3:16 a.m." (or "today at …"). */
+export function spokenSearch(query: string, top: { artist: string; title: string; playedAt: number; stationName: string } | undefined, now: Date): string {
+  if (!top) return `Radio Milwaukee's stations haven't played "${query}" lately.`;
+  const day = milwaukeeDay(top.playedAt) === milwaukeeDay(now.getTime()) ? "today" : milwaukeeDay(top.playedAt);
+  return `"${top.title}" by ${top.artist} last played on ${top.stationName}, ${day} at ${localClock(top.playedAt)}`; // the clock ends in "a.m." / "p.m."
+}
+
+export function spokenSaved(saved: SavedFind): string {
+  if (saved.status === "not_found") return "I couldn't find that play anymore — which song did you mean?";
+  const already = saved.alreadySaved ? "It was already in your Finds, so I moved it to the top" : `Saved "${saved.title}" by ${saved.artist} to your 88Nine Finds`;
+  return saved.appleMusic === "pending" ? `${already}, and I'm adding it to Apple Music.` : `${already}.`;
+}
+
+export function spokenFinds(finds: FindRow[]): string {
+  if (finds.length === 0) return "Your Finds are empty. After I name a song, say 'save it'.";
+  const items = finds.map((f) => `${f.label}: "${f.title}" by ${f.artist}`).join("; ");
+  const reconnect = finds.some((f) => f.appleMusic.status === "expired") ? " Apple Music needs reconnecting at radiomilwaukee.org slash connect." : "";
+  return `Your latest Finds — ${items}.${reconnect}`;
+}
+
+export function spokenDeleted({ deletedFinds, deletedLink }: { deletedFinds: number; deletedLink: boolean }): string {
+  const finds = `${deletedFinds} ${deletedFinds === 1 ? "find" : "finds"}`;
+  return `Done. I deleted ${finds}${deletedLink ? " and disconnected Apple Music" : ""}.`;
+}

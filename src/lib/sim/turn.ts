@@ -19,6 +19,8 @@ export interface TurnInput {
   history: ChatMessage[];
   audio?: { bytes: Uint8Array; contentType: string };
   text?: string;
+  /** The listener's OAuth access token once the simulator is linked, as Alexa+ sends it. */
+  accessToken?: string;
 }
 
 export interface TurnResult {
@@ -38,7 +40,8 @@ export interface TurnDeps {
   /** Signs speech links. Separate from the passcode and high-entropy. */
   speechSecret: string;
   transcribe(bytes: Uint8Array, contentType: string): Promise<string>;
-  mcp(): Promise<McpSession>;
+  /** Anonymous without a token; with one, a connection that carries it. */
+  mcp(accessToken?: string): Promise<McpSession>;
   converse: Converse;
 }
 
@@ -51,7 +54,7 @@ function recentHistory(history: ChatMessage[]): ChatMessage[] {
   return firstUser === -1 ? [] : recent.slice(firstUser);
 }
 
-function passcodeMatches(given: string | null, expected: string): boolean {
+export function passcodeMatches(given: string | null, expected: string): boolean {
   if (!given || !expected) return false;
   const a = Buffer.from(given);
   const b = Buffer.from(expected);
@@ -88,7 +91,7 @@ export async function handleTurn(input: TurnInput, deps: TurnDeps): Promise<Repl
   const connectStarted = Date.now();
   let session: McpSession;
   try {
-    session = await deps.mcp(); // shared per server instance; not closed here
+    session = await deps.mcp(input.accessToken); // reused across turns; not closed here
   } catch (error) {
     trail.push({ kind: "error", text: `connecting to the MCP server failed: ${String(error instanceof Error ? error.message : error)}` });
     return { status: 200, body: { heard, reply: APOLOGY, speech: signSpeech(APOLOGY, deps.speechSecret), card: null, trail } };

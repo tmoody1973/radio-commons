@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChatMessage, TrailEntry } from "@/lib/sim/trail";
-import { cardAfterTurn, nextHistory } from "@/lib/sim/ui";
+import { cardAfterTurn, needsAccountLink, nextHistory, onScreenFrom } from "@/lib/sim/ui";
 import { CardHost, type CardPayload, type DisplayMode, type Theme } from "./CardHost";
 import styles from "./simulator.module.css";
 import { TrailPanel } from "./TrailPanel";
@@ -27,10 +27,29 @@ function readPasscode(): string {
   }
 }
 
-export function Simulator() {
+function askPasscode(): string {
+  let passcode = readPasscode();
+  if (!passcode) {
+    passcode = window.prompt("Simulator passcode") ?? "";
+    try { sessionStorage.setItem(PASSCODE_KEY, passcode); } catch { /* private mode: ask again next time */ }
+  }
+  return passcode;
+}
+
+/** Alexa's account linking: a full-page trip (not a client route) to the Radio Milwaukee login and back. */
+function linkAccount() {
+  const start = new URL("/api/sim/link/start", window.location.origin);
+  start.searchParams.set("passcode", askPasscode());
+  window.location.assign(start);
+}
+
+const LINK_OUTCOME_STATUS = { ok: "Linked your Radio Milwaukee account.", failed: "Couldn't link the account. Please try again." };
+
+/** `linked`: the server saw a session cookie when it rendered the page. `linkOutcome`: back from the login (?link=). */
+export function Simulator({ linked: linkedAtLoad = false, linkOutcome }: { linked?: boolean; linkOutcome?: "ok" | "failed" }) {
   const [phase, setPhase] = useState<Phase>("idle");
   const [captions, setCaptions] = useState("");
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState(linkOutcome ? LINK_OUTCOME_STATUS[linkOutcome] : "");
   const [card, setCard] = useState<CardPayload | null>(null);
   const [turns, setTurns] = useState<TrailEntry[][]>([]);
   const [showTrail, setShowTrail] = useState(true); // for judges: what Alexa did, open by default
@@ -39,6 +58,8 @@ export function Simulator() {
   const [displayMode, setDisplayMode] = useState<DisplayMode>("inline");
   const [scale, setScale] = useState(1);
   const [pauseSignal, setPauseSignal] = useState(0);
+  const [linked, setLinked] = useState(linkedAtLoad);
+  const [offerLink, setOfferLink] = useState(false); // a Finds tool asked for a linked account
   const fit = useRef<HTMLDivElement>(null);
   const [typed, setTyped] = useState("");
   const history = useRef<ChatMessage[]>([]);
@@ -62,12 +83,23 @@ export function Simulator() {
     }).catch(() => undefined);
   }, []);
 
-  const send = useCallback(async (form: FormData) => {
-    let passcode = readPasscode();
-    if (!passcode) {
-      passcode = window.prompt("Simulator passcode") ?? "";
-      try { sessionStorage.setItem(PASSCODE_KEY, passcode); } catch { /* private mode: ask again next time */ }
+  // Back from the login: the status says how it went; drop ?link= so a reload doesn't repeat it.
+  useEffect(() => {
+    if (linkOutcome) window.history.replaceState(null, "", window.location.pathname);
+  }, [linkOutcome]);
+
+  const unlink = useCallback(async () => {
+    const response = await fetch("/api/sim/link/unlink", { method: "POST" }).catch(() => null);
+    if (response?.ok) {
+      setLinked(false);
+      setStatus("Unlinked.");
+    } else {
+      setStatus("Couldn't unlink. Please try again.");
     }
+  }, []);
+
+  const send = useCallback(async (form: FormData) => {
+    const passcode = askPasscode();
     form.set("history", JSON.stringify(history.current));
     setPhase("thinking");
     setStatus("");
@@ -80,9 +112,12 @@ export function Simulator() {
         setPhase("idle");
         return;
       }
-      const shown = body.card?.result.structuredContent as { story?: { storyId: string; title: string } } | undefined;
-      history.current = nextHistory(history.current, body.heard, body.reply, shown?.story);
+      const shown = onScreenFrom(body.card?.result.structuredContent as Record<string, unknown> | undefined);
+      history.current = nextHistory(history.current, body.heard, body.reply, shown);
       setTurns((all) => [...all, body.trail]);
+      const askedToLink = needsAccountLink(body.trail);
+      setOfferLink(askedToLink);
+      if (askedToLink) setLinked(false); // the server refused our token, or we never had one
       setHeard(body.heard);
       setCaptions(body.reply);
       if (body.control === "pause") setPauseSignal((n) => n + 1);
@@ -189,6 +224,16 @@ export function Simulator() {
       <header className={styles.top}>
         <p>Radio Commons · Alexa+ simulator</p>
         <p className={styles.sub}>Plays Alexa+ around the real Radio Commons MCP server</p>
+        <div className={styles.account}>
+          {linked ? (
+            <>
+              <span className={styles.chip}>Linked</span>
+              <button type="button" className={styles.toggle} onClick={() => void unlink()}>Unlink</button>
+            </>
+          ) : (
+            <button type="button" className={styles.toggle} onClick={linkAccount}>Link Radio Milwaukee account</button>
+          )}
+        </div>
       </header>
       <div className={styles.stage}>
         <div className={styles.left}>
@@ -238,6 +283,11 @@ export function Simulator() {
             </button>
           </div>
           <p className={styles.status} role="status">{status}</p>
+          {offerLink && !linked ? (
+            <p className={styles.linkOffer}>
+              <button type="button" className={styles.toggle} onClick={linkAccount}>Link Radio Milwaukee account</button> to save songs to your Finds.
+            </p>
+          ) : null}
         </div>
         {showTrail ? <TrailPanel turns={turns} /> : null}
       </div>

@@ -2,25 +2,42 @@ import { registerAppResource, registerAppTool, RESOURCE_MIME_TYPE } from "@model
 import { createMcpHandler } from "mcp-handler";
 import { z } from "zod";
 import { BackstoryUnavailable, type BackstoryClient, type Story } from "@/lib/backstory";
+import { PlaylistUnavailable, type PlaylistClient, type RecallMatch, type SavedFind, type Station } from "@/lib/playlist";
+import { listenerIdFrom } from "@/lib/listenerAuth";
 import { FieldGuideUnavailable, type FieldGuideClient, type PublicEvent } from "@/lib/fieldGuide";
 import { fullPlacesView, renderView, type CardView, type EventItem } from "@/lib/card";
+import { songCardFromFacts, songCardFromMatch, songCardFromRecent, songCardFromSearch, STATION_NAMES } from "@/lib/card/song";
+import { bestRecentMatch } from "@/lib/songMatch";
 import { SITE } from "@/lib/card/tokens";
 import { clusterPins, mapFrame, pinPositions } from "@/lib/map/geo";
 import { createHash } from "node:crypto";
 import { eventMapPoints, MAP_H, MAP_W, pinnedEvents, pinnedPlaces } from "@/lib/map/staticMap";
 import {
-  directAudioUrl, eventTime, EVENTS_UNAVAILABLE_SPEECH, NO_PLACES_FOR_EVENTS_SPEECH, NO_PLACES_SPEECH, spokenEvents, spokenPicks, NOT_ALLOWED_SPEECH, NOT_FOUND_SPEECH, spokenLatest, spokenMatches, spokenPassages,
-  spokenPlaces, spokenStory, UNAVAILABLE_SPEECH,
+  directAudioUrl, eventTime, EVENTS_UNAVAILABLE_SPEECH, NO_PLACES_FOR_EVENTS_SPEECH, NO_PLACES_SPEECH, spokenEvents, spokenPicks, NOT_ALLOWED_SPEECH, NOT_FOUND_SPEECH, LINK_ACCOUNT_SPEECH, PLAYLIST_UNAVAILABLE_SPEECH, spokenFinds, spokenLatest, spokenMatches, spokenPassages,
+  spokenPlaces, spokenRecall, spokenRecent, spokenSearch, spokenDeleted, spokenSaved, spokenStory, spokenTrackFacts, UNAVAILABLE_SPEECH,
 } from "@/lib/speech";
+import { localWindow } from "@/lib/stationTime";
 import { getStation } from "@/lib/stations";
 
 export const CARD_URI = "ui://radio-commons/story-card.html";
+const CLOCK_TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
+// Playlist play ids are long lowercase ids; a list number like "1" fails here so Alexa retries with the real one.
+const DEFAULT_RECENT_SONGS = 5;
+const SEARCH_RESULTS_SHOWN = 5;
+// ~500 plays scanned per station (about a day); deeper scans take 1-2 s and miss the playlist timeout.
+const SEARCH_DEPTH_PER_STATION = 100;
+const MUSIC_STATIONS = ["88nine", "hyfin", "rhythmlab", "414music"] as const;
+const STATION_SLUG = z.enum(MUSIC_STATIONS);
+const MAX_RECENT_SONGS = 10;
+const PLAY_ID = z.string().regex(/^[a-z0-9_]{6,64}$/, "Use the playId from find_song_played, not the list number.");
 const STORY_ID = /^[a-z0-9]{1,64}$/;
 // Show artwork on f.prxu.org, audio on Dovetail, our logo and map pictures, fonts, and the fullscreen map (library + Amazon tiles).
 const CARD_CSP = {
   resourceDomains: [
     "https://f.prxu.org", "https://dovetail.prxu.org", "https://dovetail-cdn.prxu.org", SITE,
     "https://fonts.googleapis.com", "https://fonts.gstatic.com", "https://unpkg.com",
+    // Song cards: Apple album artwork and 30-second previews.
+    "https://*.mzstatic.com", "https://audio-ssl.itunes.apple.com",
   ],
   connectDomains: ["https://maps.geo.us-east-1.amazonaws.com", "https://unpkg.com"],
 };
@@ -30,6 +47,8 @@ const CARD = { _meta: { ui: { resourceUri: CARD_URI } } };
 interface Deps {
   backstory: () => BackstoryClient;
   fieldGuide: () => FieldGuideClient;
+  playlist: () => PlaylistClient;
+  now?: () => Date;
   cardHtml: () => string;
 }
 
@@ -42,6 +61,9 @@ interface ToolResult {
 
 const text = (t: string) => [{ type: "text" as const, text: t }];
 const unavailable = (): ToolResult => ({ content: text(UNAVAILABLE_SPEECH), isError: true });
+const playlistUnavailable = (): ToolResult => ({ content: text(PLAYLIST_UNAVAILABLE_SPEECH), isError: true });
+const ACCOUNT_LINKING_REQUIRED = { error: "account_linking_required" };
+const accountLinkingRequired = (): ToolResult => ({ content: text(LINK_ACCOUNT_SPEECH), isError: true, structuredContent: ACCOUNT_LINKING_REQUIRED });
 const eventsUnavailable = (): ToolResult => ({ content: text(EVENTS_UNAVAILABLE_SPEECH), isError: true });
 const WHEN = ["tonight", "today", "this-weekend", "this-week"] as const;
 const clean = (story: Story): Story => {
@@ -77,7 +99,7 @@ async function timed(tool: string, run: () => Promise<ToolResult>, fallback: () 
   try {
     return await run();
   } catch (error) {
-    if (!(error instanceof BackstoryUnavailable) && !(error instanceof FieldGuideUnavailable)) throw error;
+    if (!(error instanceof BackstoryUnavailable) && !(error instanceof FieldGuideUnavailable) && !(error instanceof PlaylistUnavailable)) throw error;
     console.error(JSON.stringify({ tool, error: error.message }));
     return fallback();
   } finally {
@@ -109,9 +131,22 @@ function placesCard(story: Story) {
 }
 
 export function buildMcpHandler(deps: Deps) {
+  const now = deps.now ?? (() => new Date());
   const station = getStation();
   const shows = station.shows.map((s) => s.slug) as [string, ...string[]];
   const card = (view: CardView, extra: Record<string, unknown> = {}) => ({ stationId: station.stationId, view: view.view, cardHtml: renderView(view), ...extra });
+  // Every station's playlist (or one), merged newest first, each hit tagged with where it played.
+  const searchStations = async (query: string, only?: Station) => {
+    const stations = only ? [only] : [...MUSIC_STATIONS];
+    const perStation = await Promise.all(stations.map(async (slug) =>
+      (await deps.playlist().searchPlays(slug, query, SEARCH_DEPTH_PER_STATION)).map((song) => ({ ...song, station: slug }))));
+    return perStation.flat().sort((a, b) => b.playedAt - a.playedAt);
+  };
+  // One guess gets the full song card; several become a numbered list so "save number 2" matches the screen.
+  const recallCard = (matches: RecallMatch[], slug: Station) =>
+    matches.length === 0 ? {}
+      : matches.length === 1 ? card({ view: "song", song: songCardFromMatch(matches[0], slug) })
+        : card({ view: "songs", songs: matches.map((match) => songCardFromMatch(match, slug)) });
   return createMcpHandler(
     (server) => {
       registerAppTool(
@@ -284,6 +319,177 @@ export function buildMcpHandler(deps: Deps) {
               ...(events.length ? { structuredContent: card({ view: "events", items: events.map((event) => ({ event, when: eventTime(event.startAt, now) })) }, { events }) } : {}),
             };
           }, eventsUnavailable),
+      );
+
+      registerAppTool(
+        server,
+        "find_song_played",
+        {
+          title: "Find a song Radio Milwaukee played",
+          description:
+            "Find a song Radio Milwaukee played on one of its stations, by station and time window, optionally with descriptive cues like 'horns'. Returns numbered matches with playIds; pass a playId to save_find or get_track_story. Use for 'what was that song on 88Nine this morning?' and 'the one before that'; for 'what's playing' or 'the last 5 songs', use recent_songs instead (beforePlayId; pass the same window again). Times are Milwaukee local time, 24-hour HH:MM. Map 'this morning' to 06:00-12:00, 'this afternoon' 12:00-17:00, 'tonight'/'this evening' 17:00-23:59, 'around 8:15' to 08:00-08:30. day is 'today' (default) or 'yesterday'. Use afterPlayId for 'the one after that'. If endTime is earlier than startTime, the window crosses midnight.",
+          inputSchema: z.object({
+            station: z.enum(["hyfin", "88nine", "414music", "rhythmlab"]),
+            day: z.enum(["today", "yesterday"]).optional(),
+            startTime: z.string().regex(CLOCK_TIME),
+            endTime: z.string().regex(CLOCK_TIME),
+            cues: z.array(z.string().max(30)).max(5).optional(),
+            beforePlayId: PLAY_ID.optional(),
+            afterPlayId: PLAY_ID.optional(),
+          }),
+          ...CARD,
+        },
+        async ({ day, startTime, endTime, ...rest }) =>
+          timed("find_song_played", async () => {
+            const window = localWindow({ day: day ?? "today", startTime, endTime }, now());
+            const result = await deps.playlist().findSongPlayed({ ...rest, ...window });
+            // One id per song: extra ids (trackId, list labels) led Alexa to save with the wrong one.
+            const matches = result.matches.map(({ playId, artist, title, playedAt }) => ({ playId, artist, title, playedAt }));
+            return {
+              content: [...text(spokenRecall(result)), ...text(JSON.stringify({ matches }))],
+              structuredContent: {
+                ...recallCard(result.matches, rest.station),
+                stationId: station.stationId, matches, status: result.status,
+              },
+            };
+          }, playlistUnavailable),
+      );
+
+      registerAppTool(
+        server,
+        "search_playlist",
+        {
+          title: "Search Radio Milwaukee's playlists",
+          description: "Search what Radio Milwaukee's stations played over about the last day, by artist or song title. Use for 'when did you last play Nas?', 'have you played the new Thao song?', 'what Kendrick have you played?'. Searches every station unless one is named. Returns numbered songs, newest first, with playIds for save_find and get_track_story.",
+          inputSchema: z.object({ query: z.string().min(2).max(100), station: STATION_SLUG.optional() }),
+          ...CARD,
+        },
+        async ({ query, station: slug }) =>
+          timed("search_playlist", async () => {
+            const hits = (await searchStations(query, slug)).slice(0, SEARCH_RESULTS_SHOWN);
+            const songs = hits.map(({ playId, artist, title, playedAt, station: where }, i) => ({ number: i + 1, playId, artist, title, playedAt, station: where }));
+            const top = hits[0] && { ...hits[0], stationName: STATION_NAMES[hits[0].station] };
+            return {
+              content: [...text(spokenSearch(query, top, now())), ...text(JSON.stringify({ songs }))],
+              structuredContent: {
+                ...(hits.length ? card({ view: "songs", songs: hits.map((hit) => songCardFromSearch(hit, hit.station)) }) : {}),
+                stationId: station.stationId, songs,
+              },
+            };
+          }, playlistUnavailable),
+      );
+
+      registerAppTool(
+        server,
+        "recent_songs",
+        {
+          title: "Latest songs Radio Milwaukee played",
+          description:
+            "The most recent songs on a Radio Milwaukee station, newest first, numbered. Use for 'what's playing?', 'what just played?', 'the last 5 songs on 88Nine'. Pass a song's playId to save_find or get_track_story ('save number 2'). For a song at a past time ('around 2 pm'), use find_song_played.",
+          inputSchema: z.object({
+            station: z.enum(["hyfin", "88nine", "414music", "rhythmlab"]),
+            count: z.number().int().min(1).max(MAX_RECENT_SONGS).optional(),
+          }),
+          ...CARD,
+        },
+        async ({ station: slug, count }) =>
+          timed("recent_songs", async () => {
+            const songs = await deps.playlist().recentSongs(slug, count ?? DEFAULT_RECENT_SONGS);
+            const numbered = songs.map(({ playId, artist, title, playedAt }, i) => ({ number: i + 1, playId, artist, title, playedAt }));
+            return {
+              content: [...text(spokenRecent(STATION_NAMES[slug], songs)), ...text(JSON.stringify({ songs: numbered }))],
+              structuredContent: {
+                ...(songs.length ? card({ view: "songs", songs: songs.map(songCardFromRecent) }) : {}),
+                stationId: station.stationId, songs: numbered,
+              },
+            };
+          }, playlistUnavailable),
+      );
+
+      registerAppTool(
+        server,
+        "get_track_story",
+        {
+          title: "More about a song Radio Milwaukee played",
+          description: "Tell the listener more about a song Radio Milwaukee played: credits, album, year, upcoming local shows. Pass its playId if you have it, and always also its title and artist (and station if known) so it is found even without an id. Use for 'what are the credits on that?', 'tell me about Groove Thang'. Speak only from this record.",
+          inputSchema: z.object({
+            playId: PLAY_ID.optional(),
+            title: z.string().max(200).optional(),
+            artist: z.string().max(200).optional(),
+            station: STATION_SLUG.optional(),
+          }),
+          ...CARD,
+        },
+        async ({ playId, title, artist, station: slug }) =>
+          timed("get_track_story", async () => {
+            let facts = playId ? await deps.playlist().getTrackFacts({ playId }) : { status: "not_found" as const };
+            if (facts.status === "not_found" && (title || artist)) {
+              const found = bestRecentMatch(await searchStations((title ?? artist)!, slug), { title, artist });
+              if (found) facts = await deps.playlist().getTrackFacts({ playId: found });
+            }
+            const songCard = facts.status === "ok" ? card({ view: "song", song: songCardFromFacts(facts) }) : {};
+            return { content: text(spokenTrackFacts(facts)), structuredContent: { ...facts, ...songCard } };
+          }, playlistUnavailable),
+      );
+
+      server.registerTool(
+        "save_find",
+        {
+          title: "Save a song to 88Nine Finds",
+          description: "Save a song the listener heard on Radio Milwaukee to their 88Nine Finds (and Apple Music if connected). Requires a linked account. Pass the playId from recent_songs, find_song_played or search_playlist if you have it, and always also pass the song's title and artist (and station if known) so the right play is found even without an id. Use for 'save it', 'save number 3', 'save the song by Thao'.",
+          inputSchema: z.object({
+            playId: PLAY_ID.optional(),
+            title: z.string().max(200).optional(),
+            artist: z.string().max(200).optional(),
+            station: STATION_SLUG.optional(),
+          }),
+          annotations: { idempotentHint: true },
+        },
+        async ({ playId, title, artist, station: slug }, context) =>
+          timed("save_find", async () => {
+            const listenerId = listenerIdFrom(context.http ?? {});
+            if (!listenerId) return accountLinkingRequired();
+            let saved: SavedFind = playId ? await deps.playlist().saveFind(listenerId, playId) : { status: "not_found" };
+            // Hosts lose ids between turns; the title and artist the listener heard still name the song.
+            if (saved.status === "not_found" && (title || artist)) {
+              const found = bestRecentMatch(await searchStations((title ?? artist)!, slug), { title, artist });
+              if (found) saved = await deps.playlist().saveFind(listenerId, found);
+            }
+            return { content: text(spokenSaved(saved)), structuredContent: { ...saved } };
+          }, playlistUnavailable),
+      );
+
+      server.registerTool(
+        "list_finds",
+        {
+          title: "List my Finds",
+          description: "List the listener's saved Radio Milwaukee Finds, newest first, numbered. Requires a linked account. Use for 'what's in my Finds?'.",
+          inputSchema: z.object({ limit: z.number().int().min(1).max(10).optional() }),
+        },
+        async ({ limit }, context) =>
+          timed("list_finds", async () => {
+            const listenerId = listenerIdFrom(context.http ?? {});
+            if (!listenerId) return accountLinkingRequired();
+            const finds = await deps.playlist().listFinds(listenerId, limit);
+            return { content: text(spokenFinds(finds)), structuredContent: { finds } };
+          }, playlistUnavailable),
+      );
+
+      server.registerTool(
+        "delete_my_finds",
+        {
+          title: "Delete my Finds",
+          description: "Permanently delete all of the listener's Finds and disconnect Apple Music. Requires a linked account. Only call after the listener has clearly confirmed.",
+          inputSchema: z.object({}),
+          annotations: { destructiveHint: true, idempotentHint: true },
+        },
+        async (_args, context) =>
+          timed("delete_my_finds", async () => {
+            const listenerId = listenerIdFrom(context.http ?? {});
+            if (!listenerId) return accountLinkingRequired();
+            const deleted = await deps.playlist().deleteFinds(listenerId);
+            return { content: text(spokenDeleted(deleted)), structuredContent: { ...deleted } };
+          }, playlistUnavailable),
       );
 
       registerAppResource(server, "Story card", CARD_URI, { description: "A Radio Milwaukee story, quote, list or map, in Alexa+ style." }, async () => ({

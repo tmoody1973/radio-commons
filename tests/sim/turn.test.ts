@@ -63,6 +63,13 @@ describe("a spoken turn", () => {
     const kinds = (body as { trail: { kind: string; stage?: string }[] }).trail.filter((e) => e.kind === "stage").map((e) => e.stage);
     expect(kinds).toEqual(["connect"]);
   });
+  it("connects with the listener's access token when linked, anonymously otherwise", async () => {
+    const base = deps();
+    const mcp = vi.fn(base.mcp);
+    await handleTurn({ passcode: "milwaukee", history: [], text: "what's in my Finds?", accessToken: "at" }, deps({ mcp }));
+    await handleTurn({ passcode: "milwaukee", history: [], text: "what's in my Finds?" }, deps({ mcp }));
+    expect(mcp.mock.calls).toEqual([["at"], [undefined]]);
+  });
   it("MCP server unreachable: Alexa's apology with the cause in the trail, not a crash", async () => {
     const { status, body } = await handleTurn({ passcode: "milwaukee", history: [], text: "frugal dining" }, deps({ mcp: async () => { throw new Error("ECONNREFUSED"); } }));
     expect(status).toBe(200);
