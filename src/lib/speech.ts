@@ -183,6 +183,17 @@ export function spokenTrackFacts(facts: TrackFacts): string {
   return `"${f.title}" by ${f.artist}${details ? `, ${details}` : ""}.`;
 }
 
+const SPOKEN_LIST_MAX = 3; // longer spoken lists lose listeners; the screen carries the rest
+
+/** "The last 5 on 88Nine, newest first: A, B, C, and 2 more on screen." */
+export function spokenRecent(stationName: string, songs: { artist: string; title: string }[]): string {
+  if (songs.length === 0) return `I haven't logged any songs on ${stationName} yet.`;
+  const said = songs.slice(0, SPOKEN_LIST_MAX).map((song) => `"${song.title}" by ${song.artist}`);
+  if (songs.length === 1) return `The last song on ${stationName} was ${said[0]}.`;
+  const rest = songs.length - said.length;
+  return `The last ${songs.length} on ${stationName}, newest first: ${said.join(", ")}${rest ? `, and ${rest} more on screen` : ""}.`;
+}
+
 export function spokenSaved(saved: SavedFind): string {
   if (saved.status === "not_found") return "I couldn't find that play anymore — which song did you mean?";
   const already = saved.alreadySaved ? "It was already in your Finds, so I moved it to the top" : `Saved "${saved.title}" by ${saved.artist} to your 88Nine Finds`;

@@ -2,18 +2,18 @@ import { registerAppResource, registerAppTool, RESOURCE_MIME_TYPE } from "@model
 import { createMcpHandler } from "mcp-handler";
 import { z } from "zod";
 import { BackstoryUnavailable, type BackstoryClient, type Story } from "@/lib/backstory";
-import { PlaylistUnavailable, type PlaylistClient } from "@/lib/playlist";
+import { PlaylistUnavailable, type PlaylistClient, type RecallMatch, type Station } from "@/lib/playlist";
 import { listenerIdFrom } from "@/lib/listenerAuth";
 import { FieldGuideUnavailable, type FieldGuideClient, type PublicEvent } from "@/lib/fieldGuide";
 import { fullPlacesView, renderView, type CardView, type EventItem } from "@/lib/card";
-import { songCardFromFacts, songCardFromMatch } from "@/lib/card/song";
+import { songCardFromFacts, songCardFromMatch, songCardFromRecent, STATION_NAMES } from "@/lib/card/song";
 import { SITE } from "@/lib/card/tokens";
 import { clusterPins, mapFrame, pinPositions } from "@/lib/map/geo";
 import { createHash } from "node:crypto";
 import { eventMapPoints, MAP_H, MAP_W, pinnedEvents, pinnedPlaces } from "@/lib/map/staticMap";
 import {
   directAudioUrl, eventTime, EVENTS_UNAVAILABLE_SPEECH, NO_PLACES_FOR_EVENTS_SPEECH, NO_PLACES_SPEECH, spokenEvents, spokenPicks, NOT_ALLOWED_SPEECH, NOT_FOUND_SPEECH, LINK_ACCOUNT_SPEECH, PLAYLIST_UNAVAILABLE_SPEECH, spokenFinds, spokenLatest, spokenMatches, spokenPassages,
-  spokenPlaces, spokenRecall, spokenDeleted, spokenSaved, spokenStory, spokenTrackFacts, UNAVAILABLE_SPEECH,
+  spokenPlaces, spokenRecall, spokenRecent, spokenDeleted, spokenSaved, spokenStory, spokenTrackFacts, UNAVAILABLE_SPEECH,
 } from "@/lib/speech";
 import { localWindow } from "@/lib/stationTime";
 import { getStation } from "@/lib/stations";
@@ -21,6 +21,8 @@ import { getStation } from "@/lib/stations";
 export const CARD_URI = "ui://radio-commons/story-card.html";
 const CLOCK_TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 // Playlist play ids are long lowercase ids; a list number like "1" fails here so Alexa retries with the real one.
+const DEFAULT_RECENT_SONGS = 5;
+const MAX_RECENT_SONGS = 10;
 const PLAY_ID = z.string().regex(/^[a-z0-9_]{6,64}$/, "Use the playId from find_song_played, not the list number.");
 const STORY_ID = /^[a-z0-9]{1,64}$/;
 // Show artwork on f.prxu.org, audio on Dovetail, our logo and map pictures, fonts, and the fullscreen map (library + Amazon tiles).
@@ -127,6 +129,11 @@ export function buildMcpHandler(deps: Deps) {
   const station = getStation();
   const shows = station.shows.map((s) => s.slug) as [string, ...string[]];
   const card = (view: CardView, extra: Record<string, unknown> = {}) => ({ stationId: station.stationId, view: view.view, cardHtml: renderView(view), ...extra });
+  // One guess gets the full song card; several become a numbered list so "save number 2" matches the screen.
+  const recallCard = (matches: RecallMatch[], slug: Station) =>
+    matches.length === 0 ? {}
+      : matches.length === 1 ? card({ view: "song", song: songCardFromMatch(matches[0], slug) })
+        : card({ view: "songs", songs: matches.map((match) => songCardFromMatch(match, slug)) });
   return createMcpHandler(
     (server) => {
       registerAppTool(
@@ -307,7 +314,7 @@ export function buildMcpHandler(deps: Deps) {
         {
           title: "Find a song Radio Milwaukee played",
           description:
-            "Find a song Radio Milwaukee played on one of its stations, by station and time window, optionally with descriptive cues like 'horns'. Returns numbered matches with playIds; pass a playId to save_find or get_track_story. Use for 'what was that song on 88Nine this morning?' and 'the one before that' (beforePlayId; pass the same window again). Times are Milwaukee local time, 24-hour HH:MM. Map 'this morning' to 06:00-12:00, 'this afternoon' 12:00-17:00, 'tonight'/'this evening' 17:00-23:59, 'around 8:15' to 08:00-08:30. day is 'today' (default) or 'yesterday'. Use afterPlayId for 'the one after that'. If endTime is earlier than startTime, the window crosses midnight.",
+            "Find a song Radio Milwaukee played on one of its stations, by station and time window, optionally with descriptive cues like 'horns'. Returns numbered matches with playIds; pass a playId to save_find or get_track_story. Use for 'what was that song on 88Nine this morning?' and 'the one before that'; for 'what's playing' or 'the last 5 songs', use recent_songs instead (beforePlayId; pass the same window again). Times are Milwaukee local time, 24-hour HH:MM. Map 'this morning' to 06:00-12:00, 'this afternoon' 12:00-17:00, 'tonight'/'this evening' 17:00-23:59, 'around 8:15' to 08:00-08:30. day is 'today' (default) or 'yesterday'. Use afterPlayId for 'the one after that'. If endTime is earlier than startTime, the window crosses midnight.",
           inputSchema: z.object({
             station: z.enum(["hyfin", "88nine", "414music", "rhythmlab"]),
             day: z.enum(["today", "yesterday"]).optional(),
@@ -328,8 +335,35 @@ export function buildMcpHandler(deps: Deps) {
             return {
               content: [...text(spokenRecall(result)), ...text(JSON.stringify({ matches }))],
               structuredContent: {
-                ...(result.matches[0] ? card({ view: "song", song: songCardFromMatch(result.matches[0], rest.station) }) : {}),
+                ...recallCard(result.matches, rest.station),
                 stationId: station.stationId, matches, status: result.status,
+              },
+            };
+          }, playlistUnavailable),
+      );
+
+      registerAppTool(
+        server,
+        "recent_songs",
+        {
+          title: "Latest songs Radio Milwaukee played",
+          description:
+            "The most recent songs on a Radio Milwaukee station, newest first, numbered. Use for 'what's playing?', 'what just played?', 'the last 5 songs on 88Nine'. Pass a song's playId to save_find or get_track_story ('save number 2'). For a song at a past time ('around 2 pm'), use find_song_played.",
+          inputSchema: z.object({
+            station: z.enum(["hyfin", "88nine", "414music", "rhythmlab"]),
+            count: z.number().int().min(1).max(MAX_RECENT_SONGS).optional(),
+          }),
+          ...CARD,
+        },
+        async ({ station: slug, count }) =>
+          timed("recent_songs", async () => {
+            const songs = await deps.playlist().recentSongs(slug, count ?? DEFAULT_RECENT_SONGS);
+            const numbered = songs.map(({ playId, artist, title, playedAt }, i) => ({ number: i + 1, playId, artist, title, playedAt }));
+            return {
+              content: [...text(spokenRecent(STATION_NAMES[slug], songs)), ...text(JSON.stringify({ songs: numbered }))],
+              structuredContent: {
+                ...(songs.length ? card({ view: "songs", songs: songs.map(songCardFromRecent) }) : {}),
+                stationId: station.stationId, songs: numbered,
               },
             };
           }, playlistUnavailable),

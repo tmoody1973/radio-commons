@@ -17,7 +17,8 @@ export type CardView =
   | { view: "places"; story: Story; map: MapData }
   | { view: "events"; items: EventItem[] }
   | { view: "events-map"; items: EventItem[]; map: MapData }
-  | { view: "song"; song: SongCard };
+  | { view: "song"; song: SongCard }
+  | { view: "songs"; songs: SongCard[] };
 
 const escape = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
@@ -208,6 +209,19 @@ function songView(song: SongCard): string {
     + `<div class="actions">${preview}${save}</div></div></div></article>`;
 }
 
+/** Several songs as numbered tiles, so "save number 2" by voice matches the screen; each tile has its own preview. */
+function songsView(songs: SongCard[]): string {
+  const tiles = songs.slice(0, 10).map((song, i) => {
+    const number = i + 1;
+    const preview = song.previewUrl ? `<button type="button" class="secondary row-play" data-audio="${escape(song.previewUrl)}">${PLAY} Preview</button>` : "";
+    const save = `<button type="button" class="secondary ask" data-ask="${escape(`Save number ${number}, "${song.title}" by ${song.artist}`)}">Save</button>`;
+    return `<article class="tile song">${art(song.artworkUrl, song.artist, "tile-art")}<span class="badge">${number}</span>`
+      + `<span class="tile-title">${escape(song.title)}</span><span class="tile-date">${escape(song.artist)}${song.meta ? ` · ${escape(song.meta)}` : ""}</span>`
+      + `<span class="tile-actions">${preview}${save}</span></article>`;
+  }).join("");
+  return `<article class="card stories">${LOGO}<div class="carousel">${tiles}</div></article>`;
+}
+
 export function renderView(card: CardView): string {
   switch (card.view) {
     case "story": return storyView(card.story, card.releaseEvent ?? null);
@@ -217,5 +231,6 @@ export function renderView(card: CardView): string {
     case "events": return eventsView(card.items);
     case "events-map": return eventsMapView(card.items, card.map);
     case "song": return songView(card.song);
+    case "songs": return songsView(card.songs);
   }
 }
