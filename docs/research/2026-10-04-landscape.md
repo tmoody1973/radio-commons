@@ -134,7 +134,17 @@ Starting points only. They describe the full product as planned for Oct 23 — s
 > - Ask what's playing on 88Nine, and hear the story behind the song, even for Milwaukee artists Spotify barely knows, from our own premieres and artist interviews.
 > - Ask what's on tonight, and get nearby shows and events from our event guide, plus what our staff recommends.
 >
-> Every fact approved by a station editor. I checked the US and public broadcasters abroad: as far as I can find, it's the first MCP server a radio station has built itself for its listeners. Here's what I learned building it.
+> Underneath is Backstory, a story engine I built for the station. For every new episode of This Bites, Uniquely Milwaukee and Ladies First, it:
+>
+> 1. Pulls the episode from NPR's content system, where the station already publishes it.
+> 2. Transcribes the whole thing with Deepgram, with speaker labels, so it knows who said what, and when.
+> 3. Has Claude (on Amazon Bedrock) read the transcript and pull out the people, places, topics and things to do. Every item must come with the exact quote that supports it, and Backstory checks that quote against the transcript.
+> 4. Puts the places on a map with Amazon Location.
+> 5. Waits for a station editor to approve it. Nothing reaches Alexa before that.
+>
+> 48 episodes so far, across three shows. The transcript is why Alexa can play the exact moment: it knows the second the host said "stromboli."
+>
+> I checked the US and public broadcasters abroad: as far as I can find, it's the first MCP server a radio station has built itself for its listeners. Here's what I learned building it.
 
 **Short post (Bluesky / Threads; 295 characters, over X's 280)**
 
