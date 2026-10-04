@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { LINK_ACCOUNT_SPEECH } from "@/lib/speech";
-import { cardAfterTurn, needsAccountLink, nextHistory, trailLabel } from "@/lib/sim/ui";
+import { cardAfterTurn, needsAccountLink, nextHistory, onScreenFrom, trailLabel } from "@/lib/sim/ui";
 
 describe("simulator page helpers", () => {
   it("keeps the last 20 messages of the conversation", () => {
@@ -12,6 +12,27 @@ describe("simulator page helpers", () => {
   it("remembers the story on screen, as Alexa+ keeps tool results, so a follow-up has its id", () => {
     expect(nextHistory([], "frugal dining", "From This Bites…", { storyId: "jn79", title: "Frugal dining" }).at(-1))
       .toEqual({ role: "assistant", text: 'From This Bites… [On screen: "Frugal dining", storyId jn79]' });
+  });
+  it("remembers the numbered songs on screen with their playIds, so 'save number 2' has the id", () => {
+    const shown = onScreenFrom({ songs: [
+      { number: 1, playId: "p1", title: "Wicked Game", artist: "Chris Isaak" },
+      { number: 2, playId: "p2", title: 'Groove "Thang"', artist: "Zhané" },
+    ] });
+    expect(nextHistory([], "last 2", "Here they are.", shown).at(-1)?.text)
+      .toBe('Here they are. [On screen: 1. "Wicked Game" by Chris Isaak, playId p1; 2. "Groove Thang" by Zhané, playId p2]');
+  });
+  it("reads recall matches and story cards the same way, and ignores anything else", () => {
+    expect(onScreenFrom({ matches: [{ playId: "p9", title: "Valerie", artist: "Amy Winehouse" }] }))
+      .toEqual({ songs: [{ playId: "p9", title: "Valerie", artist: "Amy Winehouse" }] });
+    expect(onScreenFrom({ story: { storyId: "jn79", title: "Frugal dining" } })).toEqual({ storyId: "jn79", title: "Frugal dining" });
+    expect(onScreenFrom({ view: "events" })).toBeUndefined();
+    expect(onScreenFrom(undefined)).toBeUndefined();
+  });
+  it("never sends a history message the server would reject, trimming the reply before the ids", () => {
+    const songs = Array.from({ length: 10 }, (_, i) => ({ playId: `p${i}`, title: `Song ${i}`, artist: `Artist ${i}` }));
+    const text = nextHistory([], "q", "x".repeat(3000), { songs }).at(-1)!.text;
+    expect(text.length).toBeLessThanOrEqual(2000);
+    expect(text).toContain("playId p9]");
   });
   it("keeps a title from breaking the on-screen note", () => {
     expect(nextHistory([], "q", "r", { storyId: "jn79", title: 'The "Best" [Bites]' }).at(-1)?.text).toBe('r [On screen: "The Best Bites", storyId jn79]');

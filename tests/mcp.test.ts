@@ -18,12 +18,12 @@ const PLAYLIST_TOOLS = ["find_song_played", "get_track_story", "save_find", "lis
 const call = (name: string, args: Record<string, unknown>) => ({ method: "tools/call", params: { name, arguments: args } });
 
 describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
-  it("initializes on protocol 2025-11-25 and lists the twelve tools", async () => {
+  it("initializes on protocol 2025-11-25 and lists the thirteen tools", async () => {
     const handler = handlerWith();
     const init = await mcpPost(handler, INITIALIZE);
     expect(init.message.result?.protocolVersion).toBe("2025-11-25");
     const tools = await mcpPost(handler, { method: "tools/list" }, 2);
-    expect(tools.message.result.tools.map((t: { name: string }) => t.name).sort()).toEqual(["ask_station_story", "delete_my_finds", "find_events", "find_song_played", "find_station_story", "get_station_story", "get_track_story", "latest_station_stories", "list_finds", "recent_songs", "save_find", "station_picks"]);
+    expect(tools.message.result.tools.map((t: { name: string }) => t.name).sort()).toEqual(["ask_station_story", "delete_my_finds", "find_events", "find_song_played", "find_station_story", "get_station_story", "get_track_story", "latest_station_stories", "list_finds", "recent_songs", "save_find", "search_playlist", "station_picks"]);
   });
 
   it("find_station_story returns matches and a spoken shortlist", async () => {
@@ -257,6 +257,35 @@ describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
     const { message } = await mcpPost(handlerWith(undefined, undefined, two), call("find_song_played", { station: "88nine", startTime: "14:00", endTime: "14:30" }));
     expect(message.result.structuredContent.view).toBe("songs");
   });
+  it("search_playlist finds an artist across every station, newest first, and says when it last played", async () => {
+    const asked: string[] = [];
+    const playlist = fakePlaylist({ searchPlays: async (station, query) => {
+      asked.push(`${station}:${query}`);
+      if (station === "hyfin") return [{ playId: "play_h", artist: "Nas", title: "One Mic", playedAt: Date.UTC(2026, 9, 3, 8, 16), artworkUrl: null, previewUrl: null }];
+      if (station === "88nine") return [{ playId: "play_n", artist: "Nas", title: "N.Y. State of Mind", playedAt: Date.UTC(2026, 9, 1, 20), artworkUrl: null, previewUrl: null }];
+      return [];
+    } });
+    const { message } = await mcpPost(handlerWith(undefined, undefined, playlist), call("search_playlist", { query: "Nas" }));
+    expect(asked.sort()).toEqual(["414music:Nas", "88nine:Nas", "hyfin:Nas", "rhythmlab:Nas"]);
+    expect(message.result.content[0].text).toBe('"One Mic" by Nas last played on HYFIN, October 3 at 3:16 a.m.');
+    expect(message.result.structuredContent.view).toBe("songs");
+    expect(message.result.structuredContent.songs.map((s: { playId: string }) => s.playId)).toEqual(["play_h", "play_n"]);
+  });
+  it("get_track_story finds the song by title when the id is missing or wrong", async () => {
+    const asked: unknown[] = [];
+    const playlist = fakePlaylist({
+      getTrackFacts: async (args) => { asked.push(args); return args.playId === "play_zhane" ? { status: "ok", title: "Groove Thang", artist: "Zhané" } : { status: "not_found" }; },
+      searchPlays: async (station) => station === "hyfin" ? [{ playId: "play_zhane", artist: "Zhané", title: "Groove Thang", playedAt: Date.UTC(2026, 9, 4, 8, 12), artworkUrl: null, previewUrl: null }] : [],
+    });
+    const { message } = await mcpPost(handlerWith(undefined, undefined, playlist), call("get_track_story", { playId: "groove_thang", title: "Groove Thang", artist: "Zhane" }));
+    expect(asked).toEqual([{ playId: "groove_thang" }, { playId: "play_zhane" }]);
+    expect(message.result.content[0].text).toContain('"Groove Thang" by Zhané');
+  });
+  it("search_playlist says plainly when the station hasn't played it", async () => {
+    const { message } = await mcpPost(handlerWith(), call("search_playlist", { query: "Nickelback", station: "88nine" }));
+    expect(message.result.content[0].text).toMatch(/haven't played .*Nickelback.* lately/i);
+    expect(message.result.structuredContent).not.toHaveProperty("cardHtml");
+  });
   it("find_song_played turns local times into the epoch window the playlist expects", async () => {
     const seen: { from: number; to: number }[] = [];
     const spy = fakePlaylist({ findSongPlayed: async ({ from, to }) => { seen.push({ from, to }); return { status: "ok", matches: [] }; } });
@@ -282,16 +311,38 @@ describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
       expect(saved).toEqual(["user_1:play_1"]);
       expect(message.result.content[0].text).toMatch(/Saved .*Victory Dance.* adding it to Apple Music/);
     });
-    it("save_find without a playId fails validation, not a crash", async () => {
-      const { message } = await mcpPostAs(handlerWith(), call("save_find", {}), "user_1");
-      expect(message.error ?? message.result?.isError).toBeTruthy();
-    });
     it.each([["a list number", "1"], ["a stray word", "it"]])("save_find bounces %s back to Alexa without touching the playlist", async (_case, playId) => {
       const saved: string[] = [];
       const playlist = fakePlaylist({ saveFind: async (_listener, id) => { saved.push(id); return { status: "not_found" }; } });
       const { message } = await mcpPostAs(handlerWith(undefined, undefined, playlist), call("save_find", { playId }), "user_1");
       expect(message.error ?? message.result?.isError).toBeTruthy();
       expect(saved).toEqual([]);
+    });
+    it("save_find with a made-up id falls back to the title and artist the listener heard", async () => {
+      const saved: string[] = [];
+      const playlist = fakePlaylist({
+        saveFind: async (_listener, playId) => { saved.push(playId); return playId === "play_real" ? { status: "ok", findId: "f1", appleMusic: "pending", artist: "King Tuff", title: "Twisted On A Train", alreadySaved: false } : { status: "not_found" }; },
+        searchPlays: async (station) => station === "88nine" ? [{ playId: "play_real", artist: "King Tuff", title: "Twisted On A Train", playedAt: Date.UTC(2026, 9, 4, 21), artworkUrl: null, previewUrl: null }] : [],
+      });
+      const { message } = await mcpPostAs(handlerWith(undefined, undefined, playlist), call("save_find", { playId: "king_tuff_twisted_on_a_train", title: "Twisted On A Train", artist: "King Tuff" }), "user_1");
+      expect(saved).toEqual(["king_tuff_twisted_on_a_train", "play_real"]);
+      expect(message.result.content[0].text).toMatch(/Saved .*Twisted On A Train/);
+    });
+    it("save_find with no id finds the newest play by that artist on the station", async () => {
+      const saved: string[] = [];
+      const playlist = fakePlaylist({
+        saveFind: async (_listener, playId) => { saved.push(playId); return { status: "ok", findId: "f1", appleMusic: "not_linked", artist: "Thao", title: "Sick of the Times", alreadySaved: false }; },
+        searchPlays: async () => [{ playId: "play_thao", artist: "Thao", title: "Sick of the Times (feat. The Linda Lindas)", playedAt: Date.UTC(2026, 9, 4, 21), artworkUrl: null, previewUrl: null }],
+      });
+      await mcpPostAs(handlerWith(undefined, undefined, playlist), call("save_find", { artist: "Thao", station: "88nine" }), "user_1");
+      expect(saved).toEqual(["play_thao"]);
+    });
+    it("save_find with nothing to go on asks which song, without touching the playlist", async () => {
+      const saved: string[] = [];
+      const playlist = fakePlaylist({ saveFind: async (_l, id) => { saved.push(id); return { status: "not_found" }; } });
+      const { message } = await mcpPostAs(handlerWith(undefined, undefined, playlist), call("save_find", {}), "user_1");
+      expect(saved).toEqual([]);
+      expect(message.result.content[0].text).toMatch(/which song/i);
     });
     it("save_find for a missing play asks which song", async () => {
       const playlist = fakePlaylist({ saveFind: async () => ({ status: "not_found" }) });

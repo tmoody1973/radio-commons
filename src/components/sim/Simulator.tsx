@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChatMessage, TrailEntry } from "@/lib/sim/trail";
-import { cardAfterTurn, needsAccountLink, nextHistory } from "@/lib/sim/ui";
+import { cardAfterTurn, needsAccountLink, nextHistory, onScreenFrom } from "@/lib/sim/ui";
 import { CardHost, type CardPayload, type DisplayMode, type Theme } from "./CardHost";
 import styles from "./simulator.module.css";
 import { TrailPanel } from "./TrailPanel";
@@ -112,8 +112,8 @@ export function Simulator({ linked: linkedAtLoad = false, linkOutcome }: { linke
         setPhase("idle");
         return;
       }
-      const shown = body.card?.result.structuredContent as { story?: { storyId: string; title: string } } | undefined;
-      history.current = nextHistory(history.current, body.heard, body.reply, shown?.story);
+      const shown = onScreenFrom(body.card?.result.structuredContent as Record<string, unknown> | undefined);
+      history.current = nextHistory(history.current, body.heard, body.reply, shown);
       setTurns((all) => [...all, body.trail]);
       const askedToLink = needsAccountLink(body.trail);
       setOfferLink(askedToLink);
