@@ -25,11 +25,13 @@ const publicKeyFrom = (pem: string): KeyObject => createPublicKey(pem.replace(/\
 
 /** RS256 signature and header check. Returns the claims only when the signature is good. */
 function verifiedClaims(token: string, key: KeyObject): AccessTokenClaims | undefined {
-  const [header, payload, signature] = token.split(".");
+  const parts = token.split(".");
+  if (parts.length !== 3) return undefined;
+  const [header, payload, signature] = parts;
   if (!header || !payload || !signature) return undefined;
   const { alg, typ } = decodeSegment(header);
   // Pinning alg stops alg-confusion; requiring at+jwt keeps Clerk session tokens (same key, same issuer) out.
-  if (alg !== "RS256" || !ACCESS_TOKEN_TYPES.has(String(typ))) return undefined;
+  if (alg !== "RS256" || !ACCESS_TOKEN_TYPES.has(String(typ).toLowerCase())) return undefined;
   const signatureValid = verify("RSA-SHA256", Buffer.from(`${header}.${payload}`), key, Buffer.from(signature, "base64url"));
   return signatureValid ? decodeSegment(payload) : undefined;
 }
@@ -58,14 +60,27 @@ export async function verifyListenerToken(_req: Request, bearer?: string): Promi
 export function gateAuthTools(handler: (req: Request) => Promise<Response>) {
   return async (req: Request): Promise<Response> => {
     if (req.method !== "POST" || (req as Request & { auth?: unknown }).auth) return handler(req);
-    const body = (await req.clone().json().catch(() => null)) as { method?: string; params?: { name?: string } } | null;
-    if (body?.method !== "tools/call" || !AUTH_TOOL_SET.has(body.params?.name ?? "")) return handler(req);
-    const metadata = `${getPublicOrigin(req)}${RESOURCE_METADATA_PATH}`;
-    return new Response(JSON.stringify({ error: "account_linking_required" }), {
-      status: 401,
-      headers: { "content-type": "application/json", "www-authenticate": `Bearer resource_metadata="${metadata}"` },
-    });
+    const body: unknown = await req.clone().json().catch(() => null);
+    // The SDK accepts JSON-RPC batches, so one Finds call hidden in a batch must still be caught.
+    const messages = (Array.isArray(body) ? body : [body]) as (JsonRpcMessage | null)[];
+    if (!messages.some(callsAuthTool)) return handler(req);
+    return accountLinkingRequired(req);
   };
+}
+
+type JsonRpcMessage = { method?: unknown; params?: { name?: unknown } };
+
+const callsAuthTool = (message: JsonRpcMessage | null) =>
+  message?.method === "tools/call" && AUTH_TOOL_SET.has(String(message.params?.name ?? ""));
+
+function accountLinkingRequired(req: Request): Response {
+  const metadata = `resource_metadata="${getPublicOrigin(req)}${RESOURCE_METADATA_PATH}"`;
+  // withMcpAuth lets a failed bearer through as anonymous; RFC 6750 says to tell the client its token was rejected.
+  const sentBearer = /^bearer\s/i.test(req.headers.get("authorization") ?? "");
+  return new Response(JSON.stringify({ error: "account_linking_required" }), {
+    status: 401,
+    headers: { "content-type": "application/json", "www-authenticate": sentBearer ? `Bearer error="invalid_token", ${metadata}` : `Bearer ${metadata}` },
+  });
 }
 
 export function listenerIdFrom(extra: { authInfo?: { extra?: { userId?: unknown } } }): string | undefined {

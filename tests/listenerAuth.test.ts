@@ -1,4 +1,4 @@
-import { createSign, generateKeyPairSync } from "node:crypto";
+import { createHmac, createSign, generateKeyPairSync } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { withMcpAuth } from "mcp-handler";
 import { gateAuthTools, listenerIdFrom, verifyListenerToken } from "@/lib/listenerAuth";
@@ -21,6 +21,21 @@ describe("gateAuthTools", () => {
   });
   it("passes a Finds tool through when the request carries auth", async () => {
     expect((await gateAuthTools(ok)(rpc("list_finds", { extra: { userId: "user_1" } }))).status).toBe(200);
+  });
+  const batch = (...names: string[]) =>
+    new Request("https://rc.example/api/mcp", { method: "POST", body: JSON.stringify(names.map((name, id) => ({ jsonrpc: "2.0", id, method: "tools/call", params: { name, arguments: {} } }))) });
+  it("returns 401 for a JSON-RPC batch that includes a Finds tool", async () => {
+    expect((await gateAuthTools(ok)(batch("find_station_story", "save_find"))).status).toBe(401);
+  });
+  it("passes a batch of only anonymous tools through", async () => {
+    expect((await gateAuthTools(ok)(batch("find_station_story", "find_song_played"))).status).toBe(200);
+  });
+  it("says invalid_token when the request carried a bearer that failed verification", async () => {
+    const req = new Request(rpc("save_find"), { headers: { authorization: "Bearer junk" } });
+    expect((await gateAuthTools(ok)(req)).headers.get("www-authenticate")).toMatch(/^Bearer error="invalid_token", resource_metadata=".*\/\.well-known\/oauth-protected-resource"$/);
+  });
+  it("leaves error out of the challenge when there was no bearer", async () => {
+    expect((await gateAuthTools(ok)(rpc("save_find"))).headers.get("www-authenticate")).toMatch(/^Bearer resource_metadata="/);
   });
   it("passes non-JSON and non-tool requests untouched", async () => {
     expect((await gateAuthTools(ok)(new Request("https://rc.example/api/mcp", { method: "GET" }))).status).toBe(200);
@@ -68,8 +83,20 @@ describe("verifyListenerToken", () => {
     expect((await verify(signJwt(claims())))?.extra.userId).toBe("user_1");
   });
 
+  it("accepts the typ header in any case", async () => {
+    expect((await verify(signJwt(claims(), { header: { alg: "RS256", typ: "AT+JWT", kid: "ins_1" } })))?.extra.userId).toBe("user_1");
+  });
+
+  const hs256WithPemSecret = () => {
+    const pem = publicKey.export({ type: "spki", format: "pem" }).toString();
+    const input = `${b64({ alg: "HS256", typ: "at+jwt" })}.${b64(claims())}`;
+    return `${input}.${createHmac("sha256", pem).update(input).digest("base64url")}`;
+  };
+
   it.each([
     ["no token", undefined],
+    ["four segments", `${signJwt(claims())}.extra`],
+    ["HS256 signed with the public key as secret", hs256WithPemSecret()],
     ["garbage", "not-a-jwt"],
     ["three junk segments", "a.b.c"],
     ["wrong issuer", signJwt(claims({ iss: "https://evil.example" }))],
