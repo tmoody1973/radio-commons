@@ -11,7 +11,10 @@ const THEME_CSS = `
 .connect{--screen:${TOKENS.light.screen};--card:${TOKENS.light.card};--text:${TOKENS.light.text};--muted:${TOKENS.light.muted}}
 @media (prefers-color-scheme: dark){.connect{--screen:${TOKENS.dark.screen};--card:${TOKENS.dark.card};--text:${TOKENS.dark.text};--muted:${TOKENS.dark.muted}}}`;
 
-type Phase = "loading" | "ready" | "working" | "connected" | "unavailable" | "error";
+type Phase = "loading" | "ready" | "working" | "connected" | "unavailable" | "denied" | "error";
+
+// MusicKit's name for "Apple refused library access": no Apple Music subscription, or the listener chose Don't Allow.
+const APPLE_DENIED_ERROR = "AUTHORIZATION_ERROR";
 
 interface MusicKitInstance { authorize(): Promise<string> }
 interface MusicKitGlobal {
@@ -57,9 +60,10 @@ async function linkMusicUserToken(musicUserToken: string): Promise<Phase> {
   return response.ok ? "connected" : "error";
 }
 
-const MESSAGES: Record<"connected" | "unavailable" | "error", string> = {
+const MESSAGES: Record<"connected" | "unavailable" | "denied" | "error", string> = {
   connected: "Connected. Say \u201csave it\u201d to Alexa after any song.",
   unavailable: "Apple Music isn\u2019t available right now. Please try again later.",
+  denied: "Saving to your library needs an Apple Music subscription.",
   error: "We couldn\u2019t connect Apple Music. Please try again.",
 };
 
@@ -89,15 +93,15 @@ function ConnectCard() {
     try {
       const musicUserToken = await musicKit.current.getInstance().authorize();
       setPhase(await linkMusicUserToken(musicUserToken));
-    } catch {
-      setPhase("error"); // the cause may carry a token, so it is never logged or shown
+    } catch (error: unknown) {
+      setPhase((error as Error)?.name === APPLE_DENIED_ERROR ? "denied" : "error"); // the cause may carry a token, so it is never logged or shown
     }
   };
 
   return (
     <>
       <p style={{ color: "var(--muted)" }}>Link Apple Music so songs you save with Alexa land in your library.</p>
-      {(phase === "connected" || phase === "unavailable" || phase === "error") && <p role="status">{MESSAGES[phase]}</p>}
+      {(phase === "connected" || phase === "unavailable" || phase === "denied" || phase === "error") && <p role="status">{MESSAGES[phase]}</p>}
       {phase !== "connected" && phase !== "unavailable" && (
         <button
           onClick={connect}
