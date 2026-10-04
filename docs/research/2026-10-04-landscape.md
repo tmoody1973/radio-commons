@@ -29,12 +29,32 @@ Not "the first MCP for broadcasters": Bloomberg (which broadcasts on TV and radi
 | **US public radio networks** (NPR, PRX, American Public Media, WNYC) | No official MCP server, Alexa+ or ChatGPT app found | — |
 | **Radio utility MCP servers** (internet-radio directory, Casthost) | Find stream links; run a station's automation | Tools for operators and hobbyists, not a station's journalism for listeners. |
 
+## The music side
+
+Radio Commons has three parts: stories, events and music. Music is the newest and least built (status below), and it has its own landscape.
+
+| Who | What they built | How it differs from Radio Commons |
+| --- | --- | --- |
+| **Streaming services in assistants**: Spotify and Apple Music apps in ChatGPT; Alexa+ inside the Amazon Music app (Nov 2025) | Ask for music in plain language; the service plays it | Catalogs and algorithms. They know little about local artists missing from MusicBrainz and Discogs, and nothing a station's DJs and writers know. |
+| **AI radio**: Futuri RadioGPT, Andon FM | AI hosts that pick songs and talk between them | Replace the human host. Radio Commons does the opposite: it carries the station's people and what they know. |
+| **Hobbyist music MCP servers**: Spotify, Navidrome (personal libraries), Sveriges Radio P3 playlist | Let an assistant control a music account, a home library, or read one station's playlist | Tools, not a station's knowledge: no stories behind the songs, no local-artist facts, no editor. |
+| **Public radio music stations** (KEXP, WXPN, KCRW, WFUV) | Playlists, local-artist spotlights, sessions | No assistant or MCP experience found. |
+
+**Radio Milwaukee's music side, as of Oct 4, 2026**
+
+- **Built:** Ladies First, the HYFIN interview series with women musicians: 17 episodes transcribed and analyzed, awaiting editor review. Staff picks and music events come through the event guide (the "free music" carousel, "What is Radio Milwaukee recommending?").
+- **In progress:** a tool that enriches the station's live playlist data (the database behind the playlists on the station's websites) with facts about each song and artist.
+- **Planned:** "What's playing?" and "Tell me about this song" on Alexa; Milwaukee Music Premieres (station-written facts about local tracks); MKE Concert Picks matched to events; Studio Milwaukee Sessions from their articles and set lists.
+
+The difference: a streaming service knows the catalog; the station knows Milwaukee's artists. Premieres and sessions are station-written records of local music that the big catalogs mostly lack.
+
 ## What makes Radio Commons different
 
 1. **The station's own voices.** Alexa plays the reporter or host at the exact moment that answers the question, rather than generating a synthetic summary.
 2. **An editor approves everything.** Nothing reaches Alexa until a Radio Milwaukee editor has reviewed the people, places and quotes. Names an editor keeps off Alexa are never spoken or quoted.
 3. **Back to the community.** Every answer can lead somewhere real: directions to the place, upcoming events nearby from the station's event guide, a restaurant reservation, the station's staff picks.
-4. **Built on Amazon's own path.** An MCP server with MCP Apps cards, following Amazon's design guide for Echo Show, maps from Amazon Location, the AI brain on Amazon Bedrock.
+4. **Local music, from the people who play it.** The station's playlist and its writing about local artists — premieres, sessions, interviews — instead of a streaming catalog that barely knows them. (In progress; see the music side above.)
+5. **Built on Amazon's own path.** An MCP server with MCP Apps cards, following Amazon's design guide for Echo Show, maps from Amazon Location, the AI brain on Amazon Bedrock.
 
 ## Ready-to-adapt versions
 
@@ -42,7 +62,7 @@ Not "the first MCP for broadcasters": Bloomberg (which broadcasts on TV and radi
 
 **Devpost, "Inspiration" or "What's unique" (about 90 words)**
 
-> Alexa+ can already turn newspaper articles into AI-voiced podcasts, and companies like Priceline and Lyft can plug their own tools into it. But no radio station — in the US or abroad — had brought its own journalism there, and public radio's old Alexa skills don't carry over to Alexa+. Radio Commons is, as far as we can find, the first MCP server built by a radio station itself for its listeners: the station's own reporters and hosts, every fact approved by an editor, and every answer leading back to a real place, event or show in Milwaukee.
+> Alexa+ can already turn newspaper articles into AI-voiced podcasts, and companies like Priceline and Lyft can plug their own tools into it. But no radio station — in the US or abroad — had brought its own journalism there, and public radio's old Alexa skills don't carry over to Alexa+. Radio Commons is, as far as we can find, the first MCP server built by a radio station itself for its listeners: the station's own reporters and hosts, every fact approved by an editor, and every answer leading back to a real place, event or show in Milwaukee. Next: the songs on 88Nine, with the station's own knowledge of local artists.
 
 **Demo voiceover (one line, about 15 seconds)**
 
@@ -58,7 +78,7 @@ Not "the first MCP for broadcasters": Bloomberg (which broadcasts on TV and radi
 >
 > No news. No radio. No local anything.
 >
-> So for the Alexa+ hackathon I built Radio Commons for Radio Milwaukee: ask Alexa about a story you half-remember, and it plays the moment the host said it, shows the place on a map, and tells you what's happening nearby tonight from our event guide. Every fact approved by a station editor.
+> So for the Alexa+ hackathon I built Radio Commons for Radio Milwaukee: ask Alexa about a story you half-remember, and it plays the moment the host said it, shows the place on a map, and tells you what's happening nearby tonight from our event guide. Next up: the stories behind the local songs on 88Nine. Every fact approved by a station editor.
 >
 > I checked the US and public broadcasters abroad: as far as I can find, it's the first MCP server a radio station has built itself for its listeners. Here's what I learned building it 👇
 
@@ -78,4 +98,5 @@ Not "the first MCP for broadcasters": Bloomberg (which broadcasts on TV and radi
 - Unofficial broadcaster MCP servers: [ZDF Mediathek MCP](https://github.com/Nicklas2751/zdfmediathek-mcp) · [Radio France podcast explorer](https://github.com/infinitimeless/radiofrance-podcast-explorer-mcp) · [SR P3 MCP](https://glama.ai/mcp/servers/kyjw1cdb6o) · [opendata.cat MCP](https://opendata.cat/mcp/) · [BBC News MCP demo](https://mcp.so/servers/bbc-news-mcp-server-demo?tab=config)
 - BBC and AI: [The Register](https://www.theregister.com/2025/12/18/bbc_ai_explain/) · US radio 2026: [Axios (SiriusXM–iHeart)](https://www.axios.com/2026/04/28/siriusxm-iheart-talks-audio) · [NorthEast Radio Watch (Audacy–SiriusXM)](https://www.fybush.com/nerw-20260727/)
 - Alexa+ MCP Toolkit: [Amazon docs](https://developer.amazon.com/docs/alexaplus/add-ons/mcp-toolkit-overview.html)
+- Music: [Alexa+ in Amazon Music (TechCrunch)](https://techcrunch.com/2025/11/04/alexa-comes-to-the-amazon-music-app) · [Tom's Guide](https://www.tomsguide.com/ai/alexa-rolling-out-now-in-amazon-music-app-heres-what-you-can-do-now) · [RadioGPT (Mixmag)](https://mixmag.net/read/ai-generated-radiogpt-broadcast-voice-dj-music-find-local-stories-news) · [Andon FM](https://andonlabs.com/radio) · [Spotify MCP](https://glama.ai/mcp/servers/@latiftplgu/Spotify-OAuth-MCP-server)
 - Radio utility MCP servers: [internet-radio-mcp](https://github.com/AlonDrilich/internet-radio-mcp) · [Casthost Radio](https://www.pulsemcp.com/servers/casthost-radio)
