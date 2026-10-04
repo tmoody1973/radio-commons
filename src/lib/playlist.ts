@@ -32,6 +32,7 @@ const linkedSchema = z.object({ linked: z.literal(true) });
 
 export type RecallResult = z.infer<typeof recallSchema>;
 export type TrackFacts = z.infer<typeof factsSchema>;
+export type RecallMatch = z.infer<typeof matchSchema>;
 export type FindRow = z.infer<typeof findSchema>;
 export type SavedFind = z.infer<typeof savedSchema>;
 export type Station = "hyfin" | "88nine" | "414music" | "rhythmlab";

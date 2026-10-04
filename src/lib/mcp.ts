@@ -6,6 +6,7 @@ import { PlaylistUnavailable, type PlaylistClient } from "@/lib/playlist";
 import { listenerIdFrom } from "@/lib/listenerAuth";
 import { FieldGuideUnavailable, type FieldGuideClient, type PublicEvent } from "@/lib/fieldGuide";
 import { fullPlacesView, renderView, type CardView, type EventItem } from "@/lib/card";
+import { songCardFromFacts, songCardFromMatch } from "@/lib/card/song";
 import { SITE } from "@/lib/card/tokens";
 import { clusterPins, mapFrame, pinPositions } from "@/lib/map/geo";
 import { createHash } from "node:crypto";
@@ -27,6 +28,8 @@ const CARD_CSP = {
   resourceDomains: [
     "https://f.prxu.org", "https://dovetail.prxu.org", "https://dovetail-cdn.prxu.org", SITE,
     "https://fonts.googleapis.com", "https://fonts.gstatic.com", "https://unpkg.com",
+    // Song cards: Apple album artwork and 30-second previews.
+    "https://*.mzstatic.com", "https://audio-ssl.itunes.apple.com",
   ],
   connectDomains: ["https://maps.geo.us-east-1.amazonaws.com", "https://unpkg.com"],
 };
@@ -298,7 +301,8 @@ export function buildMcpHandler(deps: Deps) {
           }, eventsUnavailable),
       );
 
-      server.registerTool(
+      registerAppTool(
+        server,
         "find_song_played",
         {
           title: "Find a song Radio Milwaukee played",
@@ -313,6 +317,7 @@ export function buildMcpHandler(deps: Deps) {
             beforePlayId: PLAY_ID.optional(),
             afterPlayId: PLAY_ID.optional(),
           }),
+          ...CARD,
         },
         async ({ day, startTime, endTime, ...rest }) =>
           timed("find_song_played", async () => {
@@ -322,22 +327,28 @@ export function buildMcpHandler(deps: Deps) {
             const matches = result.matches.map(({ playId, artist, title, playedAt }) => ({ playId, artist, title, playedAt }));
             return {
               content: [...text(spokenRecall(result)), ...text(JSON.stringify({ matches }))],
-              structuredContent: { stationId: station.stationId, matches, status: result.status },
+              structuredContent: {
+                ...(result.matches[0] ? card({ view: "song", song: songCardFromMatch(result.matches[0], rest.station) }) : {}),
+                stationId: station.stationId, matches, status: result.status,
+              },
             };
           }, playlistUnavailable),
       );
 
-      server.registerTool(
+      registerAppTool(
+        server,
         "get_track_story",
         {
           title: "More about a song Radio Milwaukee played",
           description: "Tell the listener more about a song Radio Milwaukee played, by the playId from find_song_played. Speak only from this record.",
           inputSchema: z.object({ playId: PLAY_ID }),
+          ...CARD,
         },
         async (args) =>
           timed("get_track_story", async () => {
             const facts = await deps.playlist().getTrackFacts(args);
-            return { content: text(spokenTrackFacts(facts)), structuredContent: { ...facts } };
+            const songCard = facts.status === "ok" ? card({ view: "song", song: songCardFromFacts(facts) }) : {};
+            return { content: text(spokenTrackFacts(facts)), structuredContent: { ...facts, ...songCard } };
           }, playlistUnavailable),
       );
 
