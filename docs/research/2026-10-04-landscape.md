@@ -76,11 +76,15 @@ Smart speakers are common and public radio listeners adopted them early, but the
 
 Smart speakers are the largest device for Radio Milwaukee's streams by listening time: a small group of listeners who stay tuned far longer than anyone else.
 
-| Device | Share of total listening hours |
+| Device | Share of streaming listening hours |
 | --- | --- |
-| Smart speakers (all brands: Echo, Nest, Sonos, Bose and others) | 40% |
-| Mobile | 29% |
-| Desktop / laptop | 27% |
+| Smart speakers (all brands: Echo, Nest, Sonos, Bose and others) | 40.0% |
+| Mobile | 28.8% |
+| Desktop / laptop | 26.6% |
+| Digital media player | 1.9% |
+| Unspecified / unknown | 2.4% |
+| Car entertainment system | 0.1% |
+| Smart TV | 0.1% |
 
 - Smart speaker listeners are a small minority of the station's stream listeners by headcount, yet each listens about 9 times as long as a mobile listener (calculated from Triton's shares and listener counts; not a Triton figure).
 - "Smart speakers" is every brand, not Alexa alone; Triton's device-level data can split out Amazon Echo.
