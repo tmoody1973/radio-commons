@@ -344,6 +344,7 @@ export function buildMcpHandler(deps: Deps) {
           title: "Save a song to 88Nine Finds",
           description: "Save a song the listener heard on Radio Milwaukee to their 88Nine Finds (and Apple Music if connected). Requires a linked account. Pass the playId from find_song_played. Use for 'save it', 'save that song'.",
           inputSchema: z.object({ playId: z.string().min(1).max(64) }),
+          annotations: { idempotentHint: true },
         },
         async ({ playId }, context) =>
           timed("save_find", async () => {
@@ -376,6 +377,7 @@ export function buildMcpHandler(deps: Deps) {
           title: "Delete my Finds",
           description: "Permanently delete all of the listener's Finds and disconnect Apple Music. Requires a linked account. Only call after the listener has clearly confirmed.",
           inputSchema: z.object({}),
+          annotations: { destructiveHint: true, idempotentHint: true },
         },
         async (_args, context) =>
           timed("delete_my_finds", async () => {

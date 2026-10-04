@@ -264,6 +264,12 @@ describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
         expect(tool._meta?.ui).toBeUndefined();
       }
     });
+    it("save_find is idempotent and delete_my_finds is destructive and idempotent", async () => {
+      const { message } = await mcpPost(handlerWith(), { method: "tools/list" });
+      const annotationsOf = (name: string) => message.result.tools.find((t: { name: string }) => t.name === name)?.annotations;
+      expect(annotationsOf("save_find")).toMatchObject({ idempotentHint: true });
+      expect(annotationsOf("delete_my_finds")).toMatchObject({ destructiveHint: true, idempotentHint: true });
+    });
     it("a real bearer reaches save_find as the listener id through withMcpAuth", async () => {
       const { publicKey, privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
       const b64 = (value: object) => Buffer.from(JSON.stringify(value)).toString("base64url");
