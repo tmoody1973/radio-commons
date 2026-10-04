@@ -306,7 +306,7 @@ describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
   describe("Finds tools", () => {
     it("save_find saves for the linked listener and confirms by voice", async () => {
       const saved: string[] = [];
-      const playlist = fakePlaylist({ saveFind: async (listenerId, playId) => { saved.push(`${listenerId}:${playId}`); return { status: "ok", findId: "f1", appleMusic: "pending", artist: "Ezra Collective", title: "Victory Dance", alreadySaved: false }; } });
+      const playlist = fakePlaylist({ saveFind: async (listenerId, playId) => { saved.push(`${listenerId}:${playId}`); return { status: "ok", findId: "f1", appleMusic: "pending", artist: "Ezra Collective", title: "Victory Dance", alreadySaved: false, artistId: null, artistName: "A", firstFollow: false, nextShow: null, story: null, recentlySaved: false }; } });
       const { message } = await mcpPostAs(handlerWith(undefined, undefined, playlist), call("save_find", { playId: "play_1" }), "user_1");
       expect(saved).toEqual(["user_1:play_1"]);
       expect(message.result.content[0].text).toMatch(/Saved .*Victory Dance.* adding it to Apple Music/);
@@ -321,7 +321,7 @@ describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
     it("save_find with a made-up id falls back to the title and artist the listener heard", async () => {
       const saved: string[] = [];
       const playlist = fakePlaylist({
-        saveFind: async (_listener, playId) => { saved.push(playId); return playId === "play_real" ? { status: "ok", findId: "f1", appleMusic: "pending", artist: "King Tuff", title: "Twisted On A Train", alreadySaved: false } : { status: "not_found" }; },
+        saveFind: async (_listener, playId) => { saved.push(playId); return playId === "play_real" ? { status: "ok", findId: "f1", appleMusic: "pending", artist: "King Tuff", title: "Twisted On A Train", alreadySaved: false, artistId: null, artistName: "A", firstFollow: false, nextShow: null, story: null, recentlySaved: false } : { status: "not_found" }; },
         searchPlays: async (station) => station === "88nine" ? [{ playId: "play_real", artist: "King Tuff", title: "Twisted On A Train", playedAt: Date.UTC(2026, 9, 4, 21), artworkUrl: null, previewUrl: null }] : [],
       });
       const { message } = await mcpPostAs(handlerWith(undefined, undefined, playlist), call("save_find", { playId: "king_tuff_twisted_on_a_train", title: "Twisted On A Train", artist: "King Tuff" }), "user_1");
@@ -331,7 +331,7 @@ describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
     it("save_find with no id finds the newest play by that artist on the station", async () => {
       const saved: string[] = [];
       const playlist = fakePlaylist({
-        saveFind: async (_listener, playId) => { saved.push(playId); return { status: "ok", findId: "f1", appleMusic: "not_linked", artist: "Thao", title: "Sick of the Times", alreadySaved: false }; },
+        saveFind: async (_listener, playId) => { saved.push(playId); return { status: "ok", findId: "f1", appleMusic: "not_linked", artist: "Thao", title: "Sick of the Times", alreadySaved: false, artistId: null, artistName: "A", firstFollow: false, nextShow: null, story: null, recentlySaved: false }; },
         searchPlays: async () => [{ playId: "play_thao", artist: "Thao", title: "Sick of the Times (feat. The Linda Lindas)", playedAt: Date.UTC(2026, 9, 4, 21), artworkUrl: null, previewUrl: null }],
       });
       await mcpPostAs(handlerWith(undefined, undefined, playlist), call("save_find", { artist: "Thao", station: "88nine" }), "user_1");
@@ -355,7 +355,7 @@ describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
       expect(message.result.content[0].text).toMatch(/1: "Victory Dance" by Ezra Collective/);
     });
     it("delete_my_finds reports what was removed", async () => {
-      const playlist = fakePlaylist({ deleteFinds: async () => ({ deletedFinds: 3, deletedLink: true }) });
+      const playlist = fakePlaylist({ deleteFinds: async () => ({ deletedFinds: 3, deletedLink: true, deletedFollows: 0 }) });
       const { message } = await mcpPostAs(handlerWith(undefined, undefined, playlist), call("delete_my_finds", {}), "user_1");
       expect(message.result.content[0].text).toMatch(/3/);
     });
@@ -395,7 +395,7 @@ describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
       vi.stubEnv("CLERK_LISTENER_JWT_KEY", publicKey.export({ type: "spki", format: "pem" }).toString());
       try {
         const saved: string[] = [];
-        const playlist = fakePlaylist({ saveFind: async (listenerId, playId) => { saved.push(`${listenerId}:${playId}`); return { status: "ok", findId: "f1", appleMusic: "not_linked", artist: "A", title: "T", alreadySaved: false }; } });
+        const playlist = fakePlaylist({ saveFind: async (listenerId, playId) => { saved.push(`${listenerId}:${playId}`); return { status: "ok", findId: "f1", appleMusic: "not_linked", artist: "A", title: "T", alreadySaved: false, artistId: null, artistName: "A", firstFollow: false, nextShow: null, story: null, recentlySaved: false }; } });
         const wrapped = withMcpAuth(gateAuthTools(handlerWith(undefined, undefined, playlist)), verifyListenerToken, { required: false });
         const { message } = await send(wrapped, mcpRequest(call("save_find", { playId: "play_9" }), 1, { authorization: `Bearer ${token}` }));
         expect(message.result.isError).toBeFalsy();
