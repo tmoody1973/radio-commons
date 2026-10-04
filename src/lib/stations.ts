@@ -1,4 +1,4 @@
-export type ShowSlug = "this-bites" | "uniquely-milwaukee";
+export type ShowSlug = "this-bites" | "uniquely-milwaukee" | "ladies-first";
 
 export interface Station {
   stationId: "radiomilwaukee";
@@ -13,6 +13,7 @@ export const STATIONS: Record<Station["stationId"], Station> = {
     shows: [
       { slug: "this-bites", name: "This Bites" },
       { slug: "uniquely-milwaukee", name: "Uniquely Milwaukee" },
+      { slug: "ladies-first", name: "Ladies First" },
     ],
   },
 };

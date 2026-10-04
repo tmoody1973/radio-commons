@@ -8,8 +8,8 @@ const MATCH = {
 };
 
 describe("stations", () => {
-  it("has Radio Milwaukee with its two shows", () => {
-    expect(getStation()).toMatchObject({ stationId: "radiomilwaukee", shows: [{ slug: "this-bites" }, { slug: "uniquely-milwaukee" }] });
+  it("has Radio Milwaukee with its three shows", () => {
+    expect(getStation()).toMatchObject({ stationId: "radiomilwaukee", shows: [{ slug: "this-bites" }, { slug: "uniquely-milwaukee" }, { slug: "ladies-first", name: "Ladies First" }] });
   });
   it("refuses an unknown station", () => {
     expect(() => getStation("kexp")).toThrow("Unknown station: kexp");

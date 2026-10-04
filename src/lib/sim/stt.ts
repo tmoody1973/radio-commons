@@ -1,5 +1,5 @@
 // Name hints so Deepgram spells the station's people and shows right (the same idea Backstory uses for episodes).
-const KEYTERMS = ["Radio Milwaukee", "This Bites", "Uniquely Milwaukee", "Ann Christenson", "Tarik Moody", "Kim Shine", "88Nine", "HYFIN"];
+const KEYTERMS = ["Radio Milwaukee", "This Bites", "Uniquely Milwaukee", "Ann Christenson", "Tarik Moody", "Kim Shine", "88Nine", "HYFIN", "Ladies First", "Element Everest-Blanks"];
 
 /** Deepgram Nova-3, pre-recorded: one short clip in, the transcript out. */
 export function deepgramTranscribe(apiKey: string, fetchImpl: typeof fetch = fetch) {
