@@ -34,9 +34,12 @@ export async function discover(mcpUrl: string, fetchImpl: typeof fetch = fetch):
   if (!metadata) throw new Error("Auth server metadata not found");
   const methods = metadata.code_challenge_methods_supported;
   if (!Array.isArray(methods) || !methods.includes("S256")) throw new Error("Auth server does not support PKCE S256");
+  const { authorization_endpoint: authorizationEndpoint, token_endpoint: tokenEndpoint } = metadata;
+  if (typeof authorizationEndpoint !== "string" || !authorizationEndpoint) throw new Error("Auth server metadata has no authorization_endpoint");
+  if (typeof tokenEndpoint !== "string" || !tokenEndpoint) throw new Error("Auth server metadata has no token_endpoint");
   return {
-    authorizationEndpoint: String(metadata.authorization_endpoint),
-    tokenEndpoint: String(metadata.token_endpoint),
+    authorizationEndpoint,
+    tokenEndpoint,
     resource: typeof protectedResource?.resource === "string" ? protectedResource.resource : mcpUrl,
   };
 }

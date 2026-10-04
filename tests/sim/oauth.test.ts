@@ -34,6 +34,14 @@ describe("oauth helpers", () => {
     await expect(discover("https://rc.example/api/mcp", fetchFake as typeof fetch)).rejects.toThrow(/S256/);
   });
 
+  it("refuses auth server metadata without a token endpoint", async () => {
+    const fetchFake = async (url: string | URL | Request) =>
+      String(url).includes("protected-resource")
+        ? json({ resource: "r", authorization_servers: ["https://a"] })
+        : json({ authorization_endpoint: "https://a/authorize", code_challenge_methods_supported: ["S256"] });
+    await expect(discover("https://rc.example/api/mcp", fetchFake as typeof fetch)).rejects.toThrow(/token_endpoint/);
+  });
+
   it("makes a PKCE pair whose challenge is the S256 of the verifier", async () => {
     const { verifier, challenge } = pkcePair();
     expect(verifier).toMatch(/^[A-Za-z0-9_-]{43}$/);

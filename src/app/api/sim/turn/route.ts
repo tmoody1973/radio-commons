@@ -3,7 +3,7 @@ import { z } from "zod";
 import { linkConfigFromEnv, mcpUrl, turnDepsFromEnv } from "@/lib/sim/deps";
 import { discover, refreshTokens, type Tokens } from "@/lib/sim/oauth";
 import { cookieOptions, openSession, sealSession, SESSION_COOKIE, sessionSecret } from "@/lib/sim/session";
-import { handleTurn } from "@/lib/sim/turn";
+import { handleTurn, passcodeMatches } from "@/lib/sim/turn";
 
 export const preferredRegion = "iad1";
 export const maxDuration = 30;
@@ -58,10 +58,13 @@ export async function POST(request: NextRequest) {
     console.error(JSON.stringify({ route: "sim/turn", error: String(error) }));
     return Response.json({ error: "The simulator isn't configured." }, { status: 503 });
   }
+  const passcode = request.headers.get("x-sim-passcode");
+  // Before linkedSession: a stranger's request must not trigger a token refresh (an outbound call).
+  if (!passcodeMatches(passcode, deps.passcode)) return Response.json({ error: "Wrong or missing passcode." }, { status: 401 });
   const linked = await linkedSession(request);
   const { status, body } = await handleTurn(
     {
-      passcode: request.headers.get("x-sim-passcode"),
+      passcode,
       accessToken: linked.accessToken,
       history: history.data,
       audio: audio instanceof File ? { bytes: new Uint8Array(await audio.arrayBuffer()), contentType: audio.type || "audio/webm" } : undefined,
