@@ -49,6 +49,14 @@ export const songCardFromMatch = (match: RecallMatch, station: Station): SongCar
   lines: showLine(match.upcomingShows),
 });
 
+const shortDate = (ms: number) => new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "America/Chicago" }).format(ms);
+
+/** A search hit: the date and station matter, since it may be from last week on another station. */
+export const songCardFromSearch = (song: RecentSong, station: Station): SongCard => ({
+  ...songCardFromRecent(song),
+  meta: `${shortDate(song.playedAt)} · ${localClock(song.playedAt)} · ${STATION_NAMES[station]}`,
+});
+
 /** A row in the "last few songs" list: just the time, since the station is in the spoken answer. */
 export const songCardFromRecent = (song: RecentSong): SongCard => ({
   title: song.title,

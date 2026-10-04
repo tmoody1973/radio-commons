@@ -48,6 +48,7 @@ export interface PlaylistClient {
   findSongPlayed(args: { station: Station; from: number; to: number; cues?: string[]; beforePlayId?: string; afterPlayId?: string }): Promise<RecallResult>;
   getTrackFacts(args: { trackId?: string; playId?: string }): Promise<TrackFacts>;
   recentSongs(station: Station, count: number): Promise<RecentSong[]>;
+  searchPlays(station: Station, query: string, limit: number): Promise<RecentSong[]>;
   saveFind(listenerId: string, playId: string): Promise<SavedFind>;
   listFinds(listenerId: string, limit?: number): Promise<FindRow[]>;
   deleteFinds(listenerId: string): Promise<z.infer<typeof deletedSchema>>;
@@ -59,6 +60,9 @@ type Call = (name: string, args: Record<string, unknown>) => Promise<unknown>;
 /** Every call races a timeout (the Alexa+ round trip must stay under 500 ms) and validates the reply. */
 // Connecting Apple Music is a once-per-listener web call, outside any 500 ms Alexa turn.
 const CONNECT_TIMEOUT_MS = 5000;
+
+const toRecentSongs = (plays: z.infer<typeof publicPlaySchema>[]): RecentSong[] =>
+  plays.map(({ _id, artist, title, playedAt, artworkUrl, previewUrl }) => ({ playId: _id, artist, title, playedAt, artworkUrl, previewUrl }));
 
 export function createPlaylistClient({ query, mutation, action, serverKey, timeoutMs = 350 }: {
   query: Call; mutation: Call; action: Call; serverKey: string; timeoutMs?: number;
@@ -85,10 +89,11 @@ export function createPlaylistClient({ query, mutation, action, serverKey, timeo
   return {
     findSongPlayed: (args) => call(query, "alexa:findSongPlayed", args, recallSchema),
     getTrackFacts: (args) => call(query, "alexa:getTrackFacts", args, factsSchema),
+    // The website widget's search: artist or title substring, newest first, about two weeks back.
+    searchPlays: async (station, text, limit) => toRecentSongs(await call(query, "plays:searchByStation", { stationSlug: station, q: text, limit }, z.array(publicPlaySchema))),
     // The same newest-first public playlist the website widget shows (station IDs and promos already removed).
     recentSongs: async (station, count) =>
-      (await call(query, "plays:recentByStation", { stationSlug: station, limit: count }, z.array(publicPlaySchema)))
-        .map(({ _id, artist, title, playedAt, artworkUrl, previewUrl }) => ({ playId: _id, artist, title, playedAt, artworkUrl, previewUrl })),
+      toRecentSongs(await call(query, "plays:recentByStation", { stationSlug: station, limit: count }, z.array(publicPlaySchema))),
     saveFind: (listenerId, playId) => call(mutation, "finds:save", keyed({ listenerId, playId }), savedSchema),
     listFinds: (listenerId, limit) => call(query, "finds:list", keyed(limit === undefined ? { listenerId } : { listenerId, limit }), z.array(findSchema)),
     deleteFinds: (listenerId) => call(mutation, "finds:deleteAllForListener", keyed({ listenerId }), deletedSchema),

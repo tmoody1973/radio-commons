@@ -194,6 +194,15 @@ export function spokenRecent(stationName: string, songs: { artist: string; title
   return `The last ${songs.length} on ${stationName}, newest first: ${said.join(", ")}${rest ? `, and ${rest} more on screen` : ""}.`;
 }
 
+const milwaukeeDay = (ms: number) => new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", timeZone: "America/Chicago" }).format(ms);
+
+/** "'One Mic' by Nas last played on HYFIN, October 3 at 3:16 a.m." (or "today at …"). */
+export function spokenSearch(query: string, top: { artist: string; title: string; playedAt: number; stationName: string } | undefined, now: Date): string {
+  if (!top) return `Radio Milwaukee's stations haven't played "${query}" lately.`;
+  const day = milwaukeeDay(top.playedAt) === milwaukeeDay(now.getTime()) ? "today" : milwaukeeDay(top.playedAt);
+  return `"${top.title}" by ${top.artist} last played on ${top.stationName}, ${day} at ${localClock(top.playedAt)}`; // the clock ends in "a.m." / "p.m."
+}
+
 export function spokenSaved(saved: SavedFind): string {
   if (saved.status === "not_found") return "I couldn't find that play anymore — which song did you mean?";
   const already = saved.alreadySaved ? "It was already in your Finds, so I moved it to the top" : `Saved "${saved.title}" by ${saved.artist} to your 88Nine Finds`;
