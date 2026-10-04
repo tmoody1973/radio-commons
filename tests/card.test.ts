@@ -14,6 +14,7 @@ const STORY: Story = {
     place("El Tsunami", 43.0, -87.94, "2001 W Lincoln Ave, Milwaukee, WI 53215, United States"),
     place("Bread House", 42.95, -87.95), place("Hong Anh Palace", 43.2, -87.92), place("Not pinned", null, null),
   ],
+  contentType: "episode", song: null,
 };
 
 // WCAG relative-luminance contrast.

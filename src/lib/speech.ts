@@ -30,7 +30,27 @@ export function spokenMatches(matches: StoryCardMatch[]): string {
 }
 
 /** Summary labeled as the station's, its source, and one next step: directions to a pinned place, else the episode. */
+export const longDate = (iso: string) => new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", timeZone: "UTC" }).format(new Date(`${iso}T12:00:00Z`));
+const listOf = (items: string[]) => (items.length <= 1 ? items.join("") : `${items.slice(0, -1).join(", ")} and ${items.at(-1)}`);
+
+/** A premiere: the song, its album and date when known; offers it when it can play. */
+function spokenPremiere(story: Story): string {
+  const song = story.song!;
+  const name = song.title ? `${song.artist}, '${song.title}'` : song.artist;
+  const album = song.album ? `, from their album ${song.album}${song.releaseDate ? `, out ${longDate(song.releaseDate)}` : ""}` : "";
+  return `From Radio Milwaukee's ${source(story)}: ${name}${album}. ${song.audioUrl ? "Want to hear it?" : "Want to read about it?"}`;
+}
+
+/** A session: who played and up to three songs from the set; the page is where to watch. */
+function spokenSession(story: Story): string {
+  const song = story.song!;
+  const set = song.setList?.length ? ` played ${listOf(song.setList.slice(0, 3))}` : " played a session";
+  return `From Radio Milwaukee's ${source(story)}: ${song.artist}${set}. ${story.summary} The session is on radiomilwaukee.org.`;
+}
+
 export function spokenStory(story: Story): string {
+  if (story.contentType === "premiere" && story.song) return spokenPremiere(story);
+  if (story.contentType === "session" && story.song) return spokenSession(story);
   const place = story.places.find((p) => p.lat !== null && p.lng !== null);
   const street = streetAddress(place?.address, place?.name);
   const offer = place
@@ -51,9 +71,13 @@ export function clock(ms: number): string {
  * The first passage in the episode's own words, with its moment and (only if an editor confirmed it) who said it.
  * One quote keeps the spoken answer short enough to say word for word; the card shows every passage.
  */
-export function spokenPassages(passages: Passage[]): string {
+export const ARTICLE_SOURCE = { premiere: "Radio Milwaukee's premiere", session: "Radio Milwaukee's session write-up" } as const;
+
+export function spokenPassages(passages: Passage[], contentType: Story["contentType"] = "episode"): string {
   if (passages.length === 0) return NO_PASSAGE_SPEECH;
   const [first] = passages;
+  // An article has no timeline: say whose words they are, never a moment to play.
+  if (contentType !== "episode") return `${ARTICLE_SOURCE[contentType]} says: '${first.text}'`;
   const more = passages.length - 1;
   const onScreen = more === 0 ? "" : more === 1 ? " One more moment is on the screen." : ` ${more} more moments are on the screen.`;
   return `At ${clock(first.startMs)}, ${first.speaker ?? "the episode"} says: '${first.text}'${onScreen} Want to hear that part?`;

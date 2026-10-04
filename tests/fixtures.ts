@@ -7,6 +7,7 @@ export const STORY = {
   audioUrl: "https://dts.podtrac.com/redirect.mp3/dovetail.prxu.org/13497/a.mp3", permalink: null, imageUrl: "https://f.prxu.org/um.jpg",
   mentions: [], topics: [], actions: [],
   places: [{ name: "414 Art Revival", category: "venue", lat: 43.01, lng: -88.01, neighborhood: null, quote: "q" }],
+  contentType: "episode", song: null,
 } satisfies Story;
 
 export const fakeBackstory = (overrides: Partial<BackstoryClient> = {}): BackstoryClient => ({
