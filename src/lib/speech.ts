@@ -1,3 +1,4 @@
+import { creditLines } from "@/lib/card/song";
 import type { Passage, Story, StoryCardMatch } from "@/lib/backstory";
 import type { PublicEvent, When } from "@/lib/fieldGuide";
 import type { FindRow, RecallResult, SavedFind, TrackFacts } from "@/lib/playlist";
@@ -177,7 +178,8 @@ export function spokenRecall(result: RecallResult): string {
 export function spokenTrackFacts(facts: TrackFacts): string {
   if (facts.status !== "ok") return "I don't have more on that song.";
   const f = facts as TrackFacts & { title?: string; artist?: string; year?: number | null; label?: string | null };
-  const details = [f.year ? `released in ${f.year}` : null, f.label ? `on ${f.label}` : null].filter(Boolean).join(", ");
+  const producedBy = creditLines(facts).find((line) => line.startsWith("Produced by"));
+  const details = [f.year ? `released in ${f.year}` : null, f.label ? `on ${f.label}` : null, producedBy ? producedBy.replace("Produced", "produced") : null].filter(Boolean).join(", ");
   return `"${f.title}" by ${f.artist}${details ? `, ${details}` : ""}.`;
 }
 

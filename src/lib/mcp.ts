@@ -6,6 +6,7 @@ import { PlaylistUnavailable, type PlaylistClient } from "@/lib/playlist";
 import { listenerIdFrom } from "@/lib/listenerAuth";
 import { FieldGuideUnavailable, type FieldGuideClient, type PublicEvent } from "@/lib/fieldGuide";
 import { fullPlacesView, renderView, type CardView, type EventItem } from "@/lib/card";
+import { songCardFromFacts, songCardFromMatch } from "@/lib/card/song";
 import { SITE } from "@/lib/card/tokens";
 import { clusterPins, mapFrame, pinPositions } from "@/lib/map/geo";
 import { createHash } from "node:crypto";
@@ -19,12 +20,16 @@ import { getStation } from "@/lib/stations";
 
 export const CARD_URI = "ui://radio-commons/story-card.html";
 const CLOCK_TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
+// Playlist play ids are long lowercase ids; a list number like "1" fails here so Alexa retries with the real one.
+const PLAY_ID = z.string().regex(/^[a-z0-9_]{6,64}$/, "Use the playId from find_song_played, not the list number.");
 const STORY_ID = /^[a-z0-9]{1,64}$/;
 // Show artwork on f.prxu.org, audio on Dovetail, our logo and map pictures, fonts, and the fullscreen map (library + Amazon tiles).
 const CARD_CSP = {
   resourceDomains: [
     "https://f.prxu.org", "https://dovetail.prxu.org", "https://dovetail-cdn.prxu.org", SITE,
     "https://fonts.googleapis.com", "https://fonts.gstatic.com", "https://unpkg.com",
+    // Song cards: Apple album artwork and 30-second previews.
+    "https://*.mzstatic.com", "https://audio-ssl.itunes.apple.com",
   ],
   connectDomains: ["https://maps.geo.us-east-1.amazonaws.com", "https://unpkg.com"],
 };
@@ -296,7 +301,8 @@ export function buildMcpHandler(deps: Deps) {
           }, eventsUnavailable),
       );
 
-      server.registerTool(
+      registerAppTool(
+        server,
         "find_song_played",
         {
           title: "Find a song Radio Milwaukee played",
@@ -308,33 +314,41 @@ export function buildMcpHandler(deps: Deps) {
             startTime: z.string().regex(CLOCK_TIME),
             endTime: z.string().regex(CLOCK_TIME),
             cues: z.array(z.string().max(30)).max(5).optional(),
-            beforePlayId: z.string().max(64).optional(),
-            afterPlayId: z.string().max(64).optional(),
+            beforePlayId: PLAY_ID.optional(),
+            afterPlayId: PLAY_ID.optional(),
           }),
+          ...CARD,
         },
         async ({ day, startTime, endTime, ...rest }) =>
           timed("find_song_played", async () => {
             const window = localWindow({ day: day ?? "today", startTime, endTime }, now());
             const result = await deps.playlist().findSongPlayed({ ...rest, ...window });
-            const matches = result.matches.map(({ label, playId, trackId, artist, title, playedAt }) => ({ label, playId, trackId, artist, title, playedAt }));
+            // One id per song: extra ids (trackId, list labels) led Alexa to save with the wrong one.
+            const matches = result.matches.map(({ playId, artist, title, playedAt }) => ({ playId, artist, title, playedAt }));
             return {
               content: [...text(spokenRecall(result)), ...text(JSON.stringify({ matches }))],
-              structuredContent: { stationId: station.stationId, matches, status: result.status },
+              structuredContent: {
+                ...(result.matches[0] ? card({ view: "song", song: songCardFromMatch(result.matches[0], rest.station) }) : {}),
+                stationId: station.stationId, matches, status: result.status,
+              },
             };
           }, playlistUnavailable),
       );
 
-      server.registerTool(
+      registerAppTool(
+        server,
         "get_track_story",
         {
           title: "More about a song Radio Milwaukee played",
-          description: "Tell the listener more about a song Radio Milwaukee played, by trackId or playId from find_song_played. Speak only from this record.",
-          inputSchema: z.object({ trackId: z.string().max(64).optional(), playId: z.string().max(64).optional() }),
+          description: "Tell the listener more about a song Radio Milwaukee played, by the playId from find_song_played. Speak only from this record.",
+          inputSchema: z.object({ playId: PLAY_ID }),
+          ...CARD,
         },
         async (args) =>
           timed("get_track_story", async () => {
             const facts = await deps.playlist().getTrackFacts(args);
-            return { content: text(spokenTrackFacts(facts)), structuredContent: { ...facts } };
+            const songCard = facts.status === "ok" ? card({ view: "song", song: songCardFromFacts(facts) }) : {};
+            return { content: text(spokenTrackFacts(facts)), structuredContent: { ...facts, ...songCard } };
           }, playlistUnavailable),
       );
 
@@ -343,7 +357,7 @@ export function buildMcpHandler(deps: Deps) {
         {
           title: "Save a song to 88Nine Finds",
           description: "Save a song the listener heard on Radio Milwaukee to their 88Nine Finds (and Apple Music if connected). Requires a linked account. Pass the playId from find_song_played. Use for 'save it', 'save that song'.",
-          inputSchema: z.object({ playId: z.string().min(1).max(64) }),
+          inputSchema: z.object({ playId: PLAY_ID }),
           annotations: { idempotentHint: true },
         },
         async ({ playId }, context) =>

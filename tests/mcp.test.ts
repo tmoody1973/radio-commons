@@ -7,7 +7,7 @@ import { BackstoryUnavailable } from "@/lib/backstory";
 import { FieldGuideUnavailable, type EventQuery } from "@/lib/fieldGuide";
 import { PlaylistUnavailable } from "@/lib/playlist";
 import { EVENT, fakeBackstory, fakeFieldGuide, fakePlaylist, STORY } from "./fixtures";
-import { buildMcpHandler } from "@/lib/mcp";
+import { buildMcpHandler, CARD_URI } from "@/lib/mcp";
 import { localWindow } from "@/lib/stationTime";
 import { INITIALIZE, mcpPost, mcpPostAs, mcpRequest, send } from "./mcp-wire";
 
@@ -197,8 +197,38 @@ describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
   });
   it("find_song_played returns playIds Alexa can save and speaks the top match with its local time", async () => {
     const { message } = await mcpPost(handlerWith(), call("find_song_played", { station: "88nine", startTime: "12:00", endTime: "13:00" }));
-    expect(message.result.structuredContent.matches[0]).toMatchObject({ playId: "play_1", label: "1" });
+    expect(message.result.structuredContent.matches[0]).toMatchObject({ playId: "play_1" });
     expect(message.result.content[0].text).toBe('That was likely "Victory Dance" by Ezra Collective, at 1:00 p.m.');
+  });
+  it("find_song_played hands Alexa exactly one id per song, so it can't save the wrong one", async () => {
+    const { message } = await mcpPost(handlerWith(), call("find_song_played", { station: "88nine", startTime: "12:00", endTime: "13:00" }));
+    const match = message.result.structuredContent.matches[0];
+    expect(match).not.toHaveProperty("trackId");
+    expect(match).not.toHaveProperty("label");
+    expect(message.result.content[1].text).not.toMatch(/trackId|"label"/);
+  });
+  it("find_song_played and get_track_story are card tools", async () => {
+    const tools = await mcpPost(handlerWith(), { method: "tools/list" });
+    const meta = (name: string) => tools.message.result.tools.find((t: { name: string }) => t.name === name)._meta;
+    expect(meta("find_song_played")).toMatchObject({ ui: { resourceUri: CARD_URI } });
+    expect(meta("get_track_story")).toMatchObject({ ui: { resourceUri: CARD_URI } });
+  });
+  it("find_song_played shows the top match as a song card", async () => {
+    const { message } = await mcpPost(handlerWith(), call("find_song_played", { station: "88nine", startTime: "12:00", endTime: "13:00" }));
+    expect(message.result.structuredContent.view).toBe("song");
+    expect(message.result.structuredContent.cardHtml).toContain("Victory Dance");
+    expect(message.result.structuredContent.cardHtml).toContain("on 88Nine");
+  });
+  it("find_song_played with no match sends no card", async () => {
+    const none = fakePlaylist({ findSongPlayed: async () => ({ status: "no_spins", matches: [] }) });
+    const { message } = await mcpPost(handlerWith(undefined, undefined, none), call("find_song_played", { station: "88nine", startTime: "12:00", endTime: "13:00" }));
+    expect(message.result.structuredContent).not.toHaveProperty("cardHtml");
+  });
+  it("get_track_story shows credits on the card and names the producer aloud", async () => {
+    const facts = fakePlaylist({ getTrackFacts: async () => ({ status: "ok", title: "Victory Dance", artist: "Ezra Collective", year: 2024, label: "Partisan", facts: { producer: [{ value: "Femi Koleoso" }] } }) });
+    const { message } = await mcpPost(handlerWith(undefined, undefined, facts), call("get_track_story", { playId: "play_1" }));
+    expect(message.result.structuredContent.cardHtml).toContain("Produced by Femi Koleoso");
+    expect(message.result.content[0].text).toContain("produced by Femi Koleoso");
   });
   it("find_song_played turns local times into the epoch window the playlist expects", async () => {
     const seen: { from: number; to: number }[] = [];
@@ -214,7 +244,7 @@ describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
   });
   it("get_track_story speaks the facts", async () => {
     const facts = fakePlaylist({ getTrackFacts: async () => ({ status: "ok", title: "Victory Dance", artist: "Ezra Collective", year: 2024, label: "Partisan" }) });
-    const { message } = await mcpPost(handlerWith(undefined, undefined, facts), call("get_track_story", { trackId: "track_1" }));
+    const { message } = await mcpPost(handlerWith(undefined, undefined, facts), call("get_track_story", { playId: "play_1" }));
     expect(message.result.content[0].text).toBe('"Victory Dance" by Ezra Collective, released in 2024, on Partisan.');
   });
   describe("Finds tools", () => {
@@ -229,9 +259,16 @@ describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
       const { message } = await mcpPostAs(handlerWith(), call("save_find", {}), "user_1");
       expect(message.error ?? message.result?.isError).toBeTruthy();
     });
+    it.each([["a list number", "1"], ["a stray word", "it"]])("save_find bounces %s back to Alexa without touching the playlist", async (_case, playId) => {
+      const saved: string[] = [];
+      const playlist = fakePlaylist({ saveFind: async (_listener, id) => { saved.push(id); return { status: "not_found" }; } });
+      const { message } = await mcpPostAs(handlerWith(undefined, undefined, playlist), call("save_find", { playId }), "user_1");
+      expect(message.error ?? message.result?.isError).toBeTruthy();
+      expect(saved).toEqual([]);
+    });
     it("save_find for a missing play asks which song", async () => {
       const playlist = fakePlaylist({ saveFind: async () => ({ status: "not_found" }) });
-      const { message } = await mcpPostAs(handlerWith(undefined, undefined, playlist), call("save_find", { playId: "gone" }), "user_1");
+      const { message } = await mcpPostAs(handlerWith(undefined, undefined, playlist), call("save_find", { playId: "play_gone" }), "user_1");
       expect(message.result.content[0].text).toMatch(/which song/i);
     });
     it("list_finds returns numbered finds with labels", async () => {
@@ -258,9 +295,9 @@ describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
       const { message } = await mcpPostAs(handlerWith(undefined, undefined, playlist), call(name, args), "user_1");
       expect(message.result).toMatchObject({ isError: true, content: [{ text: PLAYLIST_UNAVAILABLE_SPEECH }] });
     });
-    it("playlist tools do not advertise the story card, since they return none", async () => {
+    it("Finds tools do not advertise the story card, since they return none", async () => {
       const { message } = await mcpPost(handlerWith(), { method: "tools/list" });
-      for (const tool of message.result.tools.filter((t: { name: string }) => PLAYLIST_TOOLS.includes(t.name))) {
+      for (const tool of message.result.tools.filter((t: { name: string }) => ["save_find", "list_finds", "delete_my_finds"].includes(t.name))) {
         expect(tool._meta?.ui).toBeUndefined();
       }
     });
