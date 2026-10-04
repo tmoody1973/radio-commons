@@ -48,6 +48,38 @@ Radio Commons has three parts: stories, events and music. Music is the newest an
 
 The difference: a streaming service knows the catalog; the station knows Milwaukee's artists. Premieres and sessions are station-written records of local music that the big catalogs mostly lack.
 
+## Who listens on smart speakers
+
+Smart speakers are common and public radio listeners adopted them early, but they are a small slice of total radio listening. The case for Radio Commons is what listeners can do there, not how many are there.
+
+**General listeners (US)**
+
+| Finding | Number | Source, and how solid |
+| --- | --- | --- |
+| Own a smart speaker (Americans 12+) | 39%, the biggest one-year jump since 2021 (up 4 points) | [Infinite Dial 2026](https://ssrs.com/news/the-power-of-audio-2026/) (Edison Research/SSRS). Confirmed on the publisher's page. |
+| Smart speaker owners who listened to AM/FM radio through it in the past week | 18% | [Infinite Dial 2025](https://www.radioworld.com/news-and-business/programming-and-sales/streaming-and-social-media-habits-surge-says-infinite-dial), about 5,020 people. Confirmed. |
+| Share of radio listening time on smart speakers, among radio's most loyal listeners | 4% (of 44% that is digital) | [Jacobs Media Techsurvey 2026](https://barrettmedia.com/2026/04/23/jacobs-media-techsurvey-2026-am-fm-radio-hits-all-time-low-as-digital-surges-to-44/), commercial station listeners. Confirmed. |
+| Smart speakers' share of commercial radio's streamed listening | About 25% (streaming is 12% of all AM/FM listening) | [Amplifi Media](https://www.amplifimedia.com/blogstein-1/i704zb956fgep2rwe4teuu15liio0q). Quote confirmed; article year not stated. |
+| AM/FM's share of ad-supported listening on smart speakers | The largest single source (38% to 54% depending on quarter) | Edison "Share of Ear" via [Westwood One](https://www.westwoodone.com/?p=27565) and [Radio Online](https://news.radio-online.com/articles/n47912/AM-FM-Radio-Dominates-Q2-2025-Edisons-Share-of-Ear). From search summaries that disagree: quote "the largest single source," not a percentage. |
+| Alexa's share of smart speaker owners | 78% own an Alexa device, vs. 30% Google | NPR/Edison data cited in [Nieman Reports](https://niemanreports.org/reimagining-audio-news/). From around 2018–19. |
+
+**Public radio listeners**
+
+| Finding | Number | Source, and how solid |
+| --- | --- | --- |
+| NPR member stations' streaming that came through smart speakers | 16%, system-wide | [Nieman Reports](https://niemanreports.org/reimagining-audio-news/), Q1 2018. Confirmed, but 8 years old. |
+| KCUR (Kansas City), one week | 38% of its streaming via smart speakers, more than phones or computers | Same article, January 2018. Confirmed. The station promoted "ask Alexa" on air. |
+| Public radio listening that is digital (smart speakers, apps, computers, podcasts combined) | 36% | [Public Radio Techsurvey 2020](https://jacobsmedia.com/prts-2020-results/), 19,015 listeners at 53 stations. Confirmed; smart speakers not broken out, and no public-radio edition found after 2020. |
+| News drives smart speaker use | 28% of owners listen to more news and talk since getting one | NPR/Edison [Smart Audio Report](https://www.nationalpublicmedia.com/insights/reports/smart-audio-report/) (via [MediaVillage](https://www.mediavillage.com/article/npr-and-edison-research-report-smart-audio-making-big-gains/amp/)). From search summaries; an older edition. |
+
+**What it means for Radio Commons**
+
+1. **The habit is real; don't overclaim the size.** About two in five Americans own a smart speaker, and public radio listeners were early users (16% of NPR streaming in 2018, 38% at one station). But smart speakers are about 4% of radio listening time for radio's most loyal listeners. Avoid "smart speakers are where radio listeners are."
+2. **The argument is what listeners can do there.** Today a public radio listener can only say "Alexa, play the station," and those old skills don't carry over to Alexa+. News is a main reason people use smart speakers. Radio Commons turns the play button into a conversation with the station's journalism and music.
+3. **The best number is Radio Milwaukee's own.** The station's streaming provider can report what share of 88Nine and HYFIN streams come from Alexa and other smart speakers. One line like "X% of our stream listening already happens on smart speakers" beats any national survey. (Not yet collected.)
+
+**Gaps:** no public-radio-specific smart speaker figure newer than 2020 is published (NPR likely has one internally); the full Infinite Dial 2026 report was not available, so the "listened to radio" figure is from 2025.
+
 ## What makes Radio Commons different
 
 1. **The station's own voices.** Alexa plays the reporter or host at the exact moment that answers the question, rather than generating a synthetic summary.
