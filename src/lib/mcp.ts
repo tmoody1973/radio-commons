@@ -505,8 +505,8 @@ export function buildMcpHandler(deps: Deps) {
               hit = hits.find((song) => song.playId === found);
             }
             if (saved.status !== "ok") return { content: text(spokenSaved(saved)), structuredContent: { ...saved } };
-            // ponytail: artwork only when the save went through a search hit; a playId save shows a plain tile rather than pay another lookup.
-            const view = { view: "saved" as const, saved, artworkUrl: sizedArtwork(hit?.artworkUrl ?? null), previewUrl: hit?.previewUrl ?? null };
+            // The save result's own artwork wins; older playlist deploys omit it, so a search hit's is the fallback, then a plain tile.
+            const view = { view: "saved" as const, saved, artworkUrl: sizedArtwork(saved.artworkUrl ?? hit?.artworkUrl ?? null), previewUrl: saved.previewUrl ?? hit?.previewUrl ?? null };
             return { content: text(spokenSaved(saved)), structuredContent: { ...saved, ...card(view) } };
           }, playlistUnavailable),
       );

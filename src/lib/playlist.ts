@@ -31,6 +31,8 @@ const savedOkSchema = z.object({
   }).nullable(),
   story: z.object({ storyId: z.string(), title: z.string(), show: z.string() }).nullable(),
   recentlySaved: z.boolean(),
+  // Raw Apple URLs (artwork keeps its {w}x{h} template); optional until the playlist deploy that adds them.
+  artworkUrl: z.string().nullable().optional(), previewUrl: z.string().nullable().optional(),
 });
 const savedSchema = z.discriminatedUnion("status", [savedOkSchema, z.object({ status: z.literal("not_found") })]);
 const findSchema = z.object({

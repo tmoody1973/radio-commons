@@ -516,6 +516,22 @@ describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
       const { message } = await mcpPostAs(handlerWith(), call("save_find", { playId: "play_1" }), "user_1");
       expect(message.result.structuredContent.cardHtml).toContain('class="art ph"');
     });
+    it("save_find by playId uses the artwork and preview the save result carries", async () => {
+      const playlist = fakePlaylist({ saveFind: async () => ({ status: "ok", findId: "f1", appleMusic: "pending", artist: "Tank and the Bangas", title: "No ID", alreadySaved: false, artistId: null, artistName: "Tank and the Bangas", firstFollow: false, nextShow: null, story: null, recentlySaved: false, artworkUrl: "https://is1-ssl.mzstatic.com/x/{w}x{h}bb.jpg", previewUrl: "https://audio-ssl.itunes.apple.com/p.m4a" }) });
+      const { message } = await mcpPostAs(handlerWith(undefined, undefined, playlist), call("save_find", { playId: "play_1" }), "user_1");
+      const html = message.result.structuredContent.cardHtml;
+      expect(html).toContain("600x600bb.jpg");
+      expect(html).toContain('class="primary play" data-audio="https://audio-ssl.itunes.apple.com/p.m4a"');
+    });
+    it("save_find by number uses the save result's artwork too", async () => {
+      const playlist = fakePlaylist({
+        screenPlay: async () => "play_2",
+        saveFind: async () => ({ status: "ok", findId: "f1", appleMusic: "pending", artist: "A", title: "T", alreadySaved: false, artistId: null, artistName: "A", firstFollow: false, nextShow: null, story: null, recentlySaved: false, artworkUrl: "https://is1-ssl.mzstatic.com/y/{w}x{h}bb.jpg", previewUrl: null }),
+      });
+      const { message } = await mcpPostAs(handlerWith(undefined, undefined, playlist), call("save_find", { number: 2 }), "user_1");
+      expect(message.result.structuredContent.cardHtml).toContain("y/600x600bb.jpg");
+      expect(message.result.structuredContent.cardHtml).not.toContain("data-audio");
+    });
     it("save_find sends no card when the song is not found", async () => {
       const playlist = fakePlaylist({ saveFind: async () => ({ status: "not_found" }) });
       const { message } = await mcpPostAs(handlerWith(undefined, undefined, playlist), call("save_find", { playId: "play_1" }), "user_1");
