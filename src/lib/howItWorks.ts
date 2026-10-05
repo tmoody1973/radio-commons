@@ -29,7 +29,7 @@ export const HOW_IT_WORKS = {
       setup: "A new conversation. Alexa+ has forgotten the first one; Radio Commons hasn’t. The digest is built from what the station’s DJs actually played, who is playing in town, and the station’s own stories.",
       says: "Alexa, what’s new for me?",
       reply: "Since your last visit: Rhythm Lab played Tank & The Bangas 10 times, 88Nine 3 times and HYFIN twice. Tank & The Bangas plays Majestic Theatre in Madison on Tuesday, October 20.",
-      note: "A show in the next week comes first, then the artists the station played most, then new station stories, then Apple Music news. Alexa speaks the top three items; an Echo Show also shows a card with a tile per artist, with the Studio Milwaukee session one tap away. A brand-new listener with nothing followed hears the station’s current picks instead.",
+      note: "A show in the next week comes first, then the artists the station played most, then new station stories, then Apple Music news. Alexa speaks the top three items; an Echo Show also shows a card with a tile per artist. A brand-new listener with nothing followed hears the station’s current picks instead.",
     },
   ],
   services: [
@@ -63,7 +63,7 @@ export const HOW_IT_WORKS = {
   status: [
     { feature: "Save a song to Finds and Apple Music", state: "Live", detail: "Verified end to end" },
     { feature: "Song recall and recent songs (artwork, 30-second previews)", state: "Live", detail: "88Nine, HYFIN, Rhythm Lab, 414 Music" },
-        { feature: "Credits and the story behind a song", state: "Live", detail: "" },
+    { feature: "Credits and the story behind a song", state: "Live", detail: "" },
     { feature: "Alexa+ account linking and the add-on manifest", state: "Live", detail: "Per Amazon’s spec" },
     { feature: "Listener memory in the playlist database", state: "Live", detail: "Follows, last list, digest data, Backstory stories, daily refresh" },
     { feature: "Artist and title search", state: "In this release", detail: "About two weeks of plays (today: about a day)" },

@@ -388,6 +388,21 @@ describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
       expect(saved).toEqual(["user_1:play_1"]);
       expect(message.result.content[0].text).toMatch(/Saved .*Victory Dance.* adding it to Apple Music/);
     });
+    it("save_find continues with the playId when the screen list is unavailable", async () => {
+      const saved: string[] = [];
+      const playlist = fakePlaylist({
+        screenPlay: async () => { throw new PlaylistUnavailable("down"); },
+        saveFind: async (_listener, id) => { saved.push(id); return { status: "ok", findId: "f1", appleMusic: "pending", artist: "A", title: "T", alreadySaved: false, artistId: null, artistName: "A", firstFollow: false, nextShow: null, story: null, recentlySaved: false }; },
+      });
+      const { message } = await mcpPostAs(handlerWith(undefined, undefined, playlist), call("save_find", { number: 2, playId: "play_1" }), "user_1");
+      expect(saved).toEqual(["play_1"]);
+      expect(message.result.content[0].text).toMatch(/^Saved /);
+    });
+    it("save_find with only a number still apologizes when the screen list is unavailable", async () => {
+      const playlist = fakePlaylist({ screenPlay: async () => { throw new PlaylistUnavailable("down"); } });
+      const { message } = await mcpPostAs(handlerWith(undefined, undefined, playlist), call("save_find", { number: 2 }), "user_1");
+      expect(message.result.content[0].text).toBe(PLAYLIST_UNAVAILABLE_SPEECH);
+    });
     it.each([["a list number", "1"], ["a stray word", "it"]])("save_find bounces %s back to Alexa without touching the playlist", async (_case, playId) => {
       const saved: string[] = [];
       const playlist = fakePlaylist({ saveFind: async (_listener, id) => { saved.push(id); return { status: "not_found" }; } });
@@ -478,6 +493,10 @@ describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
       const { message } = await mcpPostAs(handlerWith(), call("follow_artist", { artist: "Thao" }), "user_1");
       expect(message.result.content[0].text).toBe("I don't have Thao in our playlist yet.");
     });
+    it("follow_artist with a blank name and a playId says 'that artist', never an empty name", async () => {
+      const { message } = await mcpPostAs(handlerWith(), call("follow_artist", { artist: "  ", playId: "play_1" }), "user_1");
+      expect(message.result.content[0].text).toBe("I don't have that artist in our playlist yet.");
+    });
     it("follow_artist with neither artist nor playId asks which artist, without touching the playlist", async () => {
       const never = async () => { throw new Error("playlist must not be called"); };
       const { message } = await mcpPostAs(handlerWith(undefined, undefined, fakePlaylist({ follow: never })), call("follow_artist", {}), "user_1");
@@ -524,6 +543,12 @@ describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
         expect(message.result.content[0].text).toMatch(/^Nothing new from your artists yet — here's what the station's excited about\. 1, Tarik Moody picks Samara Joy/);
         expect(message.result.structuredContent.view).toBe("events");
         expect(seen).toEqual([5]);
+      });
+      it("answers a short empty sentence alone when there are no picks either", async () => {
+        const none = fakeFieldGuide({ picks: async () => [] });
+        const { message } = await run(fakePlaylist(), none);
+        expect(message.result.content[0].text).toBe("Nothing new from your artists yet.");
+        expect(message.result.structuredContent).toBeUndefined();
       });
       it("answers the empty sentence alone when the picks are down", async () => {
         const down = fakeFieldGuide({ picks: async () => { throw new FieldGuideUnavailable("down"); } });

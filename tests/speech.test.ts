@@ -128,8 +128,13 @@ describe("spokenSaved", () => {
 
   it("each extra stands on its own", () => {
     expect(spokenSaved(ok({ firstFollow: true }))).toBe(`${SAVED} I'll keep an eye out for Thao.`);
-    expect(spokenSaved(ok({ story: { storyId: "s1", title: "T", show: "Studio Milwaukee" } }))).toBe(`${SAVED} We have their Studio Milwaukee story.`);
+    expect(spokenSaved(ok({ story: { storyId: "s1", title: "T", show: "Studio Milwaukee" } }))).toBe(`${SAVED} We have a Studio Milwaukee story about Thao.`);
     expect(spokenSaved(ok({ nextShow: { venue: "Turner Hall", city: "Milwaukee", startsAtMs: Date.UTC(2026, 9, 10, 1) } }))).toBe(`${SAVED} Thao plays Turner Hall in Milwaukee on Friday, October 9.`);
+  });
+
+  it("a re-save with only a story names the artist", () => {
+    const saved = ok({ alreadySaved: true, story: { storyId: "s1", title: "T", show: "Studio Milwaukee" } });
+    expect(spokenSaved(saved)).toBe("It was already in your Finds, so I moved it to the top, and I'm adding it to Apple Music. We have a Studio Milwaukee story about Thao.");
   });
 
   it("a re-save names the artist for the next show", () => {

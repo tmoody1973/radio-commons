@@ -213,7 +213,6 @@ export function spokenSaved(saved: SavedFind): string {
 
 const APPLE_HINT = "To add these to your Apple Music library too, connect it at radiomilwaukee.org slash connect.";
 const showDay = (ms: number) => new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "America/Chicago" }).format(ms);
-const capitalized = (sentence: string) => sentence.charAt(0).toUpperCase() + sentence.slice(1);
 
 /** " I'll keep an eye out for Thao — they play Turner Hall in Milwaukee on Friday, October 9, and we have their Studio Milwaukee story." Each part is optional. */
 function savedExtras(saved: Extract<SavedFind, { status: "ok" }>): string {
@@ -221,7 +220,7 @@ function savedExtras(saved: Extract<SavedFind, { status: "ok" }>): string {
   const show = saved.nextShow ? `they play ${saved.nextShow.venue} in ${saved.nextShow.city} on ${showDay(saved.nextShow.startsAtMs)}` : "";
   const story = saved.story ? `we have their ${saved.story.show} story` : "";
   const lead = follow ? (show ? `${follow} — ${show}` : follow) : show ? `${saved.artistName} ${show.replace(/^they play /, "plays ")}` : "";
-  const sentence = story ? (lead ? `${lead}, and ${story}` : capitalized(story)) : lead;
+  const sentence = story ? (lead ? `${lead}, and ${story}` : `We have a ${saved.story?.show} story about ${saved.artistName}`) : lead;
   return sentence ? ` ${sentence}.` : "";
 }
 
@@ -253,6 +252,7 @@ export function spokenUnfollowed(result: UnfollowResult, said: string): string {
   return `Done — I won't keep an eye out for ${result.artistName} anymore.`;
 }
 
+export const EMPTY_DIGEST_NO_PICKS_SPEECH = "Nothing new from your artists yet.";
 export const EMPTY_DIGEST_SPEECH = "Nothing new from your artists yet — here's what the station's excited about.";
 const DIGEST_SPOKEN_ITEMS = 3;
 const timesSaid = (count: number) => (count === 1 ? "once" : count === 2 ? "twice" : `${count} times`);

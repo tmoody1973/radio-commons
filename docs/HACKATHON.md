@@ -67,6 +67,7 @@ Background jobs store their results; the reply reads what is already stored, to 
 
 The scenarios `scripts/eval-turns.ts` runs before every demo and after every deploy, in the order to show them:
 
+0. Before the demo: follow the demo artist once beforehand (e.g. "follow Tank & The Bangas") so their station story is already gathered; the first save then names it.
 1. "What were the last 5 songs on 88Nine?" — a numbered list with artwork and 30-second previews.
 2. "Save number 3." — saves the third song shown, with the one-sentence reply above.
 3. "When did you last play Nas?" — searches about two weeks of plays.

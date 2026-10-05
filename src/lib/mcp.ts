@@ -13,7 +13,7 @@ import { clusterPins, mapFrame, pinPositions } from "@/lib/map/geo";
 import { createHash } from "node:crypto";
 import { eventMapPoints, MAP_H, MAP_W, pinnedEvents, pinnedPlaces } from "@/lib/map/staticMap";
 import {
-  directAudioUrl, eventTime, EVENTS_UNAVAILABLE_SPEECH, NO_PLACES_FOR_EVENTS_SPEECH, NO_PLACES_SPEECH, spokenEvents, spokenPicks, NOT_ALLOWED_SPEECH, NOT_FOUND_SPEECH, EMPTY_DIGEST_SPEECH, LINK_ACCOUNT_SPEECH, PLAYLIST_UNAVAILABLE_SPEECH, spokenDigest, spokenFinds, spokenLatest, spokenMatches, spokenPassages,
+  directAudioUrl, eventTime, EVENTS_UNAVAILABLE_SPEECH, NO_PLACES_FOR_EVENTS_SPEECH, NO_PLACES_SPEECH, spokenEvents, spokenPicks, NOT_ALLOWED_SPEECH, NOT_FOUND_SPEECH, EMPTY_DIGEST_SPEECH, EMPTY_DIGEST_NO_PICKS_SPEECH, LINK_ACCOUNT_SPEECH, PLAYLIST_UNAVAILABLE_SPEECH, spokenDigest, spokenFinds, spokenLatest, spokenMatches, spokenPassages,
   spokenPlaces, spokenRecall, spokenRecent, spokenSearch, spokenDeleted, spokenFollowed, spokenSaved, spokenUnfollowed, WHICH_ARTIST_TO_FOLLOW_SPEECH, WHICH_ARTIST_TO_UNFOLLOW_SPEECH, spokenStory, spokenTrackFacts, UNAVAILABLE_SPEECH,
 } from "@/lib/speech";
 import { localWindow } from "@/lib/stationTime";
@@ -159,10 +159,20 @@ export function buildMcpHandler(deps: Deps) {
     }
     try {
       const { speech, structuredContent } = await picksReply();
-      return { content: text(`${EMPTY_DIGEST_SPEECH} ${speech}`), ...(structuredContent ? { structuredContent } : {}) };
+      if (!structuredContent) return { content: text(EMPTY_DIGEST_NO_PICKS_SPEECH) };
+      return { content: text(`${EMPTY_DIGEST_SPEECH} ${speech}`), structuredContent };
     } catch (error) {
       if (!(error instanceof FieldGuideUnavailable)) throw error;
       return { content: text(EMPTY_DIGEST_SPEECH) };
+    }
+  };
+  // A lost screen list only matters when the number is all we have; a playId or title still names the song.
+  const screenPlayOrNull = async (listenerId: string, number: number, hasOtherName: boolean) => {
+    try {
+      return await deps.playlist().screenPlay(listenerId, number);
+    } catch (error) {
+      if (hasOtherName && error instanceof PlaylistUnavailable) return null;
+      throw error;
     }
   };
   // So "save number 2" works later: remember the numbered list exactly as the listener sees it.
@@ -479,7 +489,7 @@ export function buildMcpHandler(deps: Deps) {
             const listenerId = listenerIdFrom(context.http ?? {});
             if (!listenerId) return accountLinkingRequired();
             // A named song always beats a number: the remembered list can be 30 minutes stale.
-            const onScreen = number === undefined || title ? null : await deps.playlist().screenPlay(listenerId, number);
+            const onScreen = number === undefined || title ? null : await screenPlayOrNull(listenerId, number, Boolean(playId || title));
             const firstId = onScreen ?? playId;
             let saved: SavedFind = firstId ? await deps.playlist().saveFind(listenerId, firstId) : { status: "not_found" };
             // Hosts lose ids between turns; the title and artist the listener heard still name the song.
@@ -536,7 +546,7 @@ export function buildMcpHandler(deps: Deps) {
           timed("follow_artist", async () => {
             const listenerId = listenerIdFrom(context.http ?? {});
             if (!listenerId) return accountLinkingRequired();
-            const artist = rawArtist?.trim();
+            const artist = rawArtist?.trim() || undefined;
             if (!artist && !playId) return { content: text(WHICH_ARTIST_TO_FOLLOW_SPEECH) };
             const followed = await deps.playlist().follow(listenerId, { artist, playId });
             return { content: text(spokenFollowed(followed, artist)), structuredContent: { ...followed } };
