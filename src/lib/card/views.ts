@@ -2,6 +2,7 @@ import type { Passage, Story, StoryCardMatch } from "@/lib/backstory";
 import type { PublicEvent } from "@/lib/fieldGuide";
 import type { Badge } from "@/lib/map/geo";
 import type { Digest, DigestItem, FindRow, SavedFind, StationShow } from "@/lib/playlist";
+import { CAPABILITIES } from "@/lib/capabilities";
 import { pinnedPlaces } from "@/lib/map/staticMap";
 import { directionsUrl, streetAddress } from "@/lib/maps";
 import { ARTICLE_SOURCE, clock, longDate, monthYear, showCalendarDay } from "@/lib/speech";
@@ -27,6 +28,7 @@ export type CardView =
   | { view: "digest"; artists: Digest["artists"]; items: DigestItem[] }
   | { view: "finds"; finds: FindRow[] }
   | { view: "station-shows"; shows: StationShow[] }
+  | { view: "capabilities" }
   /** Artwork and preview are known only when the save went through a search hit; otherwise a plain tile. */
   | { view: "saved"; saved: SavedOk; artworkUrl: string | null; previewUrl: string | null };
 
@@ -324,6 +326,14 @@ function stationShowsView(shows: StationShow[]): string {
   return `<article class="card stories">${LOGO}<div class="carousel">${tiles}</div></article>`;
 }
 
+/** "What can you do?": one tile per capability, each with a phrase the listener can tap to ask. */
+function capabilitiesView(): string {
+  const tiles = CAPABILITIES.map(({ title, description, example }) =>
+    `<article class="tile cap"><span class="tile-title">${escape(title)}</span><span class="cap-what">${escape(description)}</span>`
+    + `<button type="button" class="secondary ask say" data-ask="${escape(example)}">“${escape(example)}”</button></article>`).join("");
+  return `<article class="card caps">${LOGO}<div class="cap-grid">${tiles}</div></article>`;
+}
+
 export function renderView(card: CardView): string {
   switch (card.view) {
     case "story": return storyView(card.story, card.releaseEvent ?? null);
@@ -338,5 +348,6 @@ export function renderView(card: CardView): string {
     case "finds": return findsView(card.finds);
     case "saved": return savedView(card.saved, card.artworkUrl, card.previewUrl);
     case "station-shows": return stationShowsView(card.shows);
+    case "capabilities": return capabilitiesView();
   }
 }

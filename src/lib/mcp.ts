@@ -4,6 +4,7 @@ import { z } from "zod";
 import { BackstoryUnavailable, type BackstoryClient, type Story } from "@/lib/backstory";
 import { PlaylistUnavailable, type Digest, type PlaylistClient, type RecallMatch, type RecentSong, type SavedFind, type Station } from "@/lib/playlist";
 import { listenerIdFrom } from "@/lib/listenerAuth";
+import { CAPABILITIES, CAPABILITIES_SPEECH } from "@/lib/capabilities";
 import { FieldGuideUnavailable, type FieldGuideClient, type PublicEvent } from "@/lib/fieldGuide";
 import { fullPlacesView, renderView, type CardView, type EventItem } from "@/lib/card";
 import { sizedArtwork, songCardFromFacts, songCardFromMatch, songCardFromRecent, songCardFromSearch, STATION_NAMES } from "@/lib/card/song";
@@ -374,6 +375,22 @@ export function buildMcpHandler(deps: Deps) {
             const { speech, structuredContent } = await picksReply();
             return { content: text(speech), ...(structuredContent ? { structuredContent } : {}) };
           }, eventsUnavailable),
+      );
+
+      registerAppTool(
+        server,
+        "what_can_you_do",
+        {
+          title: "What Radio Milwaukee can do",
+          description: "A short summary of what Radio Milwaukee can do here, with a tile and an example to tap for each. Use for \"what can you do\", \"help\", \"what can Radio Milwaukee do\", \"how do I use this\". Speak the summary as given. If the listener then says \"tell me more\", describe the capabilities from this result two at a time, each with its example. No linked account needed.",
+          inputSchema: z.object({}),
+          ...CARD,
+        },
+        async () => ({
+          // The list rides along for "tell me more"; the voice reads only the short summary.
+          content: [...text(CAPABILITIES_SPEECH), ...text(JSON.stringify({ capabilities: CAPABILITIES }))],
+          structuredContent: card({ view: "capabilities" }),
+        }),
       );
 
       registerAppTool(

@@ -62,6 +62,10 @@ blockquote{margin:0;font-size:40px;line-height:1.1;font-weight:700}blockquote.q-
 .event-row{cursor:default}.event-row .what{flex:1}.secondary.small{min-height:48px;min-width:48px;padding:0;justify-content:center}
 .pin.anchor{background:var(--text);color:var(--card);font-size:16px}
 .row-wrap .calendar{min-height:52px;min-width:52px}
+.cap-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;flex:1}
+.cap{padding:14px;gap:6px;cursor:default}.cap .tile-title{margin:0;font-size:20px}
+.cap-what{font-size:15px;line-height:1.3;color:var(--muted)}
+.secondary.say{margin-top:auto;min-height:48px;padding:8px 14px;border-radius:14px;font-size:15px;line-height:1.25;text-align:left}
 #fullmap{position:fixed;inset:0}
 .overlay{position:fixed;zoom:var(--z)}
 .bar{top:10px;left:10px;right:10px;display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-radius:16px;background:var(--card)}
