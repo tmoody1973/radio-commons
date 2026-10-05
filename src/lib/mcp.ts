@@ -14,7 +14,7 @@ import { createHash } from "node:crypto";
 import { eventMapPoints, MAP_H, MAP_W, pinnedEvents, pinnedPlaces } from "@/lib/map/staticMap";
 import {
   directAudioUrl, eventTime, EVENTS_UNAVAILABLE_SPEECH, NO_PLACES_FOR_EVENTS_SPEECH, NO_PLACES_SPEECH, spokenEvents, spokenPicks, NOT_ALLOWED_SPEECH, NOT_FOUND_SPEECH, LINK_ACCOUNT_SPEECH, PLAYLIST_UNAVAILABLE_SPEECH, spokenFinds, spokenLatest, spokenMatches, spokenPassages,
-  spokenPlaces, spokenRecall, spokenRecent, spokenSearch, spokenDeleted, spokenSaved, spokenStory, spokenTrackFacts, UNAVAILABLE_SPEECH,
+  spokenPlaces, spokenRecall, spokenRecent, spokenSearch, spokenDeleted, spokenFollowed, spokenSaved, spokenUnfollowed, WHICH_ARTIST_TO_FOLLOW_SPEECH, spokenStory, spokenTrackFacts, UNAVAILABLE_SPEECH,
 } from "@/lib/speech";
 import { localWindow } from "@/lib/stationTime";
 import { getStation } from "@/lib/stations";
@@ -504,6 +504,41 @@ export function buildMcpHandler(deps: Deps) {
             if (!listenerId) return accountLinkingRequired();
             const deleted = await deps.playlist().deleteFinds(listenerId);
             return { content: text(spokenDeleted(deleted)), structuredContent: { ...deleted } };
+          }, playlistUnavailable),
+      );
+
+      server.registerTool(
+        "follow_artist",
+        {
+          title: "Follow an artist",
+          description: "Follow an artist so the listener can later ask what's new from the artists they follow. Requires a linked account. Pass the artist's name, or the playId of a song by them. Use for 'follow Thao' and 'follow this artist' (pass the playId of the song that just played).",
+          inputSchema: z.object({ artist: z.string().max(100).optional(), playId: PLAY_ID.optional() }),
+          annotations: { idempotentHint: true },
+        },
+        async ({ artist, playId }, context) =>
+          timed("follow_artist", async () => {
+            const listenerId = listenerIdFrom(context.http ?? {});
+            if (!listenerId) return accountLinkingRequired();
+            if (!artist && !playId) return { content: text(WHICH_ARTIST_TO_FOLLOW_SPEECH) };
+            const followed = await deps.playlist().follow(listenerId, { artist, playId });
+            return { content: text(spokenFollowed(followed, artist)), structuredContent: { ...followed } };
+          }, playlistUnavailable),
+      );
+
+      server.registerTool(
+        "unfollow_artist",
+        {
+          title: "Unfollow an artist",
+          description: "Stop following an artist. Requires a linked account. Use for 'stop following Thao' and 'unfollow Thao'.",
+          inputSchema: z.object({ artist: z.string().max(100) }),
+          annotations: { idempotentHint: true },
+        },
+        async ({ artist }, context) =>
+          timed("unfollow_artist", async () => {
+            const listenerId = listenerIdFrom(context.http ?? {});
+            if (!listenerId) return accountLinkingRequired();
+            const unfollowed = await deps.playlist().unfollow(listenerId, artist);
+            return { content: text(spokenUnfollowed(unfollowed, artist)), structuredContent: { ...unfollowed } };
           }, playlistUnavailable),
       );
 

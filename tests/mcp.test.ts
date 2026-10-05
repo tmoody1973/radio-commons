@@ -14,7 +14,7 @@ import { INITIALIZE, mcpPost, mcpPostAs, mcpRequest, send } from "./mcp-wire";
 const NOW = new Date("2026-10-04T20:00:00Z");
 const handlerWith = (backstory = fakeBackstory(), fieldGuide = fakeFieldGuide(), playlist = fakePlaylist()) =>
   buildMcpHandler({ backstory: () => backstory, fieldGuide: () => fieldGuide, playlist: () => playlist, now: () => NOW, defer: (task) => void task(), cardHtml: () => "<!doctype html><title>card</title>" });
-const PLAYLIST_TOOLS = ["find_song_played", "get_track_story", "save_find", "list_finds", "delete_my_finds"];
+const PLAYLIST_TOOLS = ["find_song_played", "get_track_story", "save_find", "list_finds", "delete_my_finds", "follow_artist", "unfollow_artist"];
 const call = (name: string, args: Record<string, unknown>) => ({ method: "tools/call", params: { name, arguments: args } });
 
 describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
@@ -23,7 +23,7 @@ describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
     const init = await mcpPost(handler, INITIALIZE);
     expect(init.message.result?.protocolVersion).toBe("2025-11-25");
     const tools = await mcpPost(handler, { method: "tools/list" }, 2);
-    expect(tools.message.result.tools.map((t: { name: string }) => t.name).sort()).toEqual(["ask_station_story", "delete_my_finds", "find_events", "find_song_played", "find_station_story", "get_station_story", "get_track_story", "latest_station_stories", "list_finds", "recent_songs", "save_find", "search_playlist", "station_picks"]);
+    expect(tools.message.result.tools.map((t: { name: string }) => t.name).sort()).toEqual(["ask_station_story", "delete_my_finds", "find_events", "find_song_played", "find_station_story", "follow_artist", "get_station_story", "get_track_story", "latest_station_stories", "list_finds", "recent_songs", "save_find", "search_playlist", "station_picks", "unfollow_artist"]);
   });
 
   it("find_station_story returns matches and a spoken shortlist", async () => {
@@ -461,6 +461,38 @@ describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
       const annotationsOf = (name: string) => message.result.tools.find((t: { name: string }) => t.name === name)?.annotations;
       expect(annotationsOf("save_find")).toMatchObject({ idempotentHint: true });
       expect(annotationsOf("delete_my_finds")).toMatchObject({ destructiveHint: true, idempotentHint: true });
+    });
+    it.each([["follow_artist", { artist: "Thao" }], ["unfollow_artist", { artist: "Thao" }]])("%s refuses without a linked listener and never touches the playlist", async (name, args) => {
+      const never = async () => { throw new Error("playlist must not be called"); };
+      const { message } = await mcpPost(handlerWith(undefined, undefined, fakePlaylist({ follow: never, unfollow: never })), call(name, args));
+      expect(message.result.structuredContent).toEqual({ error: "account_linking_required" });
+    });
+    it("follow_artist follows by name for the linked listener", async () => {
+      const followed: unknown[] = [];
+      const playlist = fakePlaylist({ follow: async (listenerId, target) => { followed.push([listenerId, target]); return { status: "ok", artistId: "a1", artistName: "Thao", firstFollow: true }; } });
+      const { message } = await mcpPostAs(handlerWith(undefined, undefined, playlist), call("follow_artist", { artist: "Thao" }), "user_1");
+      expect(followed).toEqual([["user_1", { artist: "Thao" }]]);
+      expect(message.result.content[0].text).toBe("I'll follow Thao. Ask me what's new for you anytime.");
+    });
+    it("follow_artist says an unknown artist is not in the playlist, in the listener's words", async () => {
+      const { message } = await mcpPostAs(handlerWith(), call("follow_artist", { artist: "Thao" }), "user_1");
+      expect(message.result.content[0].text).toBe("I don't have Thao in our playlist yet.");
+    });
+    it("follow_artist with neither artist nor playId asks which artist, without touching the playlist", async () => {
+      const never = async () => { throw new Error("playlist must not be called"); };
+      const { message } = await mcpPostAs(handlerWith(undefined, undefined, fakePlaylist({ follow: never })), call("follow_artist", {}), "user_1");
+      expect(message.result.content[0].text).toBe("Which artist should I follow?");
+    });
+    it("unfollow_artist speaks ok and not_following", async () => {
+      const ok = fakePlaylist({ unfollow: async () => ({ status: "ok", artistName: "Thao" }) });
+      expect((await mcpPostAs(handlerWith(undefined, undefined, ok), call("unfollow_artist", { artist: "Thao" }), "user_1")).message.result.content[0].text).toBe("Done — I won't keep an eye out for Thao anymore.");
+      expect((await mcpPostAs(handlerWith(), call("unfollow_artist", { artist: "Thao" }), "user_1")).message.result.content[0].text).toBe("You're not following Thao.");
+    });
+    it("follow and unfollow are idempotent", async () => {
+      const { message } = await mcpPost(handlerWith(), { method: "tools/list" });
+      for (const name of ["follow_artist", "unfollow_artist"]) {
+        expect(message.result.tools.find((t: { name: string }) => t.name === name)?.annotations).toMatchObject({ idempotentHint: true });
+      }
     });
     it("a real bearer reaches save_find as the listener id through withMcpAuth", async () => {
       const { publicKey, privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });

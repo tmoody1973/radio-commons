@@ -1,7 +1,7 @@
 import { creditLines } from "@/lib/card/song";
 import type { Passage, Story, StoryCardMatch } from "@/lib/backstory";
 import type { PublicEvent, When } from "@/lib/fieldGuide";
-import type { FindRow, RecallResult, SavedFind, TrackFacts } from "@/lib/playlist";
+import type { FindRow, FollowResult, RecallResult, SavedFind, TrackFacts, UnfollowResult } from "@/lib/playlist";
 import { localClock } from "@/lib/stationTime";
 import { streetAddress } from "@/lib/maps";
 
@@ -235,4 +235,19 @@ export function spokenFinds(finds: FindRow[]): string {
 export function spokenDeleted({ deletedFinds, deletedLink }: { deletedFinds: number; deletedLink: boolean }): string {
   const finds = `${deletedFinds} ${deletedFinds === 1 ? "find" : "finds"}`;
   return `Done. I deleted ${finds}${deletedLink ? " and disconnected Apple Music" : ""}.`;
+}
+
+export const WHICH_ARTIST_TO_FOLLOW_SPEECH = "Which artist should I follow?";
+const unknownArtist = (name: string) => `I don't have ${name} in our playlist yet.`;
+
+/** `said` is the name the listener used; absent when they only gave a playId. */
+export function spokenFollowed(result: FollowResult, said: string | undefined): string {
+  if (result.status === "unknown_artist") return unknownArtist(said ?? "that artist");
+  return result.firstFollow ? `I'll follow ${result.artistName}. Ask me what's new for you anytime.` : `You're already following ${result.artistName}.`;
+}
+
+export function spokenUnfollowed(result: UnfollowResult, said: string): string {
+  if (result.status === "unknown_artist") return unknownArtist(said);
+  if (result.status === "not_following") return `You're not following ${said}.`;
+  return `Done — I won't keep an eye out for ${result.artistName} anymore.`;
 }

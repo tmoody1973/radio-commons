@@ -2,7 +2,7 @@ import { EVENT } from "./fixtures";
 import { describe, expect, it } from "vitest";
 import type { Story } from "@/lib/backstory";
 import type { SavedFind } from "@/lib/playlist";
-import { EVENTS_UNAVAILABLE_SPEECH, NOT_ALLOWED_SPEECH, NO_PASSAGE_SPEECH, clock, directAudioUrl, eventTime, monthYear, spokenEvents, spokenMatches, spokenPassages, spokenPicks, spokenPlaces, spokenSaved, spokenStory } from "@/lib/speech";
+import { EVENTS_UNAVAILABLE_SPEECH, NOT_ALLOWED_SPEECH, NO_PASSAGE_SPEECH, clock, directAudioUrl, eventTime, monthYear, spokenEvents, spokenMatches, spokenPassages, spokenPicks, spokenPlaces, spokenFollowed, spokenSaved, spokenStory, spokenUnfollowed } from "@/lib/speech";
 
 const STORY: Story = {
   storyId: "s1", show: "Uniquely Milwaukee", title: "Creativity is sustainable, accessible at 414 Art Revival",
@@ -145,5 +145,19 @@ describe("spokenSaved", () => {
 
   it("asks which song when the play is gone", () => {
     expect(spokenSaved({ status: "not_found" })).toMatch(/which song/);
+  });
+});
+
+describe("follow speech", () => {
+  it("speaks a first follow, a repeat follow and an unknown artist", () => {
+    expect(spokenFollowed({ status: "ok", artistId: "a1", artistName: "Thao", firstFollow: true }, "thao")).toBe("I'll follow Thao. Ask me what's new for you anytime.");
+    expect(spokenFollowed({ status: "ok", artistId: "a1", artistName: "Thao", firstFollow: false }, "thao")).toBe("You're already following Thao.");
+    expect(spokenFollowed({ status: "unknown_artist" }, "Thao")).toBe("I don't have Thao in our playlist yet.");
+    expect(spokenFollowed({ status: "unknown_artist" }, undefined)).toBe("I don't have that artist in our playlist yet.");
+  });
+  it("speaks each unfollow outcome", () => {
+    expect(spokenUnfollowed({ status: "ok", artistName: "Thao" }, "Thao")).toBe("Done — I won't keep an eye out for Thao anymore.");
+    expect(spokenUnfollowed({ status: "not_following" }, "Thao")).toBe("You're not following Thao.");
+    expect(spokenUnfollowed({ status: "unknown_artist" }, "Thao")).toBe("I don't have Thao in our playlist yet.");
   });
 });
