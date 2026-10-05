@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { withMcpAuth } from "mcp-handler";
 import { gateAuthTools, RESOURCE_METADATA_PATH, verifyListenerToken } from "@/lib/listenerAuth";
 import { buildMcpHandler } from "@/lib/mcp";
-import { LINK_ACCOUNT_SPEECH } from "@/lib/speech";
+import { LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH, LINK_ACCOUNT_SPEECH } from "@/lib/speech";
 import { connectMcp } from "@/lib/sim/mcpClient";
 import { fakeBackstory, fakeFieldGuide, fakePlaylist } from "../fixtures";
 
@@ -40,6 +40,8 @@ describe("simulator MCP client", () => {
     const mcp = await connectMcp("http://localhost/api/mcp", { fetch: gatedFetch });
     const saved = await mcp.callTool("save_find", {});
     expect(saved).toEqual({ text: LINK_ACCOUNT_SPEECH, structured: { error: "account_linking_required" }, isError: true });
+    // cancel_membership's prompt names the membership; every other tool keeps the shared one.
+    expect((await mcp.callTool("cancel_membership", {})).text).toBe(LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH);
     // The connection still works for the anonymous tools afterwards.
     expect((await mcp.callTool("find_station_story", { description: "art shop" })).isError).toBe(false);
     await mcp.close();

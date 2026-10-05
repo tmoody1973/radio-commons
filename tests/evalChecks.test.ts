@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { LINK_ACCOUNT_SPEECH } from "@/lib/speech";
+import { LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH, LINK_ACCOUNT_SPEECH } from "@/lib/speech";
+import { GIVE_UNAVAILABLE_SPEECH } from "@/lib/give";
 import type { TrailEntry } from "@/lib/sim/trail";
 import {
   checkCancelNeedsLink, checkFollowThao, checkOnAirNow, checkSupport, checkRecentSongs, checkSaveNumber3, checkSearchPlaylist, checkStationArtistShows, checkTrackStory, checkWhatCanYouDo, checkWhatsNew,
@@ -107,17 +108,26 @@ describe("checkWhatCanYouDo", () => {
 });
 
 describe("checkSupport", () => {
-  it("passes on support_radio_milwaukee that put the give card on screen", () => {
-    expect(checkSupport([tool("support_radio_milwaukee")], [], "give").pass).toBe(true);
+  it("passes on support_radio_milwaukee that put the give card on screen, and says so", () => {
+    const shown = checkSupport([tool("support_radio_milwaukee")], [], "give");
+    expect(shown.pass).toBe(true);
+    expect(shown.detail).toContain("give card shown");
     expect(checkSupport([tool("support_radio_milwaukee")], [], undefined).pass).toBe(false);
     expect(checkSupport([tool("support_radio_milwaukee", {}, true, "boom")], [], "give").pass).toBe(false);
     expect(checkSupport([tool("station_picks")], [], "events").pass).toBe(false);
+  });
+  it("before the keys exist, passes on the exact not-set-up reply and says so", () => {
+    const notSetUp = checkSupport([tool("support_radio_milwaukee", {}, false, GIVE_UNAVAILABLE_SPEECH)], [], undefined);
+    expect(notSetUp.pass).toBe(true);
+    expect(notSetUp.detail).toContain("not set up yet");
+    expect(checkSupport([tool("support_radio_milwaukee", {}, false, "Donations are down")], [], undefined).pass).toBe(false);
   });
 });
 
 describe("checkCancelNeedsLink", () => {
   it("passes only when an unlinked cancel_membership stopped at account linking", () => {
-    expect(checkCancelNeedsLink([unlinked("cancel_membership")]).pass).toBe(true);
+    expect(checkCancelNeedsLink([tool("cancel_membership", {}, true, LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH)]).pass).toBe(true);
+    expect(checkCancelNeedsLink([unlinked("cancel_membership")]).pass).toBe(false);
     expect(checkCancelNeedsLink([tool("cancel_membership")]).pass).toBe(false);
     expect(checkCancelNeedsLink([]).pass).toBe(false);
     expect(checkCancelNeedsLink([unlinked("delete_my_finds")]).pass).toBe(false);

@@ -14,7 +14,7 @@ import { clusterPins, mapFrame, pinPositions } from "@/lib/map/geo";
 import { createHash } from "node:crypto";
 import { eventMapPoints, MAP_H, MAP_W, pinnedEvents, pinnedPlaces } from "@/lib/map/staticMap";
 import {
-  directAudioUrl, eventTime, EVENTS_UNAVAILABLE_SPEECH, NO_PLACES_FOR_EVENTS_SPEECH, NO_PLACES_SPEECH, spokenEvents, spokenPicks, NOT_ALLOWED_SPEECH, NOT_FOUND_SPEECH, EMPTY_DIGEST_SPEECH, EMPTY_DIGEST_NO_PICKS_SPEECH, LINK_ACCOUNT_SPEECH, PLAYLIST_UNAVAILABLE_SPEECH, spokenDigest, spokenFinds, spokenLatest, spokenMatches, spokenPassages,
+  directAudioUrl, eventTime, EVENTS_UNAVAILABLE_SPEECH, NO_PLACES_FOR_EVENTS_SPEECH, NO_PLACES_SPEECH, spokenEvents, spokenPicks, NOT_ALLOWED_SPEECH, NOT_FOUND_SPEECH, EMPTY_DIGEST_SPEECH, EMPTY_DIGEST_NO_PICKS_SPEECH, LINK_ACCOUNT_SPEECH, LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH, PLAYLIST_UNAVAILABLE_SPEECH, spokenDigest, spokenFinds, spokenLatest, spokenMatches, spokenPassages,
   NEWSLETTER_UNAVAILABLE_SPEECH, NO_NEWSLETTER_SPEECH, spokenBriefing, spokenOnAir, spokenPlaces, spokenRecall, spokenRecent, spokenSearch, spokenStationShows, spokenDeleted, spokenFollowed, spokenSaved, spokenUnfollowed, WHICH_ARTIST_TO_FOLLOW_SPEECH, WHICH_ARTIST_TO_UNFOLLOW_SPEECH, spokenStory, spokenTrackFacts, UNAVAILABLE_SPEECH,
 } from "@/lib/speech";
 import { localWindow } from "@/lib/stationTime";
@@ -88,7 +88,7 @@ const text = (t: string) => [{ type: "text" as const, text: t }];
 const unavailable = (): ToolResult => ({ content: text(UNAVAILABLE_SPEECH), isError: true });
 const playlistUnavailable = (): ToolResult => ({ content: text(PLAYLIST_UNAVAILABLE_SPEECH), isError: true });
 const ACCOUNT_LINKING_REQUIRED = { error: "account_linking_required" };
-const accountLinkingRequired = (): ToolResult => ({ content: text(LINK_ACCOUNT_SPEECH), isError: true, structuredContent: ACCOUNT_LINKING_REQUIRED });
+const accountLinkingRequired = (speech = LINK_ACCOUNT_SPEECH): ToolResult => ({ content: text(speech), isError: true, structuredContent: ACCOUNT_LINKING_REQUIRED });
 const eventsUnavailable = (): ToolResult => ({ content: text(EVENTS_UNAVAILABLE_SPEECH), isError: true });
 const WHEN = ["tonight", "today", "tomorrow", "this-weekend", "this-week"] as const;
 const clean = (story: Story): Story => {
@@ -777,7 +777,7 @@ export function buildMcpHandler(deps: Deps) {
         },
         async ({ confirmed }, context) => {
           const listenerId = listenerIdFrom(context.http ?? {});
-          if (!listenerId) return accountLinkingRequired();
+          if (!listenerId) return accountLinkingRequired(LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH);
           const setup = give();
           if (!setup?.memberships) return { content: text(GIVE_UNAVAILABLE_SPEECH) };
           try {
