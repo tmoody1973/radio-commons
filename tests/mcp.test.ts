@@ -1,7 +1,7 @@
 import { createSign, generateKeyPairSync } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 import { withMcpAuth } from "mcp-handler";
-import { gateAuthTools, verifyListenerToken } from "@/lib/listenerAuth";
+import { AUTH_TOOLS, gateAuthTools, verifyListenerToken } from "@/lib/listenerAuth";
 import { LINK_ACCOUNT_SPEECH, PLAYLIST_UNAVAILABLE_SPEECH } from "@/lib/speech";
 import { BackstoryUnavailable } from "@/lib/backstory";
 import { FieldGuideUnavailable, type EventQuery } from "@/lib/fieldGuide";
@@ -24,6 +24,16 @@ describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
     expect(init.message.result?.protocolVersion).toBe("2025-11-25");
     const tools = await mcpPost(handler, { method: "tools/list" }, 2);
     expect(tools.message.result.tools.map((t: { name: string }) => t.name).sort()).toEqual(["ask_station_story", "delete_my_finds", "find_events", "find_song_played", "find_station_story", "follow_artist", "get_station_story", "get_track_story", "latest_station_stories", "list_finds", "recent_songs", "save_find", "search_playlist", "station_picks", "unfollow_artist", "whats_new_for_me"]);
+  });
+
+  it("linked-account tools tell the host to always call them so Alexa+ can start account linking", async () => {
+    const tools = (await mcpPost(handlerWith(), { method: "tools/list" })).message.result.tools;
+    const authTools = tools.filter((t: { name: string }) => (AUTH_TOOLS as readonly string[]).includes(t.name));
+    expect(authTools).toHaveLength(AUTH_TOOLS.length);
+    for (const tool of authTools) {
+      expect(tool.description).not.toContain("Requires a linked account");
+      expect(tool.description).toContain("starts account linking itself");
+    }
   });
 
   it("find_station_story returns matches and a spoken shortlist", async () => {
