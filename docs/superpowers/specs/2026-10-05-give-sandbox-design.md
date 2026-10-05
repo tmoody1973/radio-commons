@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-05 · **Status:** draft for Tarik's approval · **Owner:** Tarik Moody (decisions), Claude (draft)
 **Research:** `docs/research/2026-10-05-amazon-pay-sandbox-donations.md` (sources and quotes for every Amazon Pay claim below)
-**Decision record draft:** `docs/decisions/007-amazon-pay-sandbox-donations.md`
+**Decision record draft:** `docs/decisions/008-amazon-pay-sandbox-donations.md`
 
 ## Goal
 

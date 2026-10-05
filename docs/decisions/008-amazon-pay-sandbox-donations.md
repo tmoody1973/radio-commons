@@ -1,4 +1,4 @@
-# 007 — Listener gifts and monthly memberships through an Amazon Pay sandbox page, not Alexa+ checkout
+# 008 — Listener gifts and monthly memberships through an Amazon Pay sandbox page, not Alexa+ checkout
 
 **Status:** draft, awaiting Tarik's approval (2026-10-05)
 
