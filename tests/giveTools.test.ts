@@ -40,6 +40,7 @@ describe("support_radio_milwaukee", () => {
     const { message } = await mcpPostAs(handler(fakeGive()), call("support_radio_milwaukee"), "user_42");
     expect(message.result.isError).toBeFalsy();
     expect(message.result.content[0].text).toMatch(/demo/i);
+    expect(message.result.content[0].text).toMatch(/pick a size on the screen/i);
     const data = message.result.structuredContent;
     expect(data.view).toBe("give");
     const links: string[] = Object.values(data.links);
@@ -77,6 +78,11 @@ describe("give card", () => {
     expect(html).toContain("<svg></svg>");
     expect(html).toContain("radio-commons.vercel.app/give");
     expect(html).not.toMatch(/501\(c\)|tax/i);
+  });
+  it("shows each level's gift once per kind", () => {
+    for (const line of ["Green Room newsletter", "RadioMKE t-shirt", "Merch package: t-shirt + sticker", "VIP: hat, t-shirt, sticker + Studio Milwaukee Sessions for two"]) {
+      expect(html.split(`<i>${line}</i>`)).toHaveLength(3);
+    }
   });
   it("escapes the links", () => {
     expect(html).toContain("tier=vip-once&amp;t=a&lt;b&quot;");
