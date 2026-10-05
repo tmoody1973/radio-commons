@@ -554,7 +554,7 @@ describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
         const down = fakeFieldGuide({ picks: async () => { throw new FieldGuideUnavailable("down"); } });
         const { message } = await run(fakePlaylist(), down);
         expect(message.result.isError).toBeFalsy();
-        expect(message.result.content[0].text).toBe("Nothing new from your artists yet — here's what the station's excited about.");
+        expect(message.result.content[0].text).toBe("Nothing new from your artists yet.");
       });
       it("does not mark seen when the digest read fails", async () => {
         const seen: number[] = [];

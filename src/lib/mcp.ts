@@ -163,7 +163,7 @@ export function buildMcpHandler(deps: Deps) {
       return { content: text(`${EMPTY_DIGEST_SPEECH} ${speech}`), structuredContent };
     } catch (error) {
       if (!(error instanceof FieldGuideUnavailable)) throw error;
-      return { content: text(EMPTY_DIGEST_SPEECH) };
+      return { content: text(EMPTY_DIGEST_NO_PICKS_SPEECH) };
     }
   };
   // A lost screen list only matters when the number is all we have; a playId or title still names the song.
