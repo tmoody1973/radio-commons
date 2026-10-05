@@ -8,6 +8,9 @@ import { streetAddress } from "@/lib/maps";
 export const UNAVAILABLE_SPEECH = "I can't reach Radio Milwaukee's stories right now. Please try again in a minute.";
 export const PLAYLIST_UNAVAILABLE_SPEECH = "I can't reach Radio Milwaukee's playlist right now. Please try again in a moment.";
 export const LINK_ACCOUNT_SPEECH = "Link your Radio Milwaukee account to save songs and follow artists.";
+export const LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH = "Link your Radio Milwaukee account to manage your membership.";
+/** The account-linking prompt for one tool: membership tools say so; every other tool keeps the shared prompt. */
+export const linkAccountSpeech = (tool: string) => (tool === "cancel_membership" ? LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH : LINK_ACCOUNT_SPEECH);
 export const NOT_FOUND_SPEECH = "I couldn't find that Radio Milwaukee story.";
 export const NOT_ALLOWED_SPEECH = "Detailed answers aren't available for this episode.";
 export const NO_PASSAGE_SPEECH = "I couldn't find that in the episode.";

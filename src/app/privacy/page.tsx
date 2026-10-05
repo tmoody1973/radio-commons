@@ -23,6 +23,9 @@ export default function PrivacyPage() {
         <li>Deleting your data erases all of these.</li>
       </ul>
 
+      <h2>Supporting Radio Milwaukee (demo)</h2>
+      <p>&ldquo;Support Radio Milwaukee&rdquo; is a demo that runs in Amazon Pay&rsquo;s test environment: no real money moves. Amazon Pay handles the payment; we never see your card. If you start a monthly membership with your account linked, we keep a small record with your Radio Milwaukee sign-in (Clerk): Amazon Pay&rsquo;s reference for the membership, the amount, the date it started and the last month charged. One-time gifts store nothing with us. Say &ldquo;Alexa, cancel my Radio Milwaukee membership&rdquo; to end it, or cancel at pay.amazon.com. &ldquo;Delete my Finds&rdquo; doesn&rsquo;t touch a membership; it has its own cancel command.</p>
+
       <h2>Sign-in</h2>
       <p>Signing in is handled by Clerk, our sign-in provider. Clerk holds your email address so you can sign in; it is not copied into our song database.</p>
 

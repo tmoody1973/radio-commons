@@ -21,6 +21,7 @@ const PHRASE_TOOLS: Record<string, string> = {
   "Do any 88Nine artists have concerts coming up": "station_artist_shows",
   "What can Radio Milwaukee do": "what_can_you_do",
   "What's on Radio Milwaukee right now": "on_air_now",
+  "I want to support Radio Milwaukee": "support_radio_milwaukee",
 };
 
 describe("Alexa+ add-on manifest", () => {

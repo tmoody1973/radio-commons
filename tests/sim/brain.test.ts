@@ -142,6 +142,11 @@ describe("brain", () => {
     expect(SYSTEM_PROMPT).toMatch(/keep the tool's order and numbers/i);
     expect(SYSTEM_PROMPT).toMatch(/never call one newer or older/i);
   });
+  it("routes giving and asks before cancelling a membership", () => {
+    expect(SYSTEM_PROMPT).toContain("support_radio_milwaukee");
+    expect(SYSTEM_PROMPT).toMatch(/cancel_membership without confirmed/);
+    expect(SYSTEM_PROMPT).toMatch(/only after the listener says yes/i);
+  });
   it("knows the event tools and points to the screen for the calendar", () => {
     expect(SYSTEM_PROMPT).toContain("find_events");
     expect(SYSTEM_PROMPT).toMatch(/nearStoryId/);

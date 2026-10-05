@@ -1,5 +1,6 @@
 import type { TrailEntry } from "@/lib/sim/trail";
-import { LINK_ACCOUNT_SPEECH } from "@/lib/speech";
+import { LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH, LINK_ACCOUNT_SPEECH } from "@/lib/speech";
+import { GIVE_UNAVAILABLE_SPEECH } from "@/lib/give";
 
 type ToolEntry = Extract<TrailEntry, { kind: "tool" }>;
 export interface CheckResult { pass: boolean; detail: string }
@@ -66,4 +67,23 @@ export const checkOnAirNow = (station?: string) => (trail: TrailEntry[]): CheckR
 export function checkWhatCanYouDo(trail: TrailEntry[]): CheckResult {
   const calls = toolCalls(trail, "what_can_you_do");
   return result(calls.length > 0 && calls.every((call) => !call.isError), calls);
+}
+
+/**
+ * "I want to support Radio Milwaukee": the give tool, and either its card (view "give") or, before the Amazon Pay keys
+ * exist, exactly "Donations aren't set up yet". The detail says which, so a green run never hides a missing setup.
+ */
+export function checkSupport(trail: TrailEntry[], _shown: ShownSong[], view?: string): CheckResult {
+  const calls = toolCalls(trail, "support_radio_milwaukee");
+  const ran = calls.length > 0 && calls.every((call) => !call.isError);
+  const card = ran && view === "give";
+  const notSetUp = ran && !card && calls.every((call) => call.summary === GIVE_UNAVAILABLE_SPEECH);
+  const which = card ? "give card shown" : notSetUp ? "not set up yet (no Amazon Pay keys)" : "neither the give card nor the not-set-up reply";
+  return { pass: card || notSetUp, detail: `${describe(calls)} -> ${which}` };
+}
+
+/** "cancel my membership" from the unlinked eval: cancel_membership, stopped at account linking (it never runs anonymously). */
+export function checkCancelNeedsLink(trail: TrailEntry[]): CheckResult {
+  const calls = toolCalls(trail, "cancel_membership");
+  return result(calls.length > 0 && calls.every((call) => call.isError && call.summary === LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH), calls);
 }

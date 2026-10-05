@@ -1,3 +1,5 @@
+import { SITE } from "@/lib/card/tokens";
+
 const MAPS_DIRECTIONS = "https://www.google.com/maps/dir/?api=1&destination=";
 
 /** "Ted's…, 6204 W North Ave, Milwaukee, WI 53213-1532, United States" → "6204 W North Ave" (the part worth saying aloud). */
@@ -26,10 +28,11 @@ export function isMapsLink(url: string): boolean {
 const OPENABLE_HOSTS = new Set(["www.google.com", "calendar.google.com", "mke-field-guide.vercel.app", "radiomilwaukee.org"]);
 const BOOKING_HOSTS = ["opentable.com", "resy.com", "exploretock.com", "sevenrooms.com"];
 
-/** What the simulator host opens for a card: Google Maps directions, Google Calendar, Field Guide event pages, the station's own pages, and booking sites. */
+/** What the simulator host opens for a card: Google Maps directions, Google Calendar, Field Guide event pages, the station's own pages, booking sites, and our own /give page. */
 export function isOpenableLink(url: string): boolean {
   try {
     const parsed = new URL(url);
+    if (parsed.origin === new URL(SITE).origin && parsed.pathname === "/give") return true; // localhost too, for local runs
     if (parsed.protocol !== "https:") return false;
     if (BOOKING_HOSTS.some((host) => parsed.hostname === host || parsed.hostname.endsWith(`.${host}`))) return true;
     if (!OPENABLE_HOSTS.has(parsed.hostname)) return false;

@@ -2,7 +2,7 @@
 // Run: npm run eval:turns   (EVAL_URL overrides the target; SIM_PASSCODE comes from .env.local, never printed)
 import { loadEnvConfig } from "@next/env";
 import {
-  checkFollowThao, checkOnAirNow, checkRecentSongs, checkSaveNumber3, checkSearchPlaylist, checkStationArtistShows, checkTrackStory, checkWhatCanYouDo, checkWhatsNew,
+  checkCancelNeedsLink, checkFollowThao, checkOnAirNow, checkSupport, checkRecentSongs, checkSaveNumber3, checkSearchPlaylist, checkStationArtistShows, checkTrackStory, checkWhatCanYouDo, checkWhatsNew,
   type CheckResult, type ShownSong,
 } from "../src/lib/sim/evalChecks";
 import type { ChatMessage, TrailEntry } from "../src/lib/sim/trail";
@@ -11,7 +11,7 @@ import { nextHistory, onScreenFrom } from "../src/lib/sim/ui";
 const DEFAULT_URL = "https://radio-commons.vercel.app";
 
 interface TurnBody { heard: string; reply: string; card: { result: { structuredContent?: Record<string, unknown> } } | null; trail: TrailEntry[] }
-interface Step { text: string; judge: (trail: TrailEntry[], shown: ShownSong[]) => CheckResult }
+interface Step { text: string; judge: (trail: TrailEntry[], shown: ShownSong[], view?: string) => CheckResult }
 interface Scenario { name: string; steps: Step[] }
 
 const SCENARIOS: Scenario[] = [
@@ -28,6 +28,9 @@ const SCENARIOS: Scenario[] = [
   { name: "what can you do", steps: [{ text: "what can you do", judge: checkWhatCanYouDo }] },
   { name: "on air now", steps: [{ text: "what's on right now", judge: checkOnAirNow() }] },
   { name: "on air on one station", steps: [{ text: "what's playing on HYFIN", judge: checkOnAirNow("hyfin") }] },
+  // Needs the Amazon Pay env on the target; without it the tool says donations aren't set up and this fails.
+  { name: "support the station", steps: [{ text: "I want to support Radio Milwaukee", judge: checkSupport }] },
+  { name: "cancel needs a linked account", steps: [{ text: "cancel my Radio Milwaukee membership", judge: checkCancelNeedsLink }] },
 ];
 
 function parseArgs(env: NodeJS.ProcessEnv): { baseUrl: string; passcode: string } {
@@ -60,7 +63,8 @@ async function runScenario(scenario: Scenario, baseUrl: string, passcode: string
     let outcome: CheckResult;
     try {
       const body = await sendTurn(baseUrl, passcode, step.text, history);
-      outcome = step.judge(body.trail, shown);
+      const view = body.card?.result.structuredContent?.view;
+      outcome = step.judge(body.trail, shown, typeof view === "string" ? view : undefined);
       const onScreen = onScreenFrom(body.card?.result.structuredContent);
       shown = onScreen && "songs" in onScreen ? onScreen.songs : shown;
       history = nextHistory(history, body.heard || step.text, body.reply, onScreen);
