@@ -76,3 +76,35 @@ describe("newsletter client", () => {
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 });
+
+describe("review fixes", () => {
+  it("inline links in the station's sentence are removed, and a sentence ending in a link is not mistaken for a call to action", () => {
+    const text = "** Glitzy\n------\nLocal band Glitzy (https://glitzy.bandcamp.com) has a new song out. More.\nWe talked with Glitzy (https://radiomilwaukee.org/x).\n\nGo to the premiere (https://radiomilwaukee.org/x)";
+    expect(parseNewsletter(text)[0].summary).toBe("Local band Glitzy has a new song out.");
+    const linkLast = "** Wow\n------\nThe show is at the Riverside (https://riversidemilwaukee.com).\n\nGo to the story (https://radiomilwaukee.org/y)";
+    expect(parseNewsletter(linkLast)[0].summary).toBe("The show is at the Riverside.");
+  });
+  it("a non-JSON reply is NewsletterUnavailable, not a crash", async () => {
+    const html = vi.fn(async () => new Response("<html>gateway</html>", { status: 200 }));
+    await expect(createNewsletterClient({ apiKey: KEY, fetch: html as never, now: () => NOW }).latest()).rejects.toBeInstanceOf(NewsletterUnavailable);
+  });
+  it("a failure is remembered for a minute, so an outage doesn't make every listener wait", async () => {
+    const denied = vi.fn(async () => new Response("{}", { status: 503 }));
+    const client = createNewsletterClient({ apiKey: KEY, fetch: denied as never, now: () => NOW });
+    await expect(client.latest()).rejects.toBeInstanceOf(NewsletterUnavailable);
+    await expect(client.latest()).rejects.toBeInstanceOf(NewsletterUnavailable);
+    expect(denied).toHaveBeenCalledTimes(1);
+  });
+  it("after an hour the last issue is served at once while a fresh copy loads in the background", async () => {
+    let now = NOW;
+    const fetch = fakeMailchimp(CAMPAIGNS);
+    const client = createNewsletterClient({ apiKey: KEY, fetch: fetch as never, now: () => now });
+    await client.latest();
+    now = new Date(NOW.getTime() + 61 * 60 * 1000);
+    let slow!: () => void;
+    fetch.mockImplementationOnce(() => new Promise<Response>((resolve) => { slow = () => resolve(new Response(JSON.stringify({ campaigns: [] }))); }));
+    expect((await client.latest())?.date).toBe("Oct. 1"); // stale, immediately
+    slow(); await new Promise((r) => setTimeout(r, 0)); await new Promise((r) => setTimeout(r, 0));
+    expect(await client.latest()).toBeNull(); // refreshed copy (no weekly in the new list)
+  });
+});

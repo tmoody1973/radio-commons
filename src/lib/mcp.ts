@@ -120,7 +120,7 @@ async function timed(tool: string, run: () => Promise<ToolResult>, fallback: () 
   try {
     return await run();
   } catch (error) {
-    if (!(error instanceof BackstoryUnavailable) && !(error instanceof FieldGuideUnavailable) && !(error instanceof PlaylistUnavailable)) throw error;
+    if (!(error instanceof BackstoryUnavailable) && !(error instanceof FieldGuideUnavailable) && !(error instanceof PlaylistUnavailable) && !(error instanceof NewsletterUnavailable)) throw error;
     console.error(JSON.stringify({ tool, error: error.message }));
     return fallback();
   } finally {
@@ -415,13 +415,8 @@ export function buildMcpHandler(deps: Deps) {
         },
         async () =>
           timed("station_briefing", async () => {
-            let issue;
-            try {
-              issue = await (deps.newsletter ?? newsletterFromEnv)().latest();
-            } catch (error) {
-              if (error instanceof NewsletterUnavailable) return { content: text(NEWSLETTER_UNAVAILABLE_SPEECH), isError: true };
-              throw error;
-            }
+            const issue = await (deps.newsletter ?? newsletterFromEnv)().latest();
+            if (issue && issue.items.length === 0) console.error(JSON.stringify({ tool: "station_briefing", weekly: issue.title, items: 0 })); // layout changed?
             if (!issue || issue.items.length === 0) return { content: text(NO_NEWSLETTER_SPEECH) };
             const items = await linkItems(issue.items, deps.backstory());
             return {

@@ -152,6 +152,8 @@ describe("brain", () => {
   it("sends 'what's new this week' to the newsletter briefing and goes deeper only through the linked story or picks", () => {
     expect(SYSTEM_PROMPT).toMatch(/what's new at Radio Milwaukee[^.]*station_briefing/i);
     expect(SYSTEM_PROMPT).toMatch(/never add to the newsletter's own sentences/i);
+    expect(SYSTEM_PROMPT).not.toMatch(/what's new from Radio Milwaukee[^.]*latest_station_stories/i);
+    expect(SYSTEM_PROMPT).toMatch(/Read item[^.]*radiomilwaukee\.org/i);
   });
   it("music: premieres play with Play song, sessions are watched on the station's page, lyrics are never quoted", () => {
     expect(SYSTEM_PROMPT).toMatch(/tap Play song/);
@@ -175,7 +177,7 @@ describe("spokenReply", () => {
   it("tells the model the Milwaukee date and time, and how to route what's new and events", () => {
     expect(SYSTEM_PROMPT.startsWith("Right now in Milwaukee it is Sunday, October 4, 2026, 9:15 p.m. (America/Chicago).")).toBe(true);
     expect(SYSTEM_PROMPT).toMatch(/"what's new for me"[^.]*call whats_new_for_me/i);
-    expect(SYSTEM_PROMPT).toMatch(/"what's new from Radio Milwaukee"[^.]*call latest_station_stories/i);
+    expect(SYSTEM_PROMPT).toMatch(/"any new episodes of \[show\]"[^.]*call latest_station_stories/i);
     expect(SYSTEM_PROMPT).toMatch(/tonight \/ today \/ tomorrow \/ this weekend \/ this week[^.]*call find_events with that when/);
     expect(SYSTEM_PROMPT).toMatch(/never ask the listener for today's date/i);
   });

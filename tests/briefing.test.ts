@@ -82,3 +82,24 @@ describe("station_briefing tool", () => {
     expect(down.message.result.isError).toBe(true);
   });
 });
+
+describe("briefing failures are logged", () => {
+  const handlerWith = (latest: () => Promise<unknown>) =>
+    buildMcpHandler({
+      backstory: () => fakeBackstory(), fieldGuide: () => fakeFieldGuide(), playlist: () => fakePlaylist(),
+      newsletter: () => ({ latest: latest as never }), cardHtml: () => "<!doctype html><title>card</title>",
+    });
+  const call = { method: "tools/call", params: { name: "station_briefing", arguments: {} } };
+  it("Mailchimp unavailable is logged", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    await mcpPost(handlerWith(async () => { throw new NewsletterUnavailable("MAILCHIMP_API_KEY is not set"); }), call, 2);
+    expect(log.mock.calls.flat().join(" ")).toContain("MAILCHIMP_API_KEY is not set");
+    log.mockRestore();
+  });
+  it("a weekly issue that parses to nothing is logged, not passed off as no newsletter in silence", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    await mcpPost(handlerWith(async () => ({ title: "Radio Milwaukee Newsletter - Oct. 8", sentAt: "2026-10-08T13:00:00Z", date: "Oct. 8", items: [] })), call, 2);
+    expect(log.mock.calls.flat().join(" ")).toMatch(/Radio Milwaukee Newsletter - Oct. 8.*items.*0/);
+    log.mockRestore();
+  });
+});
