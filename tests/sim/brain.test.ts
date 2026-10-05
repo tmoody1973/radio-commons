@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { runBrain, spokenReply, SYSTEM_PROMPT, type Converse } from "@/lib/sim/brain";
+import { runBrain, spokenReply, systemPrompt, type Converse } from "@/lib/sim/brain";
+
+const SUNDAY_NIGHT = new Date("2026-10-05T02:15:00Z"); // Sunday 2026-10-04 21:15 CDT
+const SYSTEM_PROMPT = systemPrompt(SUNDAY_NIGHT);
 
 const TOOLS = [
   { name: "find_station_story", description: "find", inputSchema: { type: "object" } },
@@ -162,5 +165,19 @@ describe("brain", () => {
 describe("spokenReply", () => {
   it("drops screen notes and markdown so captions and speech are plain words", () => {
     expect(spokenReply("Glitzy's \"Effort\" from *Say Sorry / You're Right* and **more**. [On screen: card, storyId abc]")).toBe("Glitzy's \"Effort\" from Say Sorry / You're Right and more.");
+  });
+
+  it("tells the model the Milwaukee date and time, and how to route what's new and events", () => {
+    expect(SYSTEM_PROMPT.startsWith("Right now in Milwaukee it is Sunday, October 4, 2026, 9:15 p.m. (America/Chicago).")).toBe(true);
+    expect(SYSTEM_PROMPT).toMatch(/"what's new for me"[^.]*call whats_new_for_me/i);
+    expect(SYSTEM_PROMPT).toMatch(/"what's new from Radio Milwaukee"[^.]*call latest_station_stories/i);
+    expect(SYSTEM_PROMPT).toMatch(/tonight \/ today \/ tomorrow \/ this weekend \/ this week[^.]*call find_events with that when/);
+    expect(SYSTEM_PROMPT).toMatch(/never ask the listener for today's date/i);
+  });
+
+  it("asks the model with the prompt for the injected clock", async () => {
+    let system = "";
+    await runBrain({ history: [{ role: "user", text: "hi" }], tools: TOOLS, callTool: async () => ({ text: "", structured: null, isError: false }), now: () => SUNDAY_NIGHT, converse: async (request) => { system = request.system; return { stopReason: "end_turn", content: [{ text: "Hi." }] }; } });
+    expect(system).toBe(SYSTEM_PROMPT);
   });
 });

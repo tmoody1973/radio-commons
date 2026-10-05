@@ -188,6 +188,13 @@ describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
     expect(message.result.structuredContent.cardHtml).toContain('class="secondary calendar"');
   });
 
+  it("find_events passes when=tomorrow through to the Field Guide", async () => {
+    let asked: EventQuery | undefined;
+    const fg = fakeFieldGuide({ events: async (q: EventQuery) => { asked = q; return []; } });
+    await mcpPost(handlerWith(undefined, fg), call("find_events", { when: "tomorrow" }));
+    expect(asked).toMatchObject({ when: "tomorrow" });
+  });
+
   it("station_picks reads picks in the curator's words", async () => {
     const { message } = await mcpPost(handlerWith(), call("station_picks", {}));
     expect(message.result.content[0].text).toMatch(/^1, Tarik Moody picks Samara Joy at Jazz Gallery, .*: "A voice for the ages\."/);

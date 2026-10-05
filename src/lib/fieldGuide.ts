@@ -14,7 +14,7 @@ const eventSchema = z.object({
 const listSchema = z.object({ events: z.array(eventSchema) });
 
 export type PublicEvent = z.infer<typeof eventSchema>;
-export type When = "tonight" | "today" | "this-weekend" | "this-week";
+export type When = "tonight" | "today" | "tomorrow" | "this-weekend" | "this-week";
 export interface EventQuery { q?: string; when?: When; near?: { lat: number; lng: number }; radiusMiles?: number; free?: boolean; ids?: string[]; limit?: number }
 
 export class FieldGuideUnavailable extends Error {}

@@ -135,7 +135,7 @@ export function eventTime(startAt: string, now: Date): string {
   return `${day} at ${time}`;
 }
 
-const WHEN_PHRASE: Record<When, string> = { tonight: " tonight", today: " today", "this-weekend": " this weekend", "this-week": " this week" };
+const WHEN_PHRASE: Record<When, string> = { tonight: " tonight", today: " today", tomorrow: " tomorrow", "this-weekend": " this weekend", "this-week": " this week" };
 const where = (e: PublicEvent) => (e.venue ? ` at ${e.venue.name}` : "");
 const numbered = (lines: string[]) => lines.map((line, i) => `${i + 1}, ${line}`).join("; ");
 
