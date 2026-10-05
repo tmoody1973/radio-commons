@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { LINK_ACCOUNT_SPEECH } from "@/lib/speech";
 import type { TrailEntry } from "@/lib/sim/trail";
 import {
-  checkFollowThao, checkRecentSongs, checkSaveNumber3, checkSearchPlaylist, checkStationArtistShows, checkTrackStory, checkWhatCanYouDo, checkWhatsNew,
+  checkFollowThao, checkOnAirNow, checkRecentSongs, checkSaveNumber3, checkSearchPlaylist, checkStationArtistShows, checkTrackStory, checkWhatCanYouDo, checkWhatsNew,
 } from "@/lib/sim/evalChecks";
 
 const tool = (name: string, input: Record<string, unknown> = {}, isError = false, summary = "ok"): TrailEntry =>
@@ -15,6 +15,19 @@ describe("checkRecentSongs", () => {
     expect(checkRecentSongs([tool("recent_songs", { station: "88nine" })]).pass).toBe(true);
     expect(checkRecentSongs([tool("search_playlist")]).pass).toBe(false);
     expect(checkRecentSongs([tool("recent_songs", {}, true, "boom")]).pass).toBe(false);
+  });
+});
+
+describe("checkOnAirNow", () => {
+  it("all stations: on_air_now with no station", () => {
+    expect(checkOnAirNow()([tool("on_air_now")]).pass).toBe(true);
+    expect(checkOnAirNow()([tool("on_air_now", { station: "hyfin" })]).pass).toBe(false);
+    expect(checkOnAirNow()([tool("recent_songs", { station: "88nine" })]).pass).toBe(false);
+  });
+  it("one station: on_air_now for that station, without an error", () => {
+    expect(checkOnAirNow("hyfin")([tool("on_air_now", { station: "hyfin" })]).pass).toBe(true);
+    expect(checkOnAirNow("hyfin")([tool("on_air_now")]).pass).toBe(false);
+    expect(checkOnAirNow("hyfin")([tool("on_air_now", { station: "hyfin" }, true, "boom")]).pass).toBe(false);
   });
 });
 

@@ -194,6 +194,32 @@ export function spokenRecent(stationName: string, songs: { artist: string; title
   return `The last ${songs.length} on ${stationName}, newest first: ${said.join(", ")}${rest ? `, and ${rest} more on screen` : ""}.`;
 }
 
+const ON_AIR_MAX_WORDS = 45;
+const ON_AIR_EXAMPLE_STATION = "HYFIN";
+interface OnAirStation { station: Station; song: { title: string; artist: string } | null }
+const keepListening = (name: string) => `Tap Listen live, or say 'Alexa, play ${name}' to keep listening.`;
+const wordCount = (text: string) => text.split(/\s+/).filter(Boolean).length;
+
+function allOnAir(stations: OnAirStation[], withArtists: boolean): string {
+  const said = (song: OnAirStation["song"]) => (song ? `"${song.title}"${withArtists ? ` by ${song.artist}` : ""}` : "live");
+  const [first, ...rest] = stations;
+  const lead = `${STATION_NAMES[first.station]} ${first.song ? `is playing ${said(first.song)}` : "is live"}`;
+  const others = rest.map(({ station, song }) => `; ${STATION_NAMES[station]}, ${said(song)}`).join("");
+  return `On air now: ${lead}${others}. ${keepListening(ON_AIR_EXAMPLE_STATION)}`;
+}
+
+/** "On air now: 88Nine is playing … ; HYFIN, …": one station or all, ending with how to keep listening on Alexa's own player. */
+export function spokenOnAir(stations: OnAirStation[]): string {
+  if (stations.length === 1) {
+    const [{ station, song }] = stations;
+    const name = STATION_NAMES[station];
+    return `${name} ${song ? `is playing "${song.title}" by ${song.artist}` : "is live now"}. ${keepListening(name)}`;
+  }
+  // ponytail: artists are the only thing dropped; four very long titles can still run past the cap.
+  const full = allOnAir(stations, true);
+  return wordCount(full) <= ON_AIR_MAX_WORDS ? full : allOnAir(stations, false);
+}
+
 const milwaukeeDay = (ms: number) => new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", timeZone: "America/Chicago" }).format(ms);
 
 /** "'One Mic' by Nas last played on HYFIN, October 3 at 3:16 a.m." (or "today at …"). */

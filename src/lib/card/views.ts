@@ -1,7 +1,8 @@
 import type { Passage, Story, StoryCardMatch } from "@/lib/backstory";
 import type { PublicEvent } from "@/lib/fieldGuide";
 import type { Badge } from "@/lib/map/geo";
-import type { Digest, DigestItem, FindRow, SavedFind, StationShow } from "@/lib/playlist";
+import type { Digest, DigestItem, FindRow, RecentSong, SavedFind, Station, StationShow } from "@/lib/playlist";
+import { LIVE_STREAMS } from "@/lib/streams";
 import { CAPABILITIES } from "@/lib/capabilities";
 import { pinnedPlaces } from "@/lib/map/staticMap";
 import { directionsUrl, streetAddress } from "@/lib/maps";
@@ -16,6 +17,8 @@ export interface MapData { url: string; w: number; h: number; badges: Badge[]; a
 /** An event with its time already put into words ("tonight at 8 PM"), so rendering stays clock-free. */
 export interface EventItem { event: PublicEvent; when: string }
 export type SavedOk = Extract<SavedFind, { status: "ok" }>;
+/** One station on the "On air now" card: its latest song (with "3 min ago" already in words), or null when there is no recent play. */
+export interface OnAirTile { station: Station; song: (RecentSong & { when: string }) | null }
 export type CardView =
   | { view: "story"; story: Story; releaseEvent?: PublicEvent | null }
   | { view: "quote"; story: Story; passages: Passage[] }
@@ -29,6 +32,7 @@ export type CardView =
   | { view: "finds"; finds: FindRow[] }
   | { view: "station-shows"; shows: StationShow[] }
   | { view: "capabilities" }
+  | { view: "on-air"; tiles: OnAirTile[] }
   /** Artwork and preview are known only when the save went through a search hit; otherwise a plain tile. */
   | { view: "saved"; saved: SavedOk; artworkUrl: string | null; previewUrl: string | null };
 
@@ -334,6 +338,36 @@ function capabilitiesView(): string {
   return `<article class="card caps">${LOGO}<div class="cap-grid">${tiles}</div></article>`;
 }
 
+/** Plays the stream in the card with the same one-at-a-time player as previews; reads "❚❚ Stop" while it plays. */
+const listenLive = (station: Station, cls: string) =>
+  `<button type="button" class="${cls} row-play live" data-audio="${escape(LIVE_STREAMS[station])}" data-playing="❚❚ Stop">▶ Listen live</button>`;
+const saveSong = (song: RecentSong) => `<button type="button" class="secondary ask" data-ask="${escape(`Save "${song.title}" by ${song.artist}`)}">Save this song</button>`;
+
+/** One station, large: the song on air (or just "Live now"), Listen live and Save. */
+function onAirStationView({ station, song }: OnAirTile): string {
+  const name = STATION_NAMES[station];
+  const what = song
+    ? `<h2>${escape(song.title)}</h2><p class="line">${escape(song.artist)}</p><p class="line small">${escape(song.when)}</p>`
+    : `<h2>${escape(name)}</h2><p class="line">Live now</p>`;
+  return `<article class="card story music">${LOGO}<div class="body">${art(sizedArtwork(song?.artworkUrl ?? null), song?.artist ?? name, "art")}<div class="info">`
+    + `<p class="meta">On air now · ${escape(name)}</p>${what}`
+    + `<div class="actions">${listenLive(station, "primary")}${song ? saveSong(song) : ""}</div></div></div></article>`;
+}
+
+/** Every station side by side; a station with no recent play is a plain tile that can still be played live. */
+function onAirView(tiles: OnAirTile[]): string {
+  if (tiles.length === 1) return onAirStationView(tiles[0]);
+  const cells = tiles.map(({ station, song }) => {
+    const name = escape(STATION_NAMES[station]);
+    const what = song
+      ? `${art(sizedArtwork(song.artworkUrl), song.artist, "tile-art")}<span class="station">${name}</span><span class="tile-title">${escape(song.title)}</span>`
+        + `<span class="tile-date">${escape(song.artist)} · ${escape(song.when)}</span>`
+      : `<span class="station">${name}</span><span class="tile-title">Live now</span>`;
+    return `<article class="tile song onair">${what}<span class="tile-actions">${listenLive(station, "primary")}${song ? saveSong(song) : ""}</span></article>`;
+  }).join("");
+  return `<article class="card stories">${LOGO}<div class="onair-grid">${cells}</div></article>`;
+}
+
 export function renderView(card: CardView): string {
   switch (card.view) {
     case "story": return storyView(card.story, card.releaseEvent ?? null);
@@ -349,5 +383,6 @@ export function renderView(card: CardView): string {
     case "saved": return savedView(card.saved, card.artworkUrl, card.previewUrl);
     case "station-shows": return stationShowsView(card.shows);
     case "capabilities": return capabilitiesView();
+    case "on-air": return onAirView(card.tiles);
   }
 }

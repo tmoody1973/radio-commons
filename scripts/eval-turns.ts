@@ -2,7 +2,7 @@
 // Run: npm run eval:turns   (EVAL_URL overrides the target; SIM_PASSCODE comes from .env.local, never printed)
 import { loadEnvConfig } from "@next/env";
 import {
-  checkFollowThao, checkRecentSongs, checkSaveNumber3, checkSearchPlaylist, checkStationArtistShows, checkTrackStory, checkWhatCanYouDo, checkWhatsNew,
+  checkFollowThao, checkOnAirNow, checkRecentSongs, checkSaveNumber3, checkSearchPlaylist, checkStationArtistShows, checkTrackStory, checkWhatCanYouDo, checkWhatsNew,
   type CheckResult, type ShownSong,
 } from "../src/lib/sim/evalChecks";
 import type { ChatMessage, TrailEntry } from "../src/lib/sim/trail";
@@ -26,6 +26,8 @@ const SCENARIOS: Scenario[] = [
   { name: "station artists' shows", steps: [{ text: "any 88nine artists have concerts coming up", judge: checkStationArtistShows }] },
   { name: "followed artists' shows", steps: [{ text: "do any artists I follow have concerts", judge: checkWhatsNew }] },
   { name: "what can you do", steps: [{ text: "what can you do", judge: checkWhatCanYouDo }] },
+  { name: "on air now", steps: [{ text: "what's on right now", judge: checkOnAirNow() }] },
+  { name: "on air on one station", steps: [{ text: "what's playing on HYFIN", judge: checkOnAirNow("hyfin") }] },
 ];
 
 function parseArgs(env: NodeJS.ProcessEnv): { baseUrl: string; passcode: string } {

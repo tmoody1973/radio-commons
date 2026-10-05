@@ -56,6 +56,12 @@ export function checkStationArtistShows(trail: TrailEntry[]): CheckResult {
   return result(right, [...calls, ...digest]);
 }
 
+/** "what's on right now" (no station) or "what's playing on HYFIN" (that station): on_air_now, never the recent-songs list. */
+export const checkOnAirNow = (station?: string) => (trail: TrailEntry[]): CheckResult => {
+  const calls = toolCalls(trail, "on_air_now");
+  return result(calls.length > 0 && calls.every((call) => call.input.station === station && !call.isError), calls);
+};
+
 /** "what can you do": the capabilities summary. */
 export function checkWhatCanYouDo(trail: TrailEntry[]): CheckResult {
   const calls = toolCalls(trail, "what_can_you_do");
