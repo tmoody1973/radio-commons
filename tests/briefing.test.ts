@@ -103,3 +103,13 @@ describe("briefing failures are logged", () => {
     log.mockRestore();
   });
 });
+
+describe("briefing card fits the Echo Show 8", () => {
+  it("six one-line rows: summaries clamp to one line, rows and buttons stay at the 48 px touch size", async () => {
+    const { storyCardPage } = await import("@/lib/card");
+    const page = storyCardPage("v1.public.MAPKEY");
+    expect(page).toMatch(/\.briefing \.what small\{[^}]*-webkit-line-clamp:1/);
+    expect(page).toMatch(/\.briefing \.row\{[^}]*min-height:48px/);
+    expect(page).toMatch(/\.briefing \.row-wrap \.primary,\.briefing \.row-wrap \.secondary\{[^}]*min-height:48px/);
+  });
+});

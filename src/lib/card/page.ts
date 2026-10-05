@@ -50,7 +50,9 @@ blockquote{margin:0;font-size:40px;line-height:1.1;font-weight:700}blockquote.q-
 .row{min-height:52px;padding:6px 10px;border-radius:12px;background:var(--inner);color:var(--text);display:flex;align-items:center;gap:12px;text-align:left}
 .what{display:flex;flex-direction:column;min-width:0}.what b{font-size:18px}.what small{font-size:14px;color:var(--muted)}
 .list .fullscreen{margin-top:auto;justify-content:center}
-.briefing .what small{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.briefing .list{gap:6px}.briefing .row{min-height:48px;padding:4px 10px;flex:1;min-width:0}.briefing .num{width:28px;height:28px}.briefing .what b{font-size:17px}
+.briefing .what small{display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+.briefing .row-wrap .primary,.briefing .row-wrap .secondary{min-height:48px;min-width:96px;padding:0 16px;font-size:15px;justify-content:center}
 .row-wrap{display:flex;gap:8px;align-items:stretch}.row-wrap .row{flex:1;min-width:0}.row-wrap .reserve,.row-wrap .tickets{min-height:52px;padding:0 16px}
 .find,.digest{flex-basis:264px}
 .chip{position:absolute;top:10px;right:10px;padding:4px 10px;border-radius:9999px;background:var(--card);color:var(--text);font-size:13px;font-weight:700}.chip.warn{background:var(--text);color:var(--card)}
