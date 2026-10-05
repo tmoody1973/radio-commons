@@ -1,3 +1,4 @@
+import type { StoredPremium } from "./premiums";
 import { tierById } from "./tiers";
 
 /**
@@ -13,6 +14,8 @@ export interface Membership {
   /** "2026-10": the last Milwaukee month charged. */
   lastChargedPeriod: string;
   status: "active" | "cancelled";
+  /** The thank-you gift, when one ships: items, size, city and state only. The full address stays with Amazon Pay. */
+  premium?: StoredPremium;
 }
 
 export interface MembershipStore {

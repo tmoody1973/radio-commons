@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { LEVELS, TIERS, tierById } from "@/lib/give/tiers";
 import { openListener, sealListener } from "@/lib/give/token";
-import { ALGORITHM, giveEnv, returnOrigin, buttonConfig, cancelMembership, chargeNextPeriod, checkoutPayload, complete, type PayClient } from "@/lib/give/amazonPay";
+import { ALGORITHM, giveEnv, returnOrigin, buttonConfig, cancelMembership, chargeNextPeriod, checkoutPayload, complete, continueToAmazon, shipPayload, shipToOf, type PayClient } from "@/lib/give/amazonPay";
 import { nextPeriod, periodOf, readMembership, type Membership } from "@/lib/give/membership";
 
 const SECRET = "a-test-secret-that-is-long-enough-000000";
@@ -84,6 +84,60 @@ describe("checkout payload", () => {
   });
 });
 
+describe("checkout payload with a shipped gift (standard checkout, PayAndShip)", () => {
+  const review = "https://radio-commons.vercel.app/give/review?g=sealed";
+  it("monthly: Amazon collects the address; the payload has the review URL and frequency, no amount and no address", () => {
+    const payload = shipPayload(tierById("front-row-monthly")!, "store_1", review);
+    expect(payload).toEqual({
+      webCheckoutDetails: { checkoutReviewReturnUrl: review },
+      storeId: "store_1",
+      chargePermissionType: "Recurring",
+      recurringMetadata: { frequency: { unit: "Month", value: "1" }, amount: { amount: "20.00", currencyCode: "USD" } },
+    });
+  });
+  it("one-time: OneTime, no recurring metadata", () => {
+    expect(shipPayload(tierById("vip-once")!, "store_1", review)).toEqual({ webCheckoutDetails: { checkoutReviewReturnUrl: review }, storeId: "store_1", chargePermissionType: "OneTime" });
+  });
+  it("the button is PayAndShip only when a gift ships", () => {
+    const env = { merchantId: "M1", publicKeyId: "SANDBOX-AAA", storeId: "store_1" };
+    const shipped = buttonConfig({ generateButtonSignature: () => "sig" }, env, tierById("front-row-monthly")!, review, true);
+    expect(shipped.productType).toBe("PayAndShip");
+    expect(JSON.parse(shipped.createCheckoutSessionConfig.payloadJSON).webCheckoutDetails).toEqual({ checkoutReviewReturnUrl: review });
+    expect(buttonConfig({ generateButtonSignature: () => "sig" }, env, tierById("front-row-monthly")!, review).productType).toBe("PayOnly");
+  });
+});
+
+describe("continueToAmazon (the review step)", () => {
+  const result = "https://radio-commons.vercel.app/give/thanks?tier=front-row-monthly&g=sealed";
+  it("sets the tier's amount, intent, result URL and frequency, and returns Amazon's confirm URL", async () => {
+    const bodies: unknown[] = [];
+    const pay = fakePay({ updateCheckoutSession: async (_id, body) => { bodies.push(body); return { status: 200, data: { webCheckoutDetails: { amazonPayRedirectUrl: "https://pay.amazon.com/confirm" } } }; } });
+    expect(await continueToAmazon(pay, "cs_1", tierById("front-row-monthly")!, result)).toBe("https://pay.amazon.com/confirm");
+    expect(bodies[0]).toMatchObject({
+      webCheckoutDetails: { checkoutResultReturnUrl: result },
+      paymentDetails: { paymentIntent: "AuthorizeWithCapture", chargeAmount: { amount: "20.00", currencyCode: "USD" } },
+      recurringMetadata: { frequency: { unit: "Month", value: "1" } },
+    });
+  });
+  it("is null when Amazon gives no confirm URL or the call fails", async () => {
+    expect(await continueToAmazon(fakePay({ updateCheckoutSession: async () => ({ status: 200, data: { constraints: [{ constraintId: "BuyerNotAssociated" }] } }) }), "cs_1", tierById("vip-once")!, result)).toBeNull();
+    expect(await continueToAmazon(fakePay({ updateCheckoutSession: async () => { throw new Error("400"); } }), "cs_1", tierById("vip-once")!, result)).toBeNull();
+  });
+});
+
+describe("shipToOf", () => {
+  it("reads only name, city and state from the Charge Permission", async () => {
+    const address = { name: "Sam Rivera", addressLine1: "720 E Capitol Dr", city: "Milwaukee", stateOrRegion: "WI", postalCode: "53212", countryCode: "US" };
+    const pay = fakePay({ getChargePermission: async () => ({ status: 200, data: { shippingAddress: address } }) });
+    expect(await shipToOf(pay, "B01-1")).toEqual({ name: "Sam Rivera", city: "Milwaukee", state: "WI" });
+  });
+  it("is null without an address, a permission id, or when the call fails", async () => {
+    expect(await shipToOf(fakePay({ getChargePermission: async () => ({ status: 200, data: { shippingAddress: null } }) }), "B01-1")).toBeNull();
+    expect(await shipToOf(fakePay(), "")).toBeNull();
+    expect(await shipToOf(fakePay({ getChargePermission: async () => { throw new Error("404"); } }), "B01-1")).toBeNull();
+  });
+});
+
 const session = (over: Record<string, unknown> = {}) => ({
   checkoutSessionId: "cs_1",
   statusDetails: { state: "Open" },
@@ -101,6 +155,8 @@ function fakePay(over: Partial<PayClient> = {}): PayClient & { calls: string[] }
     completeCheckoutSession: async (id, body) => { calls.push(`complete:${id}:${JSON.stringify(body)}`); return { status: 200, data: { ...session(), statusDetails: { state: "Completed" }, chargePermissionId: "B01-1", chargeId: "S01-1" } }; },
     createCharge: async (body, headers) => { calls.push(`charge:${JSON.stringify(body)}:${headers["x-amz-pay-idempotency-key"]}`); return { status: 201, data: { chargeId: `S01-${headers["x-amz-pay-idempotency-key"]}`, statusDetails: { state: "Captured" } } }; },
     closeChargePermission: async (id, body) => { calls.push(`close:${id}:${JSON.stringify(body)}`); return { status: 200, data: {} }; },
+    updateCheckoutSession: async () => ({ status: 200, data: {} }),
+    getChargePermission: async () => ({ status: 200, data: {} }),
     ...over,
   };
 }

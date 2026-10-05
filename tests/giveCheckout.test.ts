@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { finishCheckout } from "@/lib/give/checkout";
 import { handleSimulate } from "@/app/api/give/simulate-next-month/route";
 import { sealListener } from "@/lib/give/token";
+import { sealGift } from "@/lib/give/premiums";
+import { tierById, type Tier } from "@/lib/give/tiers";
 import type { Give } from "@/lib/give";
 import type { PayClient } from "@/lib/give/amazonPay";
 import type { Membership, MembershipStore } from "@/lib/give/membership";
@@ -18,17 +20,60 @@ function memoryStore(initial: Record<string, Membership> = {}): MembershipStore 
 
 function setup(store: MembershipStore | null = memoryStore(), over: Partial<PayClient> = {}) {
   const charges: string[] = [];
+  const addressReads: string[] = [];
   const pay: PayClient = {
     generateButtonSignature: () => "sig",
     getCheckoutSession: async () => ({ status: 200, data: { statusDetails: { state: "Open" }, chargePermissionType: "Recurring", paymentDetails: { chargeAmount: { amount: "10.00", currencyCode: "USD" } } } }),
     completeCheckoutSession: async () => ({ status: 200, data: { chargePermissionId: "B01-1", chargeId: "S01-1" } }),
     createCharge: async (_body, headers) => { charges.push(headers["x-amz-pay-idempotency-key"]); return { status: 201, data: { chargeId: `S01-${charges.length}` } }; },
     closeChargePermission: async () => ({ status: 200, data: {} }),
+    updateCheckoutSession: async () => ({ status: 200, data: {} }),
+    getChargePermission: async (id) => { addressReads.push(id); return { status: 200, data: { shippingAddress: ADDRESS } }; },
     ...over,
   };
   const give: Give = { tokenSecret: SECRET, pay: async () => pay, memberships: store };
-  return { give, charges };
+  return { give, charges, addressReads };
 }
+
+const ADDRESS = { name: "Sam Rivera", addressLine1: "720 E Capitol Dr", city: "Milwaukee", stateOrRegion: "WI", postalCode: "53212", countryCode: "US" };
+const gift = (tierId: string, size: "L" | null = "L") => sealGift(tierById(tierId) as Tier, size ? { gift: true, size } : { gift: false, size: null }, SECRET, 60 * 60_000, NOW);
+
+describe("finishCheckout with a thank-you gift", () => {
+  it("a shipped gift reads the address and keeps only items, size, city and state with the membership", async () => {
+    const store = memoryStore();
+    const { give, addressReads } = setup(store);
+    const result = await finishCheckout({ give, tierId: "main-floor-monthly", token: token(), gift: gift("main-floor-monthly"), sessionId: "cs-1", now: NOW });
+    expect(result).toMatchObject({ kind: "paid", choice: { gift: true, size: "L" }, shipTo: { name: "Sam Rivera", city: "Milwaukee", state: "WI" } });
+    expect(addressReads).toEqual(["B01-1"]);
+    expect(store.saved.user_1.premium).toEqual({ items: ["RadioMKE t-shirt"], size: "L", shipTo: { city: "Milwaukee", state: "WI" }, status: "sandbox — not shipped" });
+    const saved = JSON.stringify(store.saved);
+    for (const secret of ["Sam", "Capitol", "53212"]) expect(saved).not.toContain(secret);
+  });
+
+  it("no gift reads no address and stores no premium", async () => {
+    const store = memoryStore();
+    const { give, addressReads } = setup(store);
+    const result = await finishCheckout({ give, tierId: "main-floor-monthly", token: token(), gift: gift("main-floor-monthly", null), sessionId: "cs-1", now: NOW });
+    expect(result).toMatchObject({ kind: "paid", choice: { gift: false }, shipTo: null });
+    expect(addressReads).toEqual([]);
+    expect(store.saved.user_1).toEqual(MEMBER);
+  });
+
+  it("a missing, altered or other tier's gift token counts as no gift", async () => {
+    for (const g of [undefined, "garbage", gift("vip-monthly")]) {
+      const { give, addressReads } = setup(memoryStore());
+      expect(await finishCheckout({ give, tierId: "main-floor-monthly", token: token(), gift: g, sessionId: "cs-1", now: NOW })).toMatchObject({ choice: { gift: false }, shipTo: null });
+      expect(addressReads).toEqual([]);
+    }
+  });
+
+  it("a one-time gift shows where it ships and stores nothing", async () => {
+    const store = memoryStore();
+    const { give } = setup(store, { getCheckoutSession: async () => ({ status: 200, data: { statusDetails: { state: "Open" }, chargePermissionType: "OneTime", paymentDetails: { chargeAmount: { amount: "120.00", currencyCode: "USD" } } } }) });
+    expect(await finishCheckout({ give, tierId: "main-floor-once", token: token(), gift: gift("main-floor-once"), sessionId: "cs-1", now: NOW })).toMatchObject({ kind: "paid", shipTo: { city: "Milwaukee" }, recorded: null });
+    expect(store.saved).toEqual({});
+  });
+});
 
 describe("finishCheckout (/give/thanks)", () => {
   it("an unknown tier is not found; no setup is not set up", async () => {
