@@ -1,5 +1,5 @@
 import type { TrailEntry } from "@/lib/sim/trail";
-import { needsAccountLink } from "@/lib/sim/ui";
+import { LINK_ACCOUNT_SPEECH } from "@/lib/speech";
 
 type ToolEntry = Extract<TrailEntry, { kind: "tool" }>;
 export interface CheckResult { pass: boolean; detail: string }
@@ -12,7 +12,7 @@ const describe = (calls: ToolEntry[]) => calls.map((call) => `${call.name}(${JSO
 const result = (pass: boolean, calls: ToolEntry[]): CheckResult => ({ pass, detail: describe(calls) });
 
 /** The tool ran without error. For signed-in tools an unlinked run may stop at the account-linking refusal: still the right tool. */
-const worked = (call: ToolEntry, trail: TrailEntry[], allowLinking: boolean) => !call.isError || (allowLinking && needsAccountLink(trail));
+const worked = (call: ToolEntry, allowLinking: boolean) => !call.isError || (allowLinking && call.summary === LINK_ACCOUNT_SPEECH);
 
 export function checkRecentSongs(trail: TrailEntry[]): CheckResult {
   const calls = toolCalls(trail, "recent_songs");
@@ -23,7 +23,7 @@ export function checkRecentSongs(trail: TrailEntry[]): CheckResult {
 export function checkSaveNumber3(trail: TrailEntry[], shown: ShownSong[]): CheckResult {
   const calls = toolCalls(trail, "save_find");
   const right = (call: ToolEntry) => call.input.number === 3 || (typeof call.input.playId === "string" && call.input.playId === shown[2]?.playId);
-  return result(calls.length > 0 && calls.every((call) => right(call) && worked(call, trail, true)), calls);
+  return result(calls.length > 0 && calls.every((call) => right(call) && worked(call, true)), calls);
 }
 
 export function checkSearchPlaylist(trail: TrailEntry[]): CheckResult {
@@ -40,10 +40,10 @@ export function checkTrackStory(trail: TrailEntry[]): CheckResult {
 export function checkFollowThao(trail: TrailEntry[]): CheckResult {
   const calls = toolCalls(trail, "follow_artist");
   const namesThao = (call: ToolEntry) => Object.values(call.input).some((value) => typeof value === "string" && /thao/i.test(value));
-  return result(calls.length > 0 && calls.every((call) => namesThao(call) && worked(call, trail, true)), calls);
+  return result(calls.length > 0 && calls.every((call) => namesThao(call) && worked(call, true)), calls);
 }
 
 export function checkWhatsNew(trail: TrailEntry[]): CheckResult {
   const calls = toolCalls(trail, "whats_new_for_me");
-  return result(calls.length > 0 && calls.every((call) => worked(call, trail, true)), calls);
+  return result(calls.length > 0 && calls.every((call) => worked(call, true)), calls);
 }

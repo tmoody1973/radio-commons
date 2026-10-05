@@ -28,7 +28,10 @@ const SCENARIOS: Scenario[] = [
 function parseArgs(env: NodeJS.ProcessEnv): { baseUrl: string; passcode: string } {
   const passcode = env.SIM_PASSCODE;
   if (!passcode) throw new Error("SIM_PASSCODE is not set (.env.local or the environment).");
-  return { baseUrl: (env.EVAL_URL ?? DEFAULT_URL).replace(/\/$/, ""), passcode };
+  const baseUrl = (env.EVAL_URL ?? DEFAULT_URL).replace(/\/$/, "");
+  const isLocal = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/.test(baseUrl);
+  if (!baseUrl.startsWith("https://") && !isLocal) throw new Error("EVAL_URL must be https (http only for localhost) so the passcode is never sent in clear text.");
+  return { baseUrl, passcode };
 }
 
 async function sendTurn(baseUrl: string, passcode: string, text: string, history: ChatMessage[]): Promise<TurnBody> {
@@ -37,7 +40,11 @@ async function sendTurn(baseUrl: string, passcode: string, text: string, history
   form.set("history", JSON.stringify(history));
   const response = await fetch(`${baseUrl}/api/sim/turn`, { method: "POST", headers: { "x-sim-passcode": passcode }, body: form });
   if (!response.ok) throw new Error(`HTTP ${response.status} from the turn endpoint`);
-  return (await response.json()) as TurnBody;
+  try {
+    return (await response.json()) as TurnBody;
+  } catch {
+    throw new Error("bad JSON from the simulator");
+  }
 }
 
 async function runScenario(scenario: Scenario, baseUrl: string, passcode: string): Promise<boolean> {

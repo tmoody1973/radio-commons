@@ -32,6 +32,10 @@ describe("checkSaveNumber3", () => {
     expect(checkSaveNumber3([unlinked("save_find", { number: 3 })], shown).pass).toBe(true);
     expect(checkSaveNumber3([tool("save_find", { number: 3 }, true, "boom")], shown).pass).toBe(false);
   });
+  it("does not let an unrelated linking refusal excuse a failing save_find", () => {
+    const trail = [tool("save_find", { number: 3 }, true, "boom"), unlinked("list_finds")];
+    expect(checkSaveNumber3(trail, shown).pass).toBe(false);
+  });
 });
 
 describe("checkSearchPlaylist", () => {
