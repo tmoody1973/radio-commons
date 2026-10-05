@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { finishCheckout } from "@/lib/give/checkout";
+import { finishCheckout, reviewRedirect } from "@/lib/give/checkout";
 import { handleSimulate } from "@/app/api/give/simulate-next-month/route";
 import { sealListener } from "@/lib/give/token";
 import { sealGift } from "@/lib/give/premiums";
@@ -169,5 +169,42 @@ describe("POST /api/give/simulate-next-month", () => {
     expect(res.status).toBe(402);
     expect(await res.json()).toEqual({ status: "declined" });
     expect(store.saved.user_1.lastChargedPeriod).toBe("2026-10");
+  });
+});
+
+describe("reviewRedirect (/give/review: Amazon has the address; set the amount and go to Amazon's confirm page)", () => {
+  const ORIGIN = "https://radio-commons.vercel.app";
+  const confirm = (bodies: unknown[] = []) => ({ updateCheckoutSession: async (_id: string, body: object) => { bodies.push(body); return { status: 200, data: { webCheckoutDetails: { amazonPayRedirectUrl: "https://pay.amazon.com/confirm/1" } } }; } });
+
+  it("sends the buyer to Amazon with the tier's amount and a thanks URL carrying the sealed gift and listener", async () => {
+    const bodies: unknown[] = [];
+    const g = gift("front-row-monthly");
+    const t = token();
+    const target = await reviewRedirect({ give: setup(memoryStore(), confirm(bodies)).give, tierId: "front-row-monthly", gift: g, token: t, sessionId: "cs-1", origin: ORIGIN, now: NOW });
+    expect(target).toBe("https://pay.amazon.com/confirm/1");
+    const body = bodies[0] as { paymentDetails: { chargeAmount: { amount: string } }; webCheckoutDetails: { checkoutResultReturnUrl: string } };
+    expect(body.paymentDetails.chargeAmount.amount).toBe("20.00");
+    const thanks = new URL(body.webCheckoutDetails.checkoutResultReturnUrl);
+    expect(thanks.origin + thanks.pathname).toBe(`${ORIGIN}/give/thanks`);
+    expect(Object.fromEntries(thanks.searchParams)).toEqual({ tier: "front-row-monthly", g, t });
+  });
+
+  it("without a valid shipped-gift choice or session, goes to the didn't-go-through page without calling Amazon", async () => {
+    for (const [g, sessionId] of [[undefined, "cs-1"], ["garbage", "cs-1"], [gift("front-row-monthly", null), "cs-1"], [gift("front-row-monthly"), "../x"]] as const) {
+      const bodies: unknown[] = [];
+      const target = await reviewRedirect({ give: setup(memoryStore(), confirm(bodies)).give, tierId: "front-row-monthly", gift: g, token: null, sessionId, origin: ORIGIN, now: NOW });
+      expect(target).toBe(`${ORIGIN}/give/thanks?tier=front-row-monthly`);
+      expect(bodies).toEqual([]);
+    }
+  });
+
+  it("when Amazon gives no confirm URL, goes to the didn't-go-through page", async () => {
+    const target = await reviewRedirect({ give: setup().give, tierId: "front-row-monthly", gift: gift("front-row-monthly"), token: null, sessionId: "cs-1", origin: ORIGIN, now: NOW });
+    expect(target).toBe(`${ORIGIN}/give/thanks?tier=front-row-monthly`);
+  });
+
+  it("an unknown tier or no setup goes back to /give", async () => {
+    expect(await reviewRedirect({ give: setup().give, tierId: "nope", gift: null, token: null, sessionId: "cs-1", origin: ORIGIN, now: NOW })).toBe(`${ORIGIN}/give`);
+    expect(await reviewRedirect({ give: null, tierId: "front-row-monthly", gift: null, token: null, sessionId: "cs-1", origin: ORIGIN, now: NOW })).toBe(`${ORIGIN}/give`);
   });
 });

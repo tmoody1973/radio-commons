@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { giveFromEnv } from "@/lib/give";
 import { finishCheckout, type ThanksResult } from "@/lib/give/checkout";
 import { periodName } from "@/lib/give/membership";
+import { giftLine } from "@/lib/give/premiums";
 import { SimulateButton } from "./SimulateButton";
 
 // Completes a payment: per request, on Node (the Amazon Pay SDK signs with node:crypto).
@@ -12,15 +13,15 @@ const one = (value: string | string[] | undefined) => (typeof value === "string"
 const longDate = (ms: number) => new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "America/Chicago" }).format(ms);
 
 // Outside the component: completing a payment is a side effect, and "now" is the moment it happened.
-async function finish(tierId: string | undefined, token: string | undefined, sessionId: string | undefined) {
+async function finish(tierId: string | undefined, token: string | undefined, gift: string | undefined, sessionId: string | undefined) {
   const now = Date.now();
-  return { now, result: await finishCheckout({ give: giveFromEnv(), tierId, token, sessionId, now }) };
+  return { now, result: await finishCheckout({ give: giveFromEnv(), tierId, token, gift, sessionId, now }) };
 }
 
 export default async function ThanksPage({ searchParams }: PageProps<"/give/thanks">) {
   const params = await searchParams;
   const token = one(params.t);
-  const { result, now } = await finish(one(params.tier), token, one(params.amazonCheckoutSessionId));
+  const { result, now } = await finish(one(params.tier), token, one(params.g), one(params.amazonCheckoutSessionId));
   if (result.kind === "not_found") notFound();
   if (result.kind === "not_set_up") return <h1>Donations aren&rsquo;t set up yet</h1>;
   if (result.kind === "failed") {
@@ -43,6 +44,7 @@ function Receipt({ result, token, now }: { result: Extract<ThanksResult, { kind:
       <h1>{result.kind === "pending" ? "Processing your gift" : monthly ? "Thank you. You're a monthly member (demo)." : "Thank you for your gift (demo)."}</h1>
       {result.kind === "pending" && <p>Amazon Pay is still confirming it. Check back in a minute.</p>}
       <p className="receipt">{`$${tier.amount}`}{monthly ? " a month" : ""} · {longDate(now)} · Amazon Pay reference {reference}</p>
+      <p>{giftLine(tier, result.choice, result.shipTo)}</p>
       {monthly && recorded && <p>To cancel, say: &ldquo;Alexa, cancel my Radio Milwaukee membership.&rdquo; Or cancel at pay.amazon.com.</p>}
       {monthly && recorded === false && <p>We couldn&rsquo;t save this to your Radio Milwaukee account, so cancelling by voice won&rsquo;t work. Cancel any time at pay.amazon.com.</p>}
       {monthly && recorded === null && <p>Cancel any time at pay.amazon.com. Link your Radio Milwaukee account in Alexa next time to cancel by voice.</p>}

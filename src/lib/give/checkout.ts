@@ -1,4 +1,4 @@
-import { complete, shipToOf } from "./amazonPay";
+import { complete, continueToAmazon, shipToOf } from "./amazonPay";
 import type { Give } from "./index";
 import { nextPeriod, periodOf } from "./membership";
 import { NO_GIFT, openGift, ships, storedPremium, type GiftChoice, type ShipTo, type StoredPremium } from "./premiums";
@@ -7,6 +7,22 @@ import { tierById, type Tier } from "./tiers";
 
 // Amazon's Checkout Session ids are UUID-like; anything else never reaches the API.
 const SESSION_ID = /^[A-Za-z0-9-]{1,100}$/;
+
+interface ReviewInput { give: Give | null; tierId: string | undefined; gift: string | null | undefined; token: string | null | undefined; sessionId: string | null | undefined; origin: string; now: number }
+
+/** /give/review: Amazon has the buyer's address; set the amount from our tier list and send them to Amazon to confirm. */
+export async function reviewRedirect({ give, tierId, gift, token, sessionId, origin, now }: ReviewInput): Promise<string> {
+  const tier = tierById(tierId);
+  if (!tier || !give) return new URL("/give", origin).href;
+  const thanks = new URL("/give/thanks", origin);
+  thanks.searchParams.set("tier", tier.id);
+  const failed = thanks.href;
+  const choice = openGift(gift, give.tokenSecret, tier, now);
+  if (!gift || !choice || !ships(tier, choice) || !sessionId || !SESSION_ID.test(sessionId)) return failed;
+  thanks.searchParams.set("g", gift);
+  if (token) thanks.searchParams.set("t", token);
+  return (await continueToAmazon(await give.pay(), sessionId, tier, thanks.href)) ?? failed;
+}
 
 export type ThanksResult =
   | { kind: "not_found" }
