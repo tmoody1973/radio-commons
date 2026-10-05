@@ -45,6 +45,8 @@ export interface BackstoryClient {
   latestStoryCards(showSlug?: string): Promise<StoryCardMatch[]>;
   /** Short, guarded transcript passages from one published episode (Backstory decides what's allowed). */
   askStory(storyId: string, question: string): Promise<AskResult>;
+  /** The published story behind a radiomilwaukee.org page, or null when Backstory isn't sure (station briefing). */
+  storyForPage(url: string): Promise<{ storyId: string; title: string } | null>;
 }
 
 type Query = (name: string, args: Record<string, unknown>) => Promise<unknown>;
@@ -75,6 +77,7 @@ export function createBackstoryClient({ query, timeoutMs = 350 }: { query: Query
     getStory: (storyId) => call("public:getStory", { storyId }, storySchema.nullable()),
     latestStoryCards: (showSlug) => call("public:latestStoryCards", showSlug ? { showSlug } : {}, z.array(matchSchema)),
     askStory: (storyId, question) => call("public:askStory", { storyId, question }, askSchema),
+    storyForPage: (url) => call("public:storyForPage", { url }, z.object({ storyId: z.string(), title: z.string() }).nullable()),
   };
 }
 
