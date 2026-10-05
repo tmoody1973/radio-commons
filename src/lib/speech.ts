@@ -113,7 +113,7 @@ export const NO_NEWSLETTER_SPEECH = "I don't have a recent Radio Milwaukee newsl
 
 /** The weekly briefing: up to four items, numbered like the card, each in the newsletter's own first sentence. */
 export function spokenBriefing(date: string, items: { heading: string; summary: string }[]): string {
-  const said = items.slice(0, 4).map((item, i) => `${i + 1}, ${item.heading}: ${item.summary}`).join("; ");
+  const said = items.slice(0, 4).map((item, i) => `${i + 1}, ${item.heading}: ${item.summary}`).join(" ");
   return `This week at Radio Milwaukee, from the ${date} newsletter: ${said} Which one?`;
 }
 

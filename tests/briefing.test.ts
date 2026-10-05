@@ -45,7 +45,7 @@ const BRIEF = [
 describe("briefing speech and card", () => {
   it("speaks up to four items, numbered like the screen, credited to the newsletter's date", () => {
     expect(spokenBriefing("Oct. 1", BRIEF)).toBe(
-      "This week at Radio Milwaukee, from the Oct. 1 newsletter: 1, Un-beet-able: Beet Street turns 10 at Cactus Club.; 2, A way forward: Kim Shine joins a VR class.; 3, <b>Art & soul</b>: A weekend guide.; 4, Four: Four. Which one?",
+      "This week at Radio Milwaukee, from the Oct. 1 newsletter: 1, Un-beet-able: Beet Street turns 10 at Cactus Club. 2, A way forward: Kim Shine joins a VR class. 3, <b>Art & soul</b>: A weekend guide. 4, Four: Four. Which one?",
     );
   });
   it("card: a numbered row per item with Picks, Play or Read; text escaped", () => {
