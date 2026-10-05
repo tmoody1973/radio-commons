@@ -37,15 +37,16 @@ describe("judges page (/how-it-works)", () => {
     expect(read("src/app/page.tsx")).toContain("<a href={L.links.judges}>For judges</a>");
   });
 
-  it("renders the five sections, in order, as h2 headings", () => {
+  it("renders the six sections, in order, as h2 headings", () => {
     expect(Object.values(HOW_IT_WORKS.sections)).toEqual([
-      "The two-session demo", "One sentence, five services", "What we remember, and how to erase it", "Built on Alexa+", "Status",
+      "The two-session demo", "One sentence, five services", "What we remember, and how to erase it", "Try a donation (sandbox)", "Built on Alexa+", "Status",
     ]);
     const page = read("src/app/how-it-works/page.tsx");
-    const order = ["demo", "flow", "memory", "alexa", "status"].map((k) => page.indexOf(`{H.sections.${k}}</h2>`));
+    const order = ["demo", "flow", "memory", "give", "alexa", "status"].map((k) => page.indexOf(`{H.sections.${k}}</h2>`));
     expect(order.every((i) => i > 0)).toBe(true);
     expect(page.indexOf("<Demo />")).toBeLessThan(page.indexOf("<Flow />"));
-    expect(page.indexOf("<Memory />")).toBeLessThan(page.indexOf("<Alexa />"));
+    expect(page.indexOf("<Memory />")).toBeLessThan(page.indexOf("<Give />"));
+    expect(page.indexOf("<Give />")).toBeLessThan(page.indexOf("<Alexa />"));
     expect(page.indexOf("<Alexa />")).toBeLessThan(page.indexOf("<Status />"));
   });
 
@@ -66,6 +67,11 @@ describe("judges page (/how-it-works)", () => {
       { kind: "show", artistId: "a", artist: "Tank & The Bangas", ...MAJESTIC },
     ]));
     expect(digest.reply).not.toMatch(/new .* story/);
+  });
+
+  it("the donation section sends judges to the Devpost testing instructions, with no credentials in the repo", () => {
+    expect(HOW_IT_WORKS.give.credentials).toContain("Devpost testing instructions");
+    expect(JSON.stringify(HOW_IT_WORKS.give)).not.toMatch(/password:|@.*\.(com|org)/i);
   });
 
   it("every status row is live or in this release", () => {
