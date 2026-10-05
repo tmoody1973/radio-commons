@@ -40,6 +40,8 @@ const CARD_CSP = {
     "https://fonts.googleapis.com", "https://fonts.gstatic.com", "https://unpkg.com",
     // Song cards: Apple album artwork and 30-second previews.
     "https://*.mzstatic.com", "https://audio-ssl.itunes.apple.com",
+    // Station logos the playlist uses when a song has no Apple artwork.
+    "https://rm-playlist-v2-embed.pages.dev",
     // On air now: the stations' live streams.
     STREAM_HOST,
     // Finds and digest cards: event photos from Ticketmaster and AXS listings.
