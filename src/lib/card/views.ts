@@ -9,7 +9,7 @@ import { dollars, LEVELS, type GiveKind } from "@/lib/give/tiers";
 import { PREMIUMS } from "@/lib/give/premiums";
 import { pinnedPlaces } from "@/lib/map/staticMap";
 import { directionsUrl, streetAddress } from "@/lib/maps";
-import { ARTICLE_SOURCE, clock, longDate, monthYear, showCalendarDay } from "@/lib/speech";
+import { ARTICLE_SOURCE, clock, longDate, monthYear, showCalendarDay, withoutStationName } from "@/lib/speech";
 import { localClock } from "@/lib/stationTime";
 import { clockWords, weeklyTimes } from "@/lib/schedule";
 import { sizedArtwork, STATION_NAMES, type SongCard } from "./song";
@@ -348,7 +348,7 @@ function capabilitiesView(): string {
 }
 
 /** "Midday Show with Erin Wolf": the host line under a station's name. */
-const showLine = (show: { name: string; hosts: string[] }) => `${show.name}${show.hosts.length ? ` with ${show.hosts.join(" & ")}` : ""}`;
+const showLine = (show: { name: string; hosts: string[] }) => `${withoutStationName(show.name)}${show.hosts.length ? ` with ${show.hosts.join(" & ")}` : ""}`;
 
 /** Plays the stream in the card with the same one-at-a-time player as previews; reads "❚❚ Stop" while it plays. */
 const listenLive = (station: Station, cls: string) =>

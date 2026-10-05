@@ -5,6 +5,7 @@ import { AUTH_TOOLS } from "@/lib/listenerAuth";
 import { PlaylistUnavailable, type HostProfile, type PlaylistClient, type ScheduleProgram, type ScheduleSlot, type StationSchedule } from "@/lib/playlist";
 import { noScheduleSpeech, SCHEDULE_UNAVAILABLE_SPEECH, spokenOnNow, spokenPrograms, weeklyTimes } from "@/lib/schedule";
 import { screenWords } from "@/lib/sim/evalChecks";
+import { withoutStationName } from "@/lib/speech";
 import { fakeBackstory, fakeFieldGuide, fakePlaylist } from "./fixtures";
 import { mcpPost } from "./mcp-wire";
 
@@ -18,14 +19,14 @@ const MIDDAY: ScheduleSlot = {
   imageUrl: null, link: null,
   hostProfiles: [{ name: "Erin Wolf", imageUrl: PHOTO, profileUrl: "https://radiomilwaukee.org/people/erin-wolf", latest: [{ title: "Five new Milwaukee songs to hear this week", url: "https://radiomilwaukee.org/x", publishedAt: Date.parse("2026-10-02T15:00:00Z") }] }],
 };
-const AFTERNOON: ScheduleSlot = { name: "Afternoon Drive", hosts: ["Carolann Grzybowski"], startsAt: MIDDAY.endsAt, endsAt: Date.parse("2026-10-05T23:00:00Z") };
+const AFTERNOON: ScheduleSlot = { name: "88Nine Afternoon Drive", hosts: ["Carolann Grzybowski"], startsAt: MIDDAY.endsAt, endsAt: Date.parse("2026-10-05T23:00:00Z") };
 const RHYTHM_LAB: ScheduleProgram = {
   name: "Rhythm Lab Radio", hosts: ["Tarik Moody"],
   airtimes: [{ dayOfWeek: 5, startMin: 1320, endMin: 1440, day: "Friday", start: "10 PM", end: "12 AM" }],
   lastAired: null, nextAiring: null, airingNow: false,
 };
 const TASTE_TEST: ScheduleProgram = {
-  name: "Audio Taste Test", hosts: ["Justin Barney"],
+  name: "Audio Taste Test", hosts: ["Britt Gottschalk"],
   airtimes: [{ dayOfWeek: 4, startMin: 1320, endMin: 1380, day: "Thursday", start: "10 PM", end: "11 PM" }],
   lastAired: { startsAt: Date.parse("2026-10-02T03:00:00Z"), endsAt: Date.parse("2026-10-02T04:00:00Z") },
   nextAiring: { startsAt: Date.parse("2026-10-09T03:00:00Z"), endsAt: Date.parse("2026-10-09T04:00:00Z") },
@@ -48,9 +49,22 @@ describe("spoken schedule", () => {
   });
 
   it("a show with no host, no latest pieces, and nothing scheduled", () => {
-    expect(spokenOnNow(schedule({ onNow: { ...AFTERNOON, name: "88Nine Overnight", hosts: [] }, next: null }))).toBe("88Nine Overnight is on 88Nine until 6.");
+    expect(spokenOnNow(schedule({ onNow: { ...AFTERNOON, name: "88Nine Nighttime", hosts: [] }, next: null }))).toBe("88Nine Nighttime is on until 6.");
+    expect(spokenOnNow(schedule({ onNow: { ...AFTERNOON, name: "Overnight", hosts: [] }, next: null }))).toBe("Overnight is on 88Nine until 6.");
     expect(spokenOnNow(schedule({ onNow: null, next: null }))).toBe("I don't have 88Nine's schedule right now.");
     expect(spokenOnNow(schedule({ onNow: null }))).toBe("88Nine doesn't have a host on right now. Next, Carolann Grzybowski on Afternoon Drive at 2 PM.");
+  });
+
+  it("drops the leading \"88Nine \" only where 88Nine was already said", () => {
+    expect(withoutStationName("88Nine Weekends with Mallory Wallace")).toBe("Weekends with Mallory Wallace");
+    expect(withoutStationName("Rhythm Lab Radio")).toBe("Rhythm Lab Radio");
+    expect(withoutStationName("88Nine")).toBe("88Nine");
+    const midday = { ...MIDDAY_PROGRAM, airingNow: false };
+    const weekends = { ...RHYTHM_LAB, name: "88Nine Weekends with Mallory Wallace", hosts: ["Mallory Wallace"] };
+    expect(spokenPrograms("88nine", [midday, weekends], NOW)).toBe(
+      "On 88Nine's schedule: Midday Show with Erin Wolf airs weekdays, 10 AM to 2 PM; Weekends with Mallory Wallace airs Fridays, 10 PM to midnight.",
+    );
+    expect(spokenPrograms("midday", [midday], NOW)).toBe("88Nine Midday Show with Erin Wolf airs weekdays, 10 AM to 2 PM.");
   });
 
   it("weekly times read the way a person says them", () => {
@@ -65,7 +79,7 @@ describe("spoken schedule", () => {
 
   it("did I miss it: when it last aired and when it's next, or that it's on now", () => {
     expect(spokenPrograms("audio taste test", [TASTE_TEST], NOW)).toBe(
-      "Audio Taste Test with Justin Barney airs Thursdays, 10 PM to 11 PM. It aired Thursday at 10 PM; next is Thursday, October 8 at 10 PM.",
+      "Audio Taste Test with Britt Gottschalk airs Thursdays, 10 PM to 11 PM. It aired Thursday at 10 PM; next is Thursday, October 8 at 10 PM.",
     );
     expect(spokenPrograms("midday", [MIDDAY_PROGRAM], NOW)).toBe("88Nine Midday Show with Erin Wolf airs weekdays, 10 AM to 2 PM. It's on now.");
   });
@@ -180,6 +194,42 @@ describe("station_schedule", () => {
     expect(message.result.structuredContent.cardHtml).toContain(`src="${PHOTO}"`);
   });
 
+  it("a host's latest piece is spoken and shown only from the last 90 days", async () => {
+    const piece = (title: string, publishedAt: number | string | null) => ({ title, url: `https://radiomilwaukee.org/${title.length}`, publishedAt });
+    const withLatest = (latest: ReturnType<typeof piece>[]) => schedule({ onNow: { ...MIDDAY, hostProfiles: [{ ...MIDDAY.hostProfiles![0], latest }] } });
+    const ask = async (latest: ReturnType<typeof piece>[]) => {
+      const playlist = fakePlaylist({ stationSchedule: async () => withLatest(latest) });
+      return (await mcpPost(handlerWith(playlist), call({}))).message.result;
+    };
+    const old = await ask([piece("A 2016 byline", "2016-03-01T12:00:00Z"), piece("Undated", null)]);
+    expect(old.content[0].text).not.toContain("Latest from");
+    expect(old.structuredContent.cardHtml).not.toContain("latest");
+    const recent = await ask([piece("Eighty-nine days old", NOW.getTime() - 89 * 86_400_000)]);
+    expect(recent.content[0].text).toContain("Latest from Erin Wolf, July 8: Eighty-nine days old.");
+    expect(recent.structuredContent.cardHtml).toContain("Eighty-nine days old");
+    const stale = await ask([piece("Ninety-one days old", NOW.getTime() - 91 * 86_400_000)]);
+    expect(stale.content[0].text).not.toContain("Ninety-one");
+  });
+
+  it("a host profile's stale latest piece is not shown on a match tile", async () => {
+    const profile: HostProfile = {
+      name: "Tarik Moody", imageUrl: PHOTO, profileUrl: null, programs: [],
+      latest: [{ title: "Old feature", url: "https://radiomilwaukee.org/old", publishedAt: Date.parse("2016-05-01T12:00:00Z") }],
+    };
+    const playlist = fakePlaylist({ stationSchedule: async () => schedule({ matches: [RHYTHM_LAB] }), hostProfile: async () => profile });
+    const { message } = await mcpPost(handlerWith(playlist), call({ query: "tarik moody" }));
+    expect(message.result.structuredContent.cardHtml).toContain(`src="${PHOTO}"`);
+    expect(message.result.structuredContent.cardHtml).not.toContain("Old feature");
+  });
+
+  it("photo order: host photo, then the show's, then a plain tile", () => {
+    const SHOW_PHOTO = "https://npr.brightspotcdn.com/show.jpg";
+    const hero = (slot: ScheduleSlot) => renderView({ view: "schedule", onNow: slot, next: null, matches: [] });
+    expect(hero({ ...MIDDAY, imageUrl: SHOW_PHOTO })).toContain(`src="${PHOTO}"`);
+    expect(hero({ ...MIDDAY, imageUrl: SHOW_PHOTO, hostProfiles: [{ ...MIDDAY.hostProfiles![0], imageUrl: null }] })).toContain(`src="${SHOW_PHOTO}"`);
+    expect(hero({ ...MIDDAY, imageUrl: null, hostProfiles: [] })).toContain('class="art ph"');
+  });
+
   it("schedule down: an apology, flagged as an error", async () => {
     const playlist = fakePlaylist({ stationSchedule: async () => { throw new PlaylistUnavailable("down"); } });
     const { message } = await mcpPost(handlerWith(playlist), call({}));
@@ -200,10 +250,11 @@ describe("on_air_now with the schedule", () => {
   it("88Nine's row names the host and show", async () => {
     const playlist = fakePlaylist({ recentSongs: async () => [song], stationSchedule: async () => schedule() });
     const { message } = await mcpPost(handlerWith(playlist), onAir({ station: "88nine" }));
-    expect(message.result.content[0].text).toBe("88Nine (Erin Wolf, 88Nine Midday Show) is playing \"Lauren\" by Men I Trust. Say 'Alexa, play 88Nine' to keep listening.");
-    expect(message.result.structuredContent.cardHtml).toContain("Erin Wolf");
+    expect(message.result.content[0].text).toBe("88Nine (Erin Wolf, Midday Show) is playing \"Lauren\" by Men I Trust. Say 'Alexa, play 88Nine' to keep listening.");
+    expect(message.result.structuredContent.cardHtml).toContain("Midday Show with Erin Wolf");
+    expect(message.result.structuredContent.cardHtml).not.toContain("88Nine Midday Show");
     const all = await mcpPost(handlerWith(playlist), onAir({}));
-    expect(all.message.result.content[0].text).toMatch(/^On air now: 88Nine \(Erin Wolf, 88Nine Midday Show\) is playing/);
+    expect(all.message.result.content[0].text).toMatch(/^On air now: 88Nine \(Erin Wolf, Midday Show\) is playing/);
   });
 
   it("a failing schedule never fails on_air_now", async () => {

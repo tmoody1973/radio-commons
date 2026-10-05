@@ -1,6 +1,6 @@
 import { STATION_NAMES } from "@/lib/card/song";
 import type { Airtime, HostCard, HostProfile, ScheduleProgram, ScheduleSlot, StationSchedule, Station } from "@/lib/playlist";
-import { listOf, listPage, nextOffer } from "@/lib/speech";
+import { listOf, listPage, nextOffer, withoutStationName } from "@/lib/speech";
 
 // Only 88Nine has a schedule; every line here is about it.
 const TIME_ZONE = "America/Chicago";
@@ -68,12 +68,13 @@ const showName = (name: string) => (/\bshow$/i.test(name) && !/^the\b/i.test(nam
 
 function onNowLine(slot: ScheduleSlot): string {
   const until = `until ${clockWords(slot.endsAt, false)}`;
-  if (!slot.hosts.length) return `${slot.name} is on 88Nine ${until}.`;
+  if (!slot.hosts.length) return /^88Nine\b/i.test(slot.name) ? `${slot.name} is on ${until}.` : `${slot.name} is on 88Nine ${until}.`;
   return `${listOf(slot.hosts)} ${slot.hosts.length > 1 ? "are" : "is"} on ${showName(slot.name)} ${until}.`;
 }
 
 function nextLine(slot: ScheduleSlot, withTime: boolean): string {
-  const who = slot.hosts.length ? `${listOf(slot.hosts)} on ${showName(slot.name)}` : slot.name;
+  const name = withoutStationName(slot.name);
+  const who = slot.hosts.length ? `${listOf(slot.hosts)} on ${showName(name)}` : name;
   return ` Next, ${who}${withTime ? ` at ${clockWords(slot.startsAt)}` : ""}.`;
 }
 
@@ -96,8 +97,13 @@ export function spokenOnNow({ onNow, next }: Pick<StationSchedule, "onNow" | "ne
   return `${onNowLine(onNow)}${next ? nextLine(next, false) : ""}${latestLine(onNow.hostProfiles)}`;
 }
 
-const programLine = (program: ScheduleProgram) =>
-  `${program.name}${program.hosts.length ? ` with ${listOf(program.hosts)}` : ""} ${program.airtimes.length ? `airs ${weeklyTimes(program.airtimes)}` : "isn't on the weekly schedule"}`;
+// "88Nine Weekends with Mallory Wallace" already names its host; don't say it twice.
+const hostsSuffix = ({ name, hosts }: ScheduleProgram) =>
+  hosts.length && !hosts.every((host) => name.toLowerCase().includes(host.toLowerCase())) ? ` with ${listOf(hosts)}` : "";
+
+// `stationSaid`: the sentence already named 88Nine ("On 88Nine's schedule: …"), so the name drops its "88Nine " prefix.
+const programLine = (program: ScheduleProgram, stationSaid = false) =>
+  `${stationSaid ? withoutStationName(program.name) : program.name}${hostsSuffix(program)} ${program.airtimes.length ? `airs ${weeklyTimes(program.airtimes)}` : "isn't on the weekly schedule"}`;
 
 /** " It's on now." or " It aired Thursday at 10 PM; next is Thursday, October 8 at 10 PM." (either half alone when that's all there is). */
 function statusLine(program: ScheduleProgram, now: Date): string {
@@ -114,7 +120,24 @@ export function spokenPrograms(query: string, matches: ScheduleProgram[], now: D
   const { start, said, left } = listPage(matches, page);
   if (said.length === 0) return "That's all the shows I found on 88Nine's schedule.";
   const lead = start > 0 ? "More from 88Nine's schedule: " : "On 88Nine's schedule: ";
-  return `${lead}${said.map(programLine).join("; ")}.${nextOffer(left)}`;
+  return `${lead}${said.map((program) => programLine(program, true)).join("; ")}.${nextOffer(left)}`;
+}
+
+// A host's "latest" piece older than this isn't news (one host's only byline is from 2016); undated pieces are dropped too.
+const LATEST_MAX_AGE_MS = 90 * DAY_MS;
+const publishedMs = (published: number | string | null | undefined) => (typeof published === "string" ? Date.parse(published) : published ?? Number.NaN);
+const freshHost = <H extends HostCard>(host: H, now: Date): H =>
+  ({ ...host, latest: host.latest.filter((piece) => now.getTime() - publishedMs(piece.publishedAt) <= LATEST_MAX_AGE_MS) });
+const freshItem = <T extends { hostProfiles?: HostCard[] }>(item: T, now: Date): T =>
+  (item.hostProfiles ? { ...item, hostProfiles: item.hostProfiles.map((host) => freshHost(host, now)) } : item);
+
+/** The schedule and host profile with only the last 90 days of "latest" pieces, so nothing older is spoken or shown. */
+export function withFreshLatest(schedule: StationSchedule, profile: HostProfile, now: Date): { schedule: StationSchedule; profile: HostProfile } {
+  const fresh = <T extends { hostProfiles?: HostCard[] }>(item: T | null) => (item ? freshItem(item, now) : null);
+  return {
+    schedule: { ...schedule, onNow: fresh(schedule.onNow), next: fresh(schedule.next), match: fresh(schedule.match), matches: schedule.matches.map((program) => freshItem(program, now)) },
+    profile: profile ? freshHost(profile, now) : null,
+  };
 }
 
 const sameName = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();

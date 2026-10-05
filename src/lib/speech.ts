@@ -222,11 +222,13 @@ export function spokenRecent(stationName: string, songs: { artist: string; title
 
 const ON_AIR_MAX_WORDS = 45;
 const ON_AIR_EXAMPLE_STATION = "HYFIN";
+/** "88Nine Midday Show" → "Midday Show": Cadence names start with the station, which is redundant right after "88Nine". */
+export const withoutStationName = (name: string) => name.replace(/^88Nine\s+/i, "") || name;
 /** `show` is who's hosting (88Nine only, from its schedule). */
 interface OnAirStation { station: Station; song: { title: string; artist: string } | null; show?: { name: string; hosts: string[] } | null }
 /** "88Nine (Erin Wolf, Midday Show)", or just the station's name when its schedule says nothing. */
 const onAirName = ({ station, show }: OnAirStation) =>
-  show ? `${STATION_NAMES[station]} (${[listOf(show.hosts), show.name].filter(Boolean).join(", ")})` : STATION_NAMES[station];
+  show ? `${STATION_NAMES[station]} (${[listOf(show.hosts), withoutStationName(show.name)].filter(Boolean).join(", ")})` : STATION_NAMES[station];
 const keepListening = (name: string) => `Say 'Alexa, play ${name}' to keep listening.`;
 const wordCount = (text: string) => text.split(/\s+/).filter(Boolean).length;
 

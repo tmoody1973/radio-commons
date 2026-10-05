@@ -18,7 +18,7 @@ import {
   NEWSLETTER_UNAVAILABLE_SPEECH, NO_NEWSLETTER_SPEECH, spokenBriefing, spokenOnAir, spokenPlaces, spokenRecall, spokenRecent, spokenSearch, spokenStationShows, spokenDeleted, spokenFollowed, spokenSaved, spokenUnfollowed, noSongOnAirSpeech, whichOnAirSpeech, WHICH_ARTIST_TO_FOLLOW_SPEECH, WHICH_ARTIST_TO_UNFOLLOW_SPEECH, spokenStory, spokenTrackFacts, UNAVAILABLE_SPEECH,
 } from "@/lib/speech";
 import { localWindow } from "@/lib/stationTime";
-import { noScheduleSpeech, programsFrom, SCHEDULE_UNAVAILABLE_SPEECH, spokenOnNow, spokenPrograms } from "@/lib/schedule";
+import { noScheduleSpeech, programsFrom, SCHEDULE_UNAVAILABLE_SPEECH, spokenOnNow, spokenPrograms, withFreshLatest } from "@/lib/schedule";
 import { getStation } from "@/lib/stations";
 import { linkItems } from "@/lib/briefing";
 import { NewsletterUnavailable, newsletterFromEnv, type NewsletterClient } from "@/lib/newsletter";
@@ -655,16 +655,17 @@ export function buildMcpHandler(deps: Deps) {
             // A named show or host on the Rhythm Lab stream is looked up on 88Nine, where Rhythm Lab Radio airs.
             if (slug && slug !== "88nine" && !(slug === "rhythmlab" && query)) return { content: text(noScheduleSpeech(slug)) };
             const at = now();
-            const [schedule, profile] = await Promise.all([
+            const [rawSchedule, rawProfile] = await Promise.all([
               deps.playlist().stationSchedule({ station: "88nine", ...(query ? { query } : {}), at: at.getTime() }),
               // ponytail: alexa:hostProfile ships in a later playlist deploy; until then this is null and the schedule answers alone.
               query ? orNull("host_profile_failed", () => deps.playlist().hostProfile(query)) : null,
             ]);
+            const { schedule, profile } = withFreshLatest(rawSchedule, rawProfile ?? null, at);
             if (!query) {
               const { onNow, next } = schedule;
               return { content: text(spokenOnNow(schedule)), ...(onNow || next ? { structuredContent: card({ view: "schedule", onNow, next, matches: [] }, { onNow, next }) } : {}) };
             }
-            const matches = programsFrom(schedule, profile ?? null);
+            const matches = programsFrom(schedule, profile);
             return {
               content: text(spokenPrograms(query, matches, at, page)),
               ...(matches.length ? { structuredContent: card({ view: "schedule", onNow: null, next: null, matches }, { matches }) } : {}),
