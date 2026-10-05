@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { LINK_ACCOUNT_SPEECH } from "@/lib/speech";
 import type { TrailEntry } from "@/lib/sim/trail";
 import {
-  checkFollowThao, checkRecentSongs, checkSaveNumber3, checkSearchPlaylist, checkStationArtistShows, checkTrackStory, checkWhatsNew,
+  checkFollowThao, checkRecentSongs, checkSaveNumber3, checkSearchPlaylist, checkStationArtistShows, checkTrackStory, checkWhatCanYouDo, checkWhatsNew,
 } from "@/lib/sim/evalChecks";
 
 const tool = (name: string, input: Record<string, unknown> = {}, isError = false, summary = "ok"): TrailEntry =>
@@ -82,5 +82,13 @@ describe("checkStationArtistShows", () => {
     expect(checkStationArtistShows([tool("station_artist_shows", { station: "88nine" }), tool("whats_new_for_me")]).pass).toBe(false);
     expect(checkStationArtistShows([tool("station_artist_shows", { station: "88nine" }, true, "boom")]).pass).toBe(false);
     expect(checkStationArtistShows([tool("whats_new_for_me")]).pass).toBe(false);
+  });
+});
+
+describe("checkWhatCanYouDo", () => {
+  it("needs what_can_you_do without an error", () => {
+    expect(checkWhatCanYouDo([tool("what_can_you_do")]).pass).toBe(true);
+    expect(checkWhatCanYouDo([tool("latest_station_stories")]).pass).toBe(false);
+    expect(checkWhatCanYouDo([tool("what_can_you_do", {}, true, "boom")]).pass).toBe(false);
   });
 });

@@ -228,5 +228,10 @@ describe("the card page", () => {
       expect(html).toContain('data-url="https://www.ticketmaster.com/event/1"');
       expect(html).not.toContain(XSS);
     });
+    it("every show gets an icon-only Add to calendar button beside Get tickets", () => {
+      expect(html.match(/class="secondary calendar small"/g)).toHaveLength(2);
+      expect(html).toContain('aria-label="Add Thao at Turner Hall to calendar"');
+      expect(html).toContain("dates=20261024%2F20261025");
+    });
   });
 });
