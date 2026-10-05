@@ -146,14 +146,16 @@ describe("saving after on_air_now", () => {
   const ON_AIR: Record<Station, RecentSong | null> = {
     "88nine": { ...song("Lauren", "Men I Trust"), playId: "play_88" },
     hyfin: { ...song("Oya", "Ibeyi"), playId: "play_hyfin" },
-    rhythmlab: null,
+    // Rhythm Lab's last play is from long ago: its row reads "Live now", with no song to save.
+    rhythmlab: { ...song("Old Tune", "Someone", 90), playId: "play_rl_old" },
     "414music": { ...song("Gold", "Kiah"), playId: "play_414" },
   };
-  const tracked = () => {
+  const tracked = (onAir = ON_AIR) => {
     const seen = { saved: [] as string[], searched: 0, remembered: [] as string[][] };
     const playlist = fakePlaylist({
-      recentSongs: async (station) => (ON_AIR[station] ? [ON_AIR[station]!] : []),
+      recentSongs: async (station) => (onAir[station] ? [onAir[station]!] : []),
       rememberScreen: async (_listener, playIds) => { seen.remembered.push(playIds); },
+      screenPlay: async (_listener, n) => seen.remembered.at(-1)?.[n - 1] ?? null,
       saveFind: async (_listener, id) => { seen.saved.push(id); return OK; },
       searchPlaysIndexed: async () => { seen.searched += 1; return []; },
     });
@@ -161,10 +163,33 @@ describe("saving after on_air_now", () => {
   };
   const save = (args: Record<string, unknown>) => ({ method: "tools/call", params: { name: "save_find", arguments: args } });
 
-  it("remembers the stations with a song, in spoken order, so 'save number 2' is the second one said", async () => {
+  it("remembers one slot per card row, in row order, so 'save number 4' is the fourth row", async () => {
     const { seen, handler } = tracked();
     await mcpPostAs(handler, call({}), "user_1");
-    expect(seen.remembered).toEqual([["play_88", "play_hyfin", "play_414"]]);
+    expect(seen.remembered).toEqual([["play_88", "play_hyfin", "play_rl_old", "play_414"]]);
+    await mcpPostAs(handler, save({ number: 4 }), "user_1");
+    expect(seen.saved).toEqual(["play_414"]);
+  });
+
+  it("'save number 3' on a row with no song says so and saves nothing", async () => {
+    const { seen, handler } = tracked();
+    await mcpPostAs(handler, call({}), "user_1");
+    const { message } = await mcpPostAs(handler, save({ number: 3 }), "user_1");
+    expect(message.result.content[0].text).toBe("Rhythm Lab doesn't have a song playing right now.");
+    expect(seen.saved).toEqual([]);
+  });
+
+  it("a station with no play at all ends the remembered rows there, so later numbers can't shift onto the wrong row", async () => {
+    const { seen, handler } = tracked({ ...ON_AIR, rhythmlab: null });
+    await mcpPostAs(handler, call({}), "user_1");
+    expect(seen.remembered).toEqual([["play_88", "play_hyfin"]]);
+  });
+
+  it("an old song in a longer list (recent_songs) still saves by number", async () => {
+    const { seen, handler } = tracked();
+    seen.remembered.push(["play_x", "play_y", "play_rl_old", "play_z", "play_w"]);
+    await mcpPostAs(handler, save({ number: 3 }), "user_1");
+    expect(seen.saved).toEqual(["play_rl_old"]);
   });
 
   it("'save the HYFIN song' saves HYFIN's current song without searching", async () => {

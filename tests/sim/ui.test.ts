@@ -21,15 +21,19 @@ describe("simulator page helpers", () => {
     expect(nextHistory([], "last 2", "Here they are.", shown).at(-1)?.text)
       .toBe('Here they are. [On screen: 1. "Wicked Game" by Chris Isaak, playId p1; 2. "Groove Thang" by Zhané, playId p2]');
   });
-  it("numbers on_air_now's stations that have a song, in order, with the station, so 'save number 2' and 'the HYFIN song' work", () => {
+  it("numbers on_air_now's rows in card order, a row with no song included, so 'save number 3' and 'the HYFIN song' work", () => {
     const shown = onScreenFrom({ view: "on-air", stations: [
       { station: "88nine", song: { playId: "p88", title: "Lauren", artist: "Men I Trust" } },
       { station: "rhythmlab", song: null },
       { station: "hyfin", song: { playId: "phyfin", title: "Oya", artist: "Ibeyi" } },
     ] });
-    expect(shown).toEqual({ songs: [{ playId: "p88", title: "Lauren", artist: "Men I Trust", station: "88nine" }, { playId: "phyfin", title: "Oya", artist: "Ibeyi", station: "hyfin" }] });
+    expect(shown).toEqual({ songs: [
+      { playId: "p88", title: "Lauren", artist: "Men I Trust", station: "88nine" },
+      { playId: "", title: "", artist: "", station: "rhythmlab" },
+      { playId: "phyfin", title: "Oya", artist: "Ibeyi", station: "hyfin" },
+    ] });
     expect(nextHistory([], "on now", "On air now.", shown).at(-1)?.text)
-      .toBe('On air now. [On screen: 1. "Lauren" by Men I Trust on 88nine, playId p88; 2. "Oya" by Ibeyi on hyfin, playId phyfin]');
+      .toBe('On air now. [On screen: 1. "Lauren" by Men I Trust on 88nine, playId p88; 2. no song on rhythmlab; 3. "Oya" by Ibeyi on hyfin, playId phyfin]');
   });
   it("reads recall matches and story cards the same way, and ignores anything else", () => {
     expect(onScreenFrom({ matches: [{ playId: "p9", title: "Valerie", artist: "Amy Winehouse" }] }))

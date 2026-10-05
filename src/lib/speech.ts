@@ -246,6 +246,9 @@ export function spokenOnAir(stations: OnAirStation[]): string {
   return wordCount(full) <= ON_AIR_MAX_WORDS ? full : allOnAir(stations, false);
 }
 
+/** "Save number 3" on an on-air row that reads "Live now". */
+export const noSongOnAirSpeech = (stationName: string) => `${stationName} doesn't have a song playing right now.`;
+
 /** "Save that song" with several stations on air: ask which, never guess. Null when nothing is on air. */
 export function whichOnAirSpeech(stations: OnAirStation[]): string | null {
   const choices = stations.flatMap(({ station, song }) => (song ? [`${STATION_NAMES[station]}'s "${song.title}"`] : []));

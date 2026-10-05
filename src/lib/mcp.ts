@@ -15,7 +15,7 @@ import { createHash } from "node:crypto";
 import { eventMapPoints, MAP_H, MAP_W, pinnedEvents, pinnedPlaces } from "@/lib/map/staticMap";
 import {
   directAudioUrl, eventTime, EVENTS_UNAVAILABLE_SPEECH, NO_PLACES_FOR_EVENTS_SPEECH, NO_PLACES_SPEECH, spokenEvents, spokenPicks, NOT_ALLOWED_SPEECH, NOT_FOUND_SPEECH, EMPTY_DIGEST_SPEECH, EMPTY_DIGEST_NO_PICKS_SPEECH, LINK_ACCOUNT_SPEECH, LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH, PLAYLIST_UNAVAILABLE_SPEECH, spokenDigest, spokenFinds, spokenLatest, spokenMatches, spokenPassages,
-  NEWSLETTER_UNAVAILABLE_SPEECH, NO_NEWSLETTER_SPEECH, spokenBriefing, spokenOnAir, spokenPlaces, spokenRecall, spokenRecent, spokenSearch, spokenStationShows, spokenDeleted, spokenFollowed, spokenSaved, spokenUnfollowed, whichOnAirSpeech, WHICH_ARTIST_TO_FOLLOW_SPEECH, WHICH_ARTIST_TO_UNFOLLOW_SPEECH, spokenStory, spokenTrackFacts, UNAVAILABLE_SPEECH,
+  NEWSLETTER_UNAVAILABLE_SPEECH, NO_NEWSLETTER_SPEECH, spokenBriefing, spokenOnAir, spokenPlaces, spokenRecall, spokenRecent, spokenSearch, spokenStationShows, spokenDeleted, spokenFollowed, spokenSaved, spokenUnfollowed, noSongOnAirSpeech, whichOnAirSpeech, WHICH_ARTIST_TO_FOLLOW_SPEECH, WHICH_ARTIST_TO_UNFOLLOW_SPEECH, spokenStory, spokenTrackFacts, UNAVAILABLE_SPEECH,
 } from "@/lib/speech";
 import { localWindow } from "@/lib/stationTime";
 import { getStation } from "@/lib/stations";
@@ -227,9 +227,27 @@ export function buildMcpHandler(deps: Deps) {
     }
   };
   // What each station is playing now, in MUSIC_STATIONS order: on_air_now's tiles, and save_find's cheap first look.
-  const onAirTiles = (stations: readonly Station[]) => {
+  const onAirTiles = async (stations: readonly Station[]) => (await onAirRows(stations)).map(({ station: where, song }) => ({ station: where, song }));
+  // `latest` is the station's newest play even when it is too old to be "on air"; screen memory needs it for that row.
+  const onAirRows = (stations: readonly Station[]) => {
     const at = now().getTime();
-    return Promise.all(stations.map(async (where) => ({ station: where, song: onAirSong(await latestPlay(where), at) })));
+    return Promise.all(stations.map(async (where) => {
+      const latest = await latestPlay(where);
+      return { station: where, song: onAirSong(latest, at), latest };
+    }));
+  };
+  /**
+   * The on-air screen keeps one slot per card row. A row with no song holds the station's last (old) play, so the numbers
+   * after it don't shift; this spots that slot. ponytail: an on-air screen is the only list of exactly four whose slot N is
+   * station N's latest, stale play; a 4-song list ending on an idle 414 Music's last play would read as "no song" too.
+   */
+  const idleOnAirRow = async (listenerId: string, number: number, playId: string): Promise<Station | null> => {
+    const where = MUSIC_STATIONS[number - 1];
+    if (!where) return null;
+    const latest = await latestPlay(where);
+    if (latest?.playId !== playId || onAirSong(latest, now().getTime())) return null;
+    // Only now (rare) look for a fifth slot: a longer list is a song list, where an old play is a real choice.
+    return (await screenPlayOrNull(listenerId, MUSIC_STATIONS.length + 1, true)) === null ? where : null;
   };
   // One guess gets the full song card; several become a numbered list so "save number 2" matches the screen.
   const recallCard = (matches: RecallMatch[], slug: Station) =>
@@ -596,9 +614,13 @@ export function buildMcpHandler(deps: Deps) {
         },
         async ({ station: slug }, context) =>
           timed("on_air_now", async () => {
-            const tiles = await onAirTiles(slug ? [slug] : MUSIC_STATIONS);
-            // ponytail: a station with no current song has no number, so "number 3" skips it; rows are numbered by song.
-            rememberScreen(context, tiles.flatMap(({ song }) => (song ? [song.playId] : [])));
+            const rows = await onAirRows(slug ? [slug] : MUSIC_STATIONS);
+            const tiles = rows.map(({ station: where, song }) => ({ station: where, song }));
+            // One slot per card row, so "number 3" is the third row. A station with no play at all ends the list: later
+            // numbers then find nothing and ask, instead of shifting onto the wrong row. One station alone isn't numbered.
+            const gap = rows.findIndex(({ latest }) => !latest);
+            const slots = (gap === -1 ? rows : rows.slice(0, gap)).map(({ latest }) => latest!.playId);
+            if (!slug) rememberScreen(context, slots);
             const stations = tiles.map(({ station: where, song }) => ({ station: where, song: song && { playId: song.playId, title: song.title, artist: song.artist, playedAt: song.playedAt } }));
             return { content: text(spokenOnAir(tiles)), structuredContent: card({ view: "on-air", tiles }, { stations }) };
           }, playlistUnavailable),
@@ -657,6 +679,8 @@ export function buildMcpHandler(deps: Deps) {
             }
             // A named song always beats a number: the remembered list can be 30 minutes stale.
             const onScreen = number === undefined || title ? null : await screenPlayOrNull(listenerId, number, Boolean(playId || title || slug));
+            const idle = onScreen && number !== undefined ? await idleOnAirRow(listenerId, number, onScreen) : null;
+            if (idle) return { content: text(noSongOnAirSpeech(STATION_NAMES[idle])), structuredContent: { status: "no_song", station: idle } };
             const firstId = onScreen ?? playId;
             let saved: SavedFind = firstId ? await deps.playlist().saveFind(listenerId, firstId) : { status: "not_found" };
             let hit: RecentSong | undefined;

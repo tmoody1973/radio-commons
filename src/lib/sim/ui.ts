@@ -22,9 +22,10 @@ const plain = (text: string | undefined) => (text ?? "").replace(/["[\]]/g, "");
 export function onScreenFrom(structured: Record<string, unknown> | undefined): OnScreen | undefined {
   const story = structured?.story as { storyId: string; title: string } | undefined;
   if (story?.storyId) return { storyId: story.storyId, title: story.title };
-  // on_air_now: the stations with a song, numbered in order, as save_find's screen memory numbers them.
+  // on_air_now: every row in card order, as save_find's screen memory numbers them; a row with no song keeps its number.
   const onAir = Array.isArray(structured?.stations)
-    ? (structured.stations as { station?: unknown; song?: unknown }[]).flatMap(({ station, song }) => (isShownSong(song) && typeof station === "string" ? [{ ...song, station }] : []))
+    ? (structured.stations as { station?: unknown; song?: unknown }[]).flatMap(({ station, song }) =>
+      typeof station !== "string" ? [] : [isShownSong(song) ? { ...song, station } : { playId: "", title: "", artist: "", station }])
     : undefined;
   const items = onAir ?? structured?.songs ?? structured?.matches;
   // Story lists share the `matches` key; only items shaped like songs belong in the song note.
@@ -35,7 +36,7 @@ export function onScreenFrom(structured: Record<string, unknown> | undefined): O
 
 function screenNote(onScreen: OnScreen): string {
   if ("storyId" in onScreen) return `"${plain(onScreen.title)}", storyId ${onScreen.storyId}`;
-  return onScreen.songs.map((song, i) => `${i + 1}. "${plain(song.title)}" by ${plain(song.artist)}${song.station ? ` on ${plain(song.station)}` : ""}, playId ${song.playId}`).join("; ");
+  return onScreen.songs.map((song, i) => !song.playId ? `${i + 1}. no song on ${plain(song.station)}` : `${i + 1}. "${plain(song.title)}" by ${plain(song.artist)}${song.station ? ` on ${plain(song.station)}` : ""}, playId ${song.playId}`).join("; ");
 }
 
 /** Alexa+ keeps tool results in the conversation; the simulator keeps what was on screen, ids included. */

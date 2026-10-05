@@ -31,7 +31,7 @@ export const checkSaveNumber = (n: number) => (trail: TrailEntry[], shown: Shown
 export const checkSaveStation = (station: string) => (trail: TrailEntry[], shown: ShownSong[]): CheckResult => {
   const calls = toolCalls(trail, "save_find");
   const shownId = shown.find((song) => song.station === station)?.playId;
-  const right = (call: ToolEntry) => call.input.station === station || (shownId !== undefined && call.input.playId === shownId);
+  const right = (call: ToolEntry) => call.input.station === station || (!!shownId && call.input.playId === shownId);
   return result(calls.length > 0 && calls.every((call) => right(call) && worked(call, true)), calls);
 };
 
