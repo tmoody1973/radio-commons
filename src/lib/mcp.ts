@@ -2,11 +2,11 @@ import { registerAppResource, registerAppTool, RESOURCE_MIME_TYPE } from "@model
 import { createMcpHandler } from "mcp-handler";
 import { z } from "zod";
 import { BackstoryUnavailable, type BackstoryClient, type Story } from "@/lib/backstory";
-import { PlaylistUnavailable, type Digest, type PlaylistClient, type RecallMatch, type SavedFind, type Station } from "@/lib/playlist";
+import { PlaylistUnavailable, type Digest, type PlaylistClient, type RecallMatch, type RecentSong, type SavedFind, type Station } from "@/lib/playlist";
 import { listenerIdFrom } from "@/lib/listenerAuth";
 import { FieldGuideUnavailable, type FieldGuideClient, type PublicEvent } from "@/lib/fieldGuide";
 import { fullPlacesView, renderView, type CardView, type EventItem } from "@/lib/card";
-import { songCardFromFacts, songCardFromMatch, songCardFromRecent, songCardFromSearch, STATION_NAMES } from "@/lib/card/song";
+import { sizedArtwork, songCardFromFacts, songCardFromMatch, songCardFromRecent, songCardFromSearch, STATION_NAMES } from "@/lib/card/song";
 import { bestRecentMatch } from "@/lib/songMatch";
 import { SITE } from "@/lib/card/tokens";
 import { clusterPins, mapFrame, pinPositions } from "@/lib/map/geo";
@@ -36,6 +36,8 @@ const CARD_CSP = {
     "https://fonts.googleapis.com", "https://fonts.gstatic.com", "https://unpkg.com",
     // Song cards: Apple album artwork and 30-second previews.
     "https://*.mzstatic.com", "https://audio-ssl.itunes.apple.com",
+    // Finds and digest cards: event photos from Ticketmaster and AXS listings.
+    "https://s1.ticketm.net", "https://images.discovery-prod.axs.com",
   ],
   connectDomains: ["https://maps.geo.us-east-1.amazonaws.com", "https://unpkg.com"],
 };
@@ -470,7 +472,8 @@ export function buildMcpHandler(deps: Deps) {
           }, playlistUnavailable),
       );
 
-      server.registerTool(
+      registerAppTool(
+        server,
         "save_find",
         {
           title: "Save a song to 88Nine Finds",
@@ -483,6 +486,7 @@ export function buildMcpHandler(deps: Deps) {
             station: STATION_SLUG.optional(),
           }),
           annotations: { idempotentHint: true },
+          ...CARD,
         },
         async ({ number, playId, title, artist, station: slug }, context) =>
           timed("save_find", async () => {
@@ -492,28 +496,36 @@ export function buildMcpHandler(deps: Deps) {
             const onScreen = number === undefined || title ? null : await screenPlayOrNull(listenerId, number, Boolean(playId || title));
             const firstId = onScreen ?? playId;
             let saved: SavedFind = firstId ? await deps.playlist().saveFind(listenerId, firstId) : { status: "not_found" };
+            let hit: RecentSong | undefined;
             // Hosts lose ids between turns; the title and artist the listener heard still name the song.
             if (saved.status === "not_found" && (title || artist)) {
-              const found = bestRecentMatch(await deps.playlist().searchPlaysIndexed(slug, (title ?? artist)!), { title, artist });
+              const hits = await deps.playlist().searchPlaysIndexed(slug, (title ?? artist)!);
+              const found = bestRecentMatch(hits, { title, artist });
               if (found) saved = await deps.playlist().saveFind(listenerId, found);
+              hit = hits.find((song) => song.playId === found);
             }
-            return { content: text(spokenSaved(saved)), structuredContent: { ...saved } };
+            if (saved.status !== "ok") return { content: text(spokenSaved(saved)), structuredContent: { ...saved } };
+            // ponytail: artwork only when the save went through a search hit; a playId save shows a plain tile rather than pay another lookup.
+            const view = { view: "saved" as const, saved, artworkUrl: sizedArtwork(hit?.artworkUrl ?? null), previewUrl: hit?.previewUrl ?? null };
+            return { content: text(spokenSaved(saved)), structuredContent: { ...saved, ...card(view) } };
           }, playlistUnavailable),
       );
 
-      server.registerTool(
+      registerAppTool(
+        server,
         "list_finds",
         {
           title: "List my Finds",
           description: "List the listener's saved Radio Milwaukee Finds, newest first, numbered. Always call this tool when the listener asks, even if they may not have linked their account — the tool starts account linking itself. Use for 'what's in my Finds?'.",
           inputSchema: z.object({ limit: z.number().int().min(1).max(10).optional() }),
+          ...CARD,
         },
         async ({ limit }, context) =>
           timed("list_finds", async () => {
             const listenerId = listenerIdFrom(context.http ?? {});
             if (!listenerId) return accountLinkingRequired();
             const finds = await deps.playlist().listFinds(listenerId, limit);
-            return { content: text(spokenFinds(finds)), structuredContent: { finds } };
+            return { content: text(spokenFinds(finds)), structuredContent: { ...(finds.length ? card({ view: "finds", finds }) : {}), finds } };
           }, playlistUnavailable),
       );
 

@@ -1,16 +1,19 @@
 import type { Passage, Story, StoryCardMatch } from "@/lib/backstory";
 import type { PublicEvent } from "@/lib/fieldGuide";
 import type { Badge } from "@/lib/map/geo";
-import type { Digest, DigestItem } from "@/lib/playlist";
+import type { Digest, DigestItem, FindRow, SavedFind } from "@/lib/playlist";
 import { pinnedPlaces } from "@/lib/map/staticMap";
 import { directionsUrl, streetAddress } from "@/lib/maps";
 import { ARTICLE_SOURCE, clock, longDate, monthYear } from "@/lib/speech";
-import { STATION_NAMES, type SongCard } from "./song";
+import { localClock } from "@/lib/stationTime";
+import { sizedArtwork, STATION_NAMES, type SongCard } from "./song";
+import { cleanTicketUrl } from "./tickets";
 import { SITE } from "./tokens";
 
 export interface MapData { url: string; w: number; h: number; badges: Badge[]; anchor?: { x: number; y: number; name: string } }
 /** An event with its time already put into words ("tonight at 8 PM"), so rendering stays clock-free. */
 export interface EventItem { event: PublicEvent; when: string }
+export type SavedOk = Extract<SavedFind, { status: "ok" }>;
 export type CardView =
   | { view: "story"; story: Story; releaseEvent?: PublicEvent | null }
   | { view: "quote"; story: Story; passages: Passage[] }
@@ -20,7 +23,10 @@ export type CardView =
   | { view: "events-map"; items: EventItem[]; map: MapData }
   | { view: "song"; song: SongCard }
   | { view: "songs"; songs: SongCard[] }
-  | { view: "digest"; artists: Digest["artists"]; items: DigestItem[] };
+  | { view: "digest"; artists: Digest["artists"]; items: DigestItem[] }
+  | { view: "finds"; finds: FindRow[] }
+  /** Artwork and preview are known only when the save went through a search hit; otherwise a plain tile. */
+  | { view: "saved"; saved: SavedOk; artworkUrl: string | null; previewUrl: string | null };
 
 const escape = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
@@ -227,6 +233,50 @@ function songsView(songs: SongCard[]): string {
 const shortDay = (ms: number) => new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "America/Chicago" }).format(ms).replace(",", "");
 const stationLabel = (slug: string) => STATION_NAMES[slug as keyof typeof STATION_NAMES] ?? slug;
 
+const monthDay = (ms: number) => new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "America/Chicago" }).format(ms);
+const ticketsButton = (url: string | null | undefined, venue: string) => {
+  const clean = cleanTicketUrl(url);
+  return clean ? `<button type="button" class="secondary tickets" data-url="${escape(clean)}" aria-label="Get tickets at ${escape(venue)}">Get tickets</button>` : "";
+};
+// not_linked and failed get no chip: nothing the listener can do from this screen.
+const APPLE_CHIPS: Record<string, string> = { added: "In Apple Music", pending: "Adding…", expired: "Reconnect Apple Music" };
+
+/** Saved songs as numbered tiles (the label is the number the voice reads), each with its preview and a follow-up ask. */
+function findsView(finds: FindRow[]): string {
+  const tiles = finds.slice(0, 10).map((find) => {
+    const chip = APPLE_CHIPS[find.appleMusic.status];
+    const preview = find.previewUrl ? `<button type="button" class="secondary row-play" data-audio="${escape(find.previewUrl)}">${PLAY} Preview</button>` : "";
+    const more = `<button type="button" class="secondary ask" data-ask="${escape(`Tell me about "${find.title}" by ${find.artist}`)}">Tell me more</button>`;
+    return `<article class="tile song find">${art(sizedArtwork(find.artworkUrl), find.artist, "tile-art")}<span class="badge">${escape(find.label)}</span>`
+      + (chip ? `<span class="chip${find.appleMusic.status === "expired" ? " warn" : ""}">${chip}</span>` : "")
+      + `<span class="tile-title">${escape(find.title)}</span>`
+      + `<span class="tile-date">${escape(find.artist)}<br>${escape(stationLabel(find.stationSlug))} · ${escape(monthDay(find.savedAt))}</span>`
+      + `<span class="tile-actions">${preview}${more}</span></article>`;
+  }).join("");
+  return `<article class="card stories">${LOGO}<div class="carousel">${tiles}</div></article>`;
+}
+
+function nextShowRow(show: NonNullable<SavedOk["nextShow"]>, artist: string): string {
+  return `<div class="next"><p class="meta">Next show</p><div class="row-wrap"><div class="row show-row">${art(show.imageUrl ?? null, artist, "thumb")}`
+    + `<span class="what"><b>${escape(show.venue)} · ${escape(show.city)}</b><small>${escape(shortDay(show.startsAtMs))} · ${escape(localClock(show.startsAtMs))}</small></span></div>`
+    + `${ticketsButton(show.ticketUrl, show.venue)}</div></div>`;
+}
+
+/** The save, confirmed on screen: the song, where it went (Finds, Apple Music), and what comes with it (show, story, follow). */
+function savedView(saved: SavedOk, artworkUrl: string | null, previewUrl: string | null): string {
+  const apple = saved.appleMusic === "pending" ? "Adding to Apple Music" : "Connect Apple Music to add songs to your library";
+  const preview = previewUrl ? `<button type="button" class="primary play" data-audio="${escape(previewUrl)}">${PLAY} Play preview</button>` : "";
+  const story = saved.story
+    ? `<button type="button" class="secondary ask" data-ask="${escape(`Play the ${saved.story.show} story about ${saved.artistName}`)}">${PLAY} Their ${escape(saved.story.show)} story</button>`
+    : "";
+  return `<article class="card story music saved">${LOGO}<div class="body">${art(artworkUrl, saved.artist, "art")}<div class="info">`
+    + `<p class="meta done">${saved.alreadySaved ? "✓ Already in your Finds" : "✓ Saved to your Finds"}</p>`
+    + `<h2>${escape(saved.title)}</h2><p class="line">${escape(saved.artist)}</p>`
+    + `<p class="line small">${apple}${saved.firstFollow ? ` · Following ${escape(saved.artistName)} ✓` : ""}</p>`
+    + (preview || story ? `<div class="actions">${preview}${story}</div>` : "")
+    + `</div></div>${saved.nextShow ? nextShowRow(saved.nextShow, saved.artistName) : ""}</article>`;
+}
+
 function digestLine(item: DigestItem): string {
   switch (item.kind) {
     case "spins": return `Played ${item.total}× on ${item.byStation.map((s) => stationLabel(s.station)).join(", ")}`;
@@ -242,9 +292,12 @@ function digestView(artists: Digest["artists"], items: DigestItem[]): string {
     const mine = items.filter((item) => "artistId" in item && item.artistId === artist.artistId);
     if (mine.length === 0) return [];
     const story = mine.find((item): item is Extract<DigestItem, { kind: "story" }> => item.kind === "story");
+    const show = mine.find((item): item is Extract<DigestItem, { kind: "show" }> => item.kind === "show");
     const ask = story ? `<button type="button" class="secondary ask" data-ask="${escape(`Play the ${story.show} story about ${artist.name}`)}">Play story</button>` : "";
-    return [`<article class="tile digest">${art(artist.artworkUrl, artist.name, "tile-art")}<span class="tile-title">${escape(artist.name)}</span>`
-      + `<span class="tile-date">${mine.map((item) => escape(digestLine(item))).join("<br>")}</span>${ask ? `<span class="tile-actions">${ask}</span>` : ""}</article>`];
+    const actions = ask + (show ? ticketsButton(show.ticketUrl, show.venue) : "");
+    // The show's photo says "they're coming" better than the album cover does.
+    return [`<article class="tile digest">${art(show?.imageUrl ?? artist.artworkUrl, artist.name, "tile-art")}<span class="tile-title">${escape(artist.name)}</span>`
+      + `<span class="tile-date">${mine.map((item) => escape(digestLine(item))).join("<br>")}</span>${actions ? `<span class="tile-actions">${actions}</span>` : ""}</article>`];
   }).join("");
   const apple = items.flatMap((item) => (item.kind === "apple" ? [
     ...(item.added > 0 ? [`${item.added} of your saved songs ${item.added === 1 ? "is" : "are"} in Apple Music.`] : []),
@@ -265,5 +318,7 @@ export function renderView(card: CardView): string {
     case "song": return songView(card.song);
     case "songs": return songsView(card.songs);
     case "digest": return digestView(card.artists, card.items);
+    case "finds": return findsView(card.finds);
+    case "saved": return savedView(card.saved, card.artworkUrl, card.previewUrl);
   }
 }

@@ -226,9 +226,10 @@ function savedExtras(saved: Extract<SavedFind, { status: "ok" }>): string {
 
 export function spokenFinds(finds: FindRow[]): string {
   if (finds.length === 0) return "Your Finds are empty. After I name a song, say 'save it'.";
-  const items = finds.map((f) => `${f.label}: "${f.title}" by ${f.artist}`).join("; ");
+  const items = finds.slice(0, SPOKEN_LIST_MAX).map((f) => `${f.label}: "${f.title}" by ${f.artist}`).join("; ");
+  const rest = finds.length - SPOKEN_LIST_MAX;
   const reconnect = finds.some((f) => f.appleMusic.status === "expired") ? " Apple Music needs reconnecting at radiomilwaukee.org slash connect." : "";
-  return `Your latest Finds — ${items}.${reconnect}`;
+  return `Your latest Finds — ${items}${rest > 0 ? `; and ${rest} more on screen` : ""}.${reconnect}`;
 }
 
 export function spokenDeleted({ deletedFinds, deletedLink }: { deletedFinds: number; deletedLink: boolean }): string {
