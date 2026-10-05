@@ -169,4 +169,34 @@ describe("the card page", () => {
     expect(html.match(/class="secondary reserve"/g)).toHaveLength(1);
     expect(storyCardPage("k")).toContain('has("reserve")');
   });
+
+  describe("digest view", () => {
+    const artists = [{ artistId: "a1", name: `Thao ${XSS}`, artworkUrl: "https://img/t.jpg" }, { artistId: "a2", name: "Nas", artworkUrl: null }];
+    const items = [
+      { kind: "spins" as const, artistId: "a2", artist: "Nas", total: 2, byStation: [{ station: "88nine", count: 2 }] },
+      { kind: "show" as const, artistId: "a1", artist: "Thao", venue: "Turner Hall", city: "Milwaukee", startsAtMs: Date.parse("2026-10-10T01:00:00Z") },
+      { kind: "story" as const, artistId: "a1", artist: `Thao ${XSS}`, storyId: "s1", title: "t", show: "Ladies First", publishedAt: 0 },
+      { kind: "apple" as const, added: 2, expired: 1 },
+    ];
+    const html = renderView({ view: "digest", artists, items });
+    it("renders one tile per artist in artists order, artwork or plain", () => {
+      expect(html.match(/class="tile digest"/g)).toHaveLength(2);
+      expect(html.indexOf("img/t.jpg")).toBeLessThan(html.indexOf("Nas"));
+      expect(html).toContain('class="tile-art ph"');
+    });
+    it("builds each artist's lines from their items", () => {
+      expect(html).toContain("Played 2× on 88Nine");
+      expect(html).toContain("Turner Hall · Fri Oct 9");
+      expect(html).toContain("New: Ladies First story");
+    });
+    it("offers Play story only for an artist with a story, and escapes everything", () => {
+      expect(html.match(/Play story/g)).toHaveLength(1);
+      expect(html).toContain('data-ask="Play the Ladies First story about Thao &lt;script&gt;alert(1)&lt;/script&gt;"');
+      expect(html).not.toContain(XSS);
+    });
+    it("puts Apple Music as a final text line, not a tile", () => {
+      expect(html).toContain("2 of your saved songs are in Apple Music");
+      expect(html).toContain("Apple Music needs reconnecting");
+    });
+  });
 });

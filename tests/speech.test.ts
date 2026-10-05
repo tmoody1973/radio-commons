@@ -2,7 +2,7 @@ import { EVENT } from "./fixtures";
 import { describe, expect, it } from "vitest";
 import type { Story } from "@/lib/backstory";
 import type { SavedFind } from "@/lib/playlist";
-import { EVENTS_UNAVAILABLE_SPEECH, NOT_ALLOWED_SPEECH, NO_PASSAGE_SPEECH, clock, directAudioUrl, eventTime, monthYear, spokenEvents, spokenMatches, spokenPassages, spokenPicks, spokenPlaces, spokenFollowed, spokenSaved, spokenStory, spokenUnfollowed } from "@/lib/speech";
+import { EVENTS_UNAVAILABLE_SPEECH, NOT_ALLOWED_SPEECH, NO_PASSAGE_SPEECH, clock, directAudioUrl, eventTime, monthYear, spokenEvents, spokenMatches, spokenPassages, spokenPicks, spokenPlaces, spokenFollowed, spokenSaved, spokenStory, spokenUnfollowed, spokenDigest } from "@/lib/speech";
 
 const STORY: Story = {
   storyId: "s1", show: "Uniquely Milwaukee", title: "Creativity is sustainable, accessible at 414 Art Revival",
@@ -159,5 +159,31 @@ describe("follow speech", () => {
     expect(spokenUnfollowed({ status: "ok", artistName: "Thao" }, "Thao")).toBe("Done — I won't keep an eye out for Thao anymore.");
     expect(spokenUnfollowed({ status: "not_following" }, "Thao")).toBe("You're not following Thao.");
     expect(spokenUnfollowed({ status: "unknown_artist" }, "Thao")).toBe("I don't have Thao in our playlist yet.");
+  });
+
+  describe("spokenDigest", () => {
+    const show = { kind: "show" as const, artistId: "a1", artist: "Thao", venue: "Turner Hall", city: "Milwaukee", startsAtMs: Date.parse("2026-10-09T01:00:00Z") };
+    const spins = { kind: "spins" as const, artistId: "a2", artist: "Nas", total: 4, byStation: [{ station: "hyfin", count: 3 }, { station: "88nine", count: 1 }] };
+    const story = { kind: "story" as const, artistId: "a3", artist: "Zhané", storyId: "s1", title: "t", show: "Ladies First", publishedAt: 0 };
+    it("reads a show with its Chicago-time day", () => {
+      expect(spokenDigest([show])).toBe("Since your last visit: Thao plays Turner Hall in Milwaukee on Thursday, October 8.");
+    });
+    it("reads spins per station with once, twice and N times", () => {
+      expect(spokenDigest([spins])).toBe("Since your last visit: HYFIN played Nas 3 times and 88Nine once.");
+      expect(spokenDigest([{ ...spins, byStation: [{ station: "88nine", count: 2 }] }])).toBe("Since your last visit: 88Nine played Nas twice.");
+    });
+    it("reads a story, with And when it follows another item", () => {
+      expect(spokenDigest([story])).toBe("Since your last visit: there's a new Ladies First story about Zhané.");
+      expect(spokenDigest([spins, story])).toBe("Since your last visit: HYFIN played Nas 3 times and 88Nine once. And there's a new Ladies First story about Zhané.");
+    });
+    it("reads Apple Music added and expired", () => {
+      expect(spokenDigest([{ kind: "apple", added: 3, expired: 0 }])).toBe("Since your last visit: 3 of your saved songs are in Apple Music.");
+      expect(spokenDigest([{ kind: "apple", added: 0, expired: 1 }])).toBe("Since your last visit: Apple Music needs reconnecting at radiomilwaukee.org slash connect.");
+      expect(spokenDigest([{ kind: "apple", added: 2, expired: 1 }])).toBe("Since your last visit: 2 of your saved songs are in Apple Music. Apple Music needs reconnecting at radiomilwaukee.org slash connect.");
+    });
+    it("reads only the top three items, in order", () => {
+      const text = spokenDigest([show, spins, story, { kind: "apple", added: 3, expired: 0 }]);
+      expect(text).toBe("Since your last visit: Thao plays Turner Hall in Milwaukee on Thursday, October 8. HYFIN played Nas 3 times and 88Nine once. And there's a new Ladies First story about Zhané.");
+    });
   });
 });

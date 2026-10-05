@@ -1,13 +1,13 @@
-import { creditLines } from "@/lib/card/song";
+import { creditLines, STATION_NAMES } from "@/lib/card/song";
 import type { Passage, Story, StoryCardMatch } from "@/lib/backstory";
 import type { PublicEvent, When } from "@/lib/fieldGuide";
-import type { FindRow, FollowResult, RecallResult, SavedFind, TrackFacts, UnfollowResult } from "@/lib/playlist";
+import type { DigestItem, FindRow, FollowResult, RecallResult, SavedFind, Station, TrackFacts, UnfollowResult } from "@/lib/playlist";
 import { localClock } from "@/lib/stationTime";
 import { streetAddress } from "@/lib/maps";
 
 export const UNAVAILABLE_SPEECH = "I can't reach Radio Milwaukee's stories right now. Please try again in a minute.";
 export const PLAYLIST_UNAVAILABLE_SPEECH = "I can't reach Radio Milwaukee's playlist right now. Please try again in a moment.";
-export const LINK_ACCOUNT_SPEECH = "Link your Radio Milwaukee account to save songs.";
+export const LINK_ACCOUNT_SPEECH = "Link your Radio Milwaukee account to save songs and follow artists.";
 export const NOT_FOUND_SPEECH = "I couldn't find that Radio Milwaukee story.";
 export const NOT_ALLOWED_SPEECH = "Detailed answers aren't available for this episode.";
 export const NO_PASSAGE_SPEECH = "I couldn't find that in the episode.";
@@ -238,6 +238,7 @@ export function spokenDeleted({ deletedFinds, deletedLink }: { deletedFinds: num
 }
 
 export const WHICH_ARTIST_TO_FOLLOW_SPEECH = "Which artist should I follow?";
+export const WHICH_ARTIST_TO_UNFOLLOW_SPEECH = "Which artist should I stop following?";
 const unknownArtist = (name: string) => `I don't have ${name} in our playlist yet.`;
 
 /** `said` is the name the listener used; absent when they only gave a playId. */
@@ -250,4 +251,24 @@ export function spokenUnfollowed(result: UnfollowResult, said: string): string {
   if (result.status === "unknown_artist") return unknownArtist(said);
   if (result.status === "not_following") return `You're not following ${said}.`;
   return `Done — I won't keep an eye out for ${result.artistName} anymore.`;
+}
+
+export const EMPTY_DIGEST_SPEECH = "Nothing new from your artists yet — here's what the station's excited about.";
+const DIGEST_SPOKEN_ITEMS = 3;
+const timesSaid = (count: number) => (count === 1 ? "once" : count === 2 ? "twice" : `${count} times`);
+const stationName = (slug: string) => STATION_NAMES[slug as Station] ?? slug;
+
+function spokenDigestItem(item: DigestItem, isFirst: boolean): string {
+  switch (item.kind) {
+    case "show": return `${item.artist} plays ${item.venue} in ${item.city} on ${showDay(item.startsAtMs)}.`;
+    case "spins": return `${listOf(item.byStation.map((s, i) => `${stationName(s.station)}${i === 0 ? ` played ${item.artist}` : ""} ${timesSaid(s.count)}`))}.`;
+    case "story": return `${isFirst ? "" : "And "}there's a new ${item.show} story about ${item.artist}.`;
+    case "apple": return [item.added > 0 ? `${item.added} of your saved songs ${item.added === 1 ? "is" : "are"} in Apple Music.` : "", item.expired > 0 ? "Apple Music needs reconnecting at radiomilwaukee.org slash connect." : ""].filter(Boolean).join(" ");
+  }
+}
+
+/** The top few things that happened since the listener last asked, as one spoken run. */
+export function spokenDigest(items: DigestItem[]): string {
+  const spoken = items.slice(0, DIGEST_SPOKEN_ITEMS).map((item, i) => spokenDigestItem(item, i === 0)).filter(Boolean);
+  return `Since your last visit: ${spoken.join(" ")}`;
 }

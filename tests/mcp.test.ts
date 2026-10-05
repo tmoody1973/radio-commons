@@ -2,7 +2,7 @@ import { createSign, generateKeyPairSync } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 import { withMcpAuth } from "mcp-handler";
 import { gateAuthTools, verifyListenerToken } from "@/lib/listenerAuth";
-import { PLAYLIST_UNAVAILABLE_SPEECH } from "@/lib/speech";
+import { LINK_ACCOUNT_SPEECH, PLAYLIST_UNAVAILABLE_SPEECH } from "@/lib/speech";
 import { BackstoryUnavailable } from "@/lib/backstory";
 import { FieldGuideUnavailable, type EventQuery } from "@/lib/fieldGuide";
 import { PlaylistUnavailable } from "@/lib/playlist";
@@ -14,16 +14,16 @@ import { INITIALIZE, mcpPost, mcpPostAs, mcpRequest, send } from "./mcp-wire";
 const NOW = new Date("2026-10-04T20:00:00Z");
 const handlerWith = (backstory = fakeBackstory(), fieldGuide = fakeFieldGuide(), playlist = fakePlaylist()) =>
   buildMcpHandler({ backstory: () => backstory, fieldGuide: () => fieldGuide, playlist: () => playlist, now: () => NOW, defer: (task) => void task(), cardHtml: () => "<!doctype html><title>card</title>" });
-const PLAYLIST_TOOLS = ["find_song_played", "get_track_story", "save_find", "list_finds", "delete_my_finds", "follow_artist", "unfollow_artist"];
+const PLAYLIST_TOOLS = ["find_song_played", "get_track_story", "save_find", "list_finds", "delete_my_finds", "follow_artist", "unfollow_artist", "whats_new_for_me"];
 const call = (name: string, args: Record<string, unknown>) => ({ method: "tools/call", params: { name, arguments: args } });
 
 describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
-  it("initializes on protocol 2025-11-25 and lists the thirteen tools", async () => {
+  it("initializes on protocol 2025-11-25 and lists the sixteen tools", async () => {
     const handler = handlerWith();
     const init = await mcpPost(handler, INITIALIZE);
     expect(init.message.result?.protocolVersion).toBe("2025-11-25");
     const tools = await mcpPost(handler, { method: "tools/list" }, 2);
-    expect(tools.message.result.tools.map((t: { name: string }) => t.name).sort()).toEqual(["ask_station_story", "delete_my_finds", "find_events", "find_song_played", "find_station_story", "follow_artist", "get_station_story", "get_track_story", "latest_station_stories", "list_finds", "recent_songs", "save_find", "search_playlist", "station_picks", "unfollow_artist"]);
+    expect(tools.message.result.tools.map((t: { name: string }) => t.name).sort()).toEqual(["ask_station_story", "delete_my_finds", "find_events", "find_song_played", "find_station_story", "follow_artist", "get_station_story", "get_track_story", "latest_station_stories", "list_finds", "recent_songs", "save_find", "search_playlist", "station_picks", "unfollow_artist", "whats_new_for_me"]);
   });
 
   it("find_station_story returns matches and a spoken shortlist", async () => {
@@ -442,7 +442,7 @@ describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
       const { message } = await mcpPost(handlerWith(undefined, undefined, playlist), call(name, args));
       expect(message.result.isError).toBe(true);
       expect(message.result.structuredContent).toEqual({ error: "account_linking_required" });
-      expect(message.result.content[0].text).toBe("Link your Radio Milwaukee account to save songs.");
+      expect(message.result.content[0].text).toBe(LINK_ACCOUNT_SPEECH);
     });
     it.each([["save_find", { playId: "play_1" }], ["list_finds", {}], ["delete_my_finds", {}]])("%s turns a playlist outage into the playlist apology", async (name, args) => {
       const down = async () => { throw new PlaylistUnavailable("down"); };
@@ -493,6 +493,60 @@ describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
       for (const name of ["follow_artist", "unfollow_artist"]) {
         expect(message.result.tools.find((t: { name: string }) => t.name === name)?.annotations).toMatchObject({ idempotentHint: true });
       }
+    });
+    describe("whats_new_for_me", () => {
+      const DIGEST = {
+        since: 1, now: 777,
+        items: [
+          { kind: "show" as const, artistId: "a1", artist: "Thao", venue: "Turner Hall", city: "Milwaukee", startsAtMs: Date.parse("2026-10-06T20:00:00Z") },
+          { kind: "spins" as const, artistId: "a2", artist: "Nas", total: 4, byStation: [{ station: "hyfin", count: 3 }, { station: "88nine", count: 1 }] },
+          { kind: "story" as const, artistId: "a3", artist: "Zhané", storyId: "s1", title: "t", show: "Ladies First", publishedAt: 0 },
+        ],
+        artists: [{ artistId: "a1", name: "Thao", artworkUrl: null }, { artistId: "a2", name: "Nas", artworkUrl: null }, { artistId: "a3", name: "Zhané", artworkUrl: null }],
+      };
+      const run = (playlist = fakePlaylist(), fieldGuide = fakeFieldGuide()) => mcpPostAs(handlerWith(undefined, fieldGuide, playlist), call("whats_new_for_me", {}), "user_1");
+      it("refuses without a linked listener", async () => {
+        const never = async () => { throw new Error("playlist must not be called"); };
+        const { message } = await mcpPost(handlerWith(undefined, undefined, fakePlaylist({ digest: never })), call("whats_new_for_me", {}));
+        expect(message.result.isError).toBe(true);
+        expect(message.result.structuredContent).toEqual({ error: "account_linking_required" });
+      });
+      it("speaks the digest, shows the digest card and marks it seen once", async () => {
+        const seen: [string, number][] = [];
+        const { message } = await run(fakePlaylist({ digest: async () => DIGEST, markDigestSeen: async (id, at) => { seen.push([id, at]); } }));
+        expect(message.result.content[0].text).toBe("Since your last visit: Thao plays Turner Hall in Milwaukee on Tuesday, October 6. HYFIN played Nas 3 times and 88Nine once. And there's a new Ladies First story about Zhané.");
+        expect(message.result.structuredContent.view).toBe("digest");
+        expect(seen).toEqual([["user_1", 777]]);
+      });
+      it("falls back to the picks, still marks seen, when nothing is new", async () => {
+        const seen: number[] = [];
+        const { message } = await run(fakePlaylist({ digest: async () => ({ since: 1, now: 5, items: [], artists: [] }), markDigestSeen: async (_id, at) => { seen.push(at); } }));
+        expect(message.result.content[0].text).toMatch(/^Nothing new from your artists yet — here's what the station's excited about\. 1, Tarik Moody picks Samara Joy/);
+        expect(message.result.structuredContent.view).toBe("events");
+        expect(seen).toEqual([5]);
+      });
+      it("answers the empty sentence alone when the picks are down", async () => {
+        const down = fakeFieldGuide({ picks: async () => { throw new FieldGuideUnavailable("down"); } });
+        const { message } = await run(fakePlaylist(), down);
+        expect(message.result.isError).toBeFalsy();
+        expect(message.result.content[0].text).toBe("Nothing new from your artists yet — here's what the station's excited about.");
+      });
+      it("does not mark seen when the digest read fails", async () => {
+        const seen: number[] = [];
+        const { message } = await run(fakePlaylist({ digest: async () => { throw new PlaylistUnavailable("down"); }, markDigestSeen: async (_id, at) => { seen.push(at); } }));
+        expect(message.result.content[0].text).toBe(PLAYLIST_UNAVAILABLE_SPEECH);
+        expect(seen).toEqual([]);
+      });
+      it("is a card tool", async () => {
+        const { message } = await mcpPost(handlerWith(), { method: "tools/list" });
+        expect(message.result.tools.find((t: { name: string }) => t.name === "whats_new_for_me")._meta.ui.resourceUri).toBe(CARD_URI);
+      });
+    });
+    it("follow and unfollow ask which artist for a whitespace-only name, without touching the playlist", async () => {
+      const never = async () => { throw new Error("playlist must not be called"); };
+      const playlist = fakePlaylist({ follow: never, unfollow: never });
+      expect((await mcpPostAs(handlerWith(undefined, undefined, playlist), call("follow_artist", { artist: "   " }), "user_1")).message.result.content[0].text).toBe("Which artist should I follow?");
+      expect((await mcpPostAs(handlerWith(undefined, undefined, playlist), call("unfollow_artist", { artist: "   " }), "user_1")).message.result.content[0].text).toBe("Which artist should I stop following?");
     });
     it("a real bearer reaches save_find as the listener id through withMcpAuth", async () => {
       const { publicKey, privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });

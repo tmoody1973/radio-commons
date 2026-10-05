@@ -13,8 +13,8 @@ import { clusterPins, mapFrame, pinPositions } from "@/lib/map/geo";
 import { createHash } from "node:crypto";
 import { eventMapPoints, MAP_H, MAP_W, pinnedEvents, pinnedPlaces } from "@/lib/map/staticMap";
 import {
-  directAudioUrl, eventTime, EVENTS_UNAVAILABLE_SPEECH, NO_PLACES_FOR_EVENTS_SPEECH, NO_PLACES_SPEECH, spokenEvents, spokenPicks, NOT_ALLOWED_SPEECH, NOT_FOUND_SPEECH, LINK_ACCOUNT_SPEECH, PLAYLIST_UNAVAILABLE_SPEECH, spokenFinds, spokenLatest, spokenMatches, spokenPassages,
-  spokenPlaces, spokenRecall, spokenRecent, spokenSearch, spokenDeleted, spokenFollowed, spokenSaved, spokenUnfollowed, WHICH_ARTIST_TO_FOLLOW_SPEECH, spokenStory, spokenTrackFacts, UNAVAILABLE_SPEECH,
+  directAudioUrl, eventTime, EVENTS_UNAVAILABLE_SPEECH, NO_PLACES_FOR_EVENTS_SPEECH, NO_PLACES_SPEECH, spokenEvents, spokenPicks, NOT_ALLOWED_SPEECH, NOT_FOUND_SPEECH, EMPTY_DIGEST_SPEECH, LINK_ACCOUNT_SPEECH, PLAYLIST_UNAVAILABLE_SPEECH, spokenDigest, spokenFinds, spokenLatest, spokenMatches, spokenPassages,
+  spokenPlaces, spokenRecall, spokenRecent, spokenSearch, spokenDeleted, spokenFollowed, spokenSaved, spokenUnfollowed, WHICH_ARTIST_TO_FOLLOW_SPEECH, WHICH_ARTIST_TO_UNFOLLOW_SPEECH, spokenStory, spokenTrackFacts, UNAVAILABLE_SPEECH,
 } from "@/lib/speech";
 import { localWindow } from "@/lib/stationTime";
 import { getStation } from "@/lib/stations";
@@ -144,6 +144,15 @@ export function buildMcpHandler(deps: Deps) {
         logFailure(); // e.g. after() outside a request scope: never fail the reply
       }
     };
+  // The station's picks as spoken text and an events card; shared by station_picks and an empty digest.
+  const picksReply = async () => {
+    const at = now();
+    const events = (await deps.fieldGuide().picks()).slice(0, 3);
+    return {
+      speech: spokenPicks(events, at),
+      ...(events.length ? { structuredContent: card({ view: "events", items: events.map((event) => ({ event, when: eventTime(event.startAt, at) })) }, { events }) } : {}),
+    };
+  };
   // So "save number 2" works later: remember the numbered list exactly as the listener sees it.
   const rememberScreen = (context: { http?: Parameters<typeof listenerIdFrom>[0] }, playIds: string[]) => {
     const listenerId = listenerIdFrom(context.http ?? {});
@@ -319,12 +328,8 @@ export function buildMcpHandler(deps: Deps) {
         },
         async () =>
           timed("station_picks", async () => {
-            const now = new Date();
-            const events = (await deps.fieldGuide().picks()).slice(0, 3);
-            return {
-              content: text(spokenPicks(events, now)),
-              ...(events.length ? { structuredContent: card({ view: "events", items: events.map((event) => ({ event, when: eventTime(event.startAt, now) })) }, { events }) } : {}),
-            };
+            const { speech, structuredContent } = await picksReply();
+            return { content: text(speech), ...(structuredContent ? { structuredContent } : {}) };
           }, eventsUnavailable),
       );
 
@@ -515,10 +520,11 @@ export function buildMcpHandler(deps: Deps) {
           inputSchema: z.object({ artist: z.string().max(100).optional(), playId: PLAY_ID.optional() }),
           annotations: { idempotentHint: true },
         },
-        async ({ artist, playId }, context) =>
+        async ({ artist: rawArtist, playId }, context) =>
           timed("follow_artist", async () => {
             const listenerId = listenerIdFrom(context.http ?? {});
             if (!listenerId) return accountLinkingRequired();
+            const artist = rawArtist?.trim();
             if (!artist && !playId) return { content: text(WHICH_ARTIST_TO_FOLLOW_SPEECH) };
             const followed = await deps.playlist().follow(listenerId, { artist, playId });
             return { content: text(spokenFollowed(followed, artist)), structuredContent: { ...followed } };
@@ -533,12 +539,42 @@ export function buildMcpHandler(deps: Deps) {
           inputSchema: z.object({ artist: z.string().max(100) }),
           annotations: { idempotentHint: true },
         },
-        async ({ artist }, context) =>
+        async ({ artist: rawArtist }, context) =>
           timed("unfollow_artist", async () => {
             const listenerId = listenerIdFrom(context.http ?? {});
             if (!listenerId) return accountLinkingRequired();
+            const artist = rawArtist.trim();
+            if (!artist) return { content: text(WHICH_ARTIST_TO_UNFOLLOW_SPEECH) };
             const unfollowed = await deps.playlist().unfollow(listenerId, artist);
             return { content: text(spokenUnfollowed(unfollowed, artist)), structuredContent: { ...unfollowed } };
+          }, playlistUnavailable),
+      );
+
+      registerAppTool(
+        server,
+        "whats_new_for_me",
+        {
+          title: "What's new from my artists",
+          description: "What's new since the listener last asked, from the artists they follow: upcoming shows, new plays on Radio Milwaukee stations, new stories. Requires a linked account. Use for 'what's new for me?'.",
+          inputSchema: z.object({}),
+          ...CARD,
+        },
+        async (_args, context) =>
+          timed("whats_new_for_me", async () => {
+            const listenerId = listenerIdFrom(context.http ?? {});
+            if (!listenerId) return accountLinkingRequired();
+            const digest = await deps.playlist().digest(listenerId);
+            defer(() => deps.playlist().markDigestSeen(listenerId, digest.now));
+            if (digest.items.length > 0) {
+              return { content: text(spokenDigest(digest.items)), structuredContent: card({ view: "digest", artists: digest.artists, items: digest.items }) };
+            }
+            try {
+              const { speech, structuredContent } = await picksReply();
+              return { content: text(`${EMPTY_DIGEST_SPEECH} ${speech}`), ...(structuredContent ? { structuredContent } : {}) };
+            } catch (error) {
+              if (!(error instanceof FieldGuideUnavailable)) throw error;
+              return { content: text(EMPTY_DIGEST_SPEECH) };
+            }
           }, playlistUnavailable),
       );
 
