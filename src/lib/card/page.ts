@@ -50,7 +50,10 @@ blockquote{margin:0;font-size:40px;line-height:1.1;font-weight:700}blockquote.q-
 .row{min-height:52px;padding:6px 10px;border-radius:12px;background:var(--inner);color:var(--text);display:flex;align-items:center;gap:12px;text-align:left}
 .what{display:flex;flex-direction:column;min-width:0}.what b{font-size:18px}.what small{font-size:14px;color:var(--muted)}
 .list .fullscreen{margin-top:auto;justify-content:center}
-.row-wrap{display:flex;gap:8px;align-items:stretch}.row-wrap .row{flex:1;min-width:0}.row-wrap .reserve{min-height:52px;padding:0 16px}
+.row-wrap{display:flex;gap:8px;align-items:stretch}.row-wrap .row{flex:1;min-width:0}.row-wrap .reserve,.row-wrap .tickets{min-height:52px;padding:0 16px}
+.find,.digest{flex-basis:264px}
+.chip{position:absolute;top:10px;right:10px;padding:4px 10px;border-radius:9999px;background:var(--card);color:var(--text);font-size:13px;font-weight:700}.chip.warn{background:var(--text);color:var(--card)}
+.next{display:flex;flex-direction:column;gap:6px}.show-row{cursor:default}.show-row .thumb{width:96px;height:54px;flex:none}.show-row .ph{background:var(--secondary)}
 .event{cursor:default;flex-basis:300px}.event .tile-art{height:96px}
 .ev-head{display:flex;align-items:center;gap:8px;margin:12px 12px 0}.event .badge{position:static}
 .ev-cat{font-size:14px;font-weight:600;color:var(--muted);text-transform:capitalize}
@@ -191,7 +194,7 @@ root.addEventListener("click", (event) => {
   const has = (name) => button.classList.contains(name);
   // The card asks; the host decides: a follow-up turn, a map link, or a bigger view.
   if (has("ask")) { app.sendMessage({ role: "user", content: [{ type: "text", text: button.dataset.ask }] }).catch(() => {}); return; }
-  if (has("calendar") || has("details") || has("reserve")) { app.openLink({ url: button.dataset.url }).catch(() => {}); return; }
+  if (has("calendar") || has("details") || has("reserve") || has("tickets")) { app.openLink({ url: button.dataset.url }).catch(() => {}); return; }
   if (has("directions")) { app.openLink({ url: button.dataset.url }).catch(() => { button.textContent = "Can't open maps here"; }); return; }
   if (has("fullscreen")) { app.requestDisplayMode({ mode: "fullscreen" }).then(applyContext).catch(() => {}); return; }
   if (has("close")) { app.requestDisplayMode({ mode: "inline" }).then(applyContext).catch(() => {}); return; }

@@ -25,9 +25,14 @@ const savedOkSchema = z.object({
   status: z.literal("ok"), findId: z.string(), appleMusic: z.enum(["not_linked", "pending"]),
   artist: z.string(), title: z.string(), alreadySaved: z.boolean(),
   artistId: z.string().nullable(), artistName: z.string(), firstFollow: z.boolean(),
-  nextShow: z.object({ venue: z.string(), city: z.string(), startsAtMs: z.number() }).nullable(),
+  // imageUrl and ticketUrl arrive with a later playlist deploy; optional so either side can ship first.
+  nextShow: z.object({
+    venue: z.string(), city: z.string(), startsAtMs: z.number(), imageUrl: z.string().nullable().optional(), ticketUrl: z.string().nullable().optional(),
+  }).nullable(),
   story: z.object({ storyId: z.string(), title: z.string(), show: z.string() }).nullable(),
   recentlySaved: z.boolean(),
+  // Raw Apple URLs (artwork keeps its {w}x{h} template); optional until the playlist deploy that adds them.
+  artworkUrl: z.string().nullable().optional(), previewUrl: z.string().nullable().optional(),
 });
 const savedSchema = z.discriminatedUnion("status", [savedOkSchema, z.object({ status: z.literal("not_found") })]);
 const findSchema = z.object({
@@ -48,7 +53,10 @@ const unfollowedSchema = z.discriminatedUnion("status", [
   z.object({ status: z.literal("unknown_artist") }),
 ]);
 const digestItemSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("show"), artist: z.string(), artistId: z.string(), venue: z.string(), city: z.string(), startsAtMs: z.number() }),
+  z.object({
+    kind: z.literal("show"), artist: z.string(), artistId: z.string(), venue: z.string(), city: z.string(), startsAtMs: z.number(),
+    imageUrl: z.string().nullable().optional(), ticketUrl: z.string().nullable().optional(),
+  }),
   z.object({
     kind: z.literal("spins"), artist: z.string(), artistId: z.string(), total: z.number(),
     byStation: z.array(z.object({ station: z.string(), count: z.number() })),

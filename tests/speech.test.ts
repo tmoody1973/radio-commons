@@ -2,7 +2,7 @@ import { EVENT } from "./fixtures";
 import { describe, expect, it } from "vitest";
 import type { Story } from "@/lib/backstory";
 import type { SavedFind } from "@/lib/playlist";
-import { EVENTS_UNAVAILABLE_SPEECH, NOT_ALLOWED_SPEECH, NO_PASSAGE_SPEECH, clock, directAudioUrl, eventTime, monthYear, spokenEvents, spokenMatches, spokenPassages, spokenPicks, spokenPlaces, spokenFollowed, spokenSaved, spokenStory, spokenUnfollowed, spokenDigest } from "@/lib/speech";
+import { EVENTS_UNAVAILABLE_SPEECH, NOT_ALLOWED_SPEECH, NO_PASSAGE_SPEECH, clock, directAudioUrl, eventTime, monthYear, spokenEvents, spokenMatches, spokenPassages, spokenPicks, spokenPlaces, spokenFollowed, spokenSaved, spokenStory, spokenUnfollowed, spokenDigest, spokenFinds } from "@/lib/speech";
 
 const STORY: Story = {
   storyId: "s1", show: "Uniquely Milwaukee", title: "Creativity is sustainable, accessible at 414 Art Revival",
@@ -151,6 +151,22 @@ describe("spokenSaved", () => {
 
   it("asks which song when the play is gone", () => {
     expect(spokenSaved({ status: "not_found" })).toMatch(/which song/);
+  });
+});
+
+describe("spokenFinds", () => {
+  const row = (label: string, status = "added") => ({
+    label, findId: `f${label}`, playId: "p", trackId: null, artist: `Artist ${label}`, title: `Song ${label}`, stationSlug: "88nine",
+    savedAt: 0, appleMusic: { status, reason: null }, artworkUrl: null, previewUrl: null,
+  });
+  it("reads at most three, then counts the rest on screen", () => {
+    expect(spokenFinds(["1", "2", "3", "4", "5"].map((l) => row(l)))).toBe('Your latest Finds — 1: "Song 1" by Artist 1; 2: "Song 2" by Artist 2; 3: "Song 3" by Artist 3; and 2 more on screen.');
+  });
+  it("reads a short list whole and keeps the reconnect sentence", () => {
+    expect(spokenFinds([row("1"), row("2", "expired")])).toBe('Your latest Finds — 1: "Song 1" by Artist 1; 2: "Song 2" by Artist 2. Apple Music needs reconnecting at radiomilwaukee.org slash connect.');
+  });
+  it("speaks an empty list", () => {
+    expect(spokenFinds([])).toBe("Your Finds are empty. After I name a song, say 'save it'.");
   });
 });
 

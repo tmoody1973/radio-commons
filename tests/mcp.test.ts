@@ -482,11 +482,60 @@ describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
       const { message } = await mcpPostAs(handlerWith(undefined, undefined, playlist), call(name, args), "user_1");
       expect(message.result).toMatchObject({ isError: true, content: [{ text: PLAYLIST_UNAVAILABLE_SPEECH }] });
     });
-    it("Finds tools do not advertise the story card, since they return none", async () => {
+    it("tools that return no card do not advertise it", async () => {
       const { message } = await mcpPost(handlerWith(), { method: "tools/list" });
-      for (const tool of message.result.tools.filter((t: { name: string }) => ["save_find", "list_finds", "delete_my_finds"].includes(t.name))) {
+      for (const tool of message.result.tools.filter((t: { name: string }) => ["delete_my_finds", "follow_artist", "unfollow_artist"].includes(t.name))) {
         expect(tool._meta?.ui).toBeUndefined();
       }
+    });
+    it("save_find and list_finds advertise the card", async () => {
+      const { message } = await mcpPost(handlerWith(), { method: "tools/list" });
+      const meta = (name: string) => message.result.tools.find((t: { name: string }) => t.name === name)._meta;
+      expect(meta("save_find")).toMatchObject({ ui: { resourceUri: CARD_URI } });
+      expect(meta("list_finds")).toMatchObject({ ui: { resourceUri: CARD_URI } });
+    });
+    it("list_finds shows the finds card, and no card when there are none", async () => {
+      const { message } = await mcpPostAs(handlerWith(), call("list_finds", {}), "user_1");
+      expect(message.result.structuredContent).toMatchObject({ view: "finds" });
+      expect(message.result.structuredContent.cardHtml).toContain("Victory Dance");
+      const empty = fakePlaylist({ listFinds: async () => [] });
+      const none = await mcpPostAs(handlerWith(undefined, undefined, empty), call("list_finds", {}), "user_1");
+      expect(none.message.result.structuredContent).toEqual({ finds: [] });
+    });
+    it("save_find shows the saved card, with artwork when the song was found by search", async () => {
+      const playlist = fakePlaylist({
+        saveFind: async (_listener, playId) => (playId === "play_real" ? { status: "ok", findId: "f1", appleMusic: "pending", artist: "King Tuff", title: "Twisted On A Train", alreadySaved: false, artistId: null, artistName: "King Tuff", firstFollow: false, nextShow: null, story: null, recentlySaved: false } : { status: "not_found" }),
+        searchPlaysIndexed: async () => [{ playId: "play_real", artist: "King Tuff", title: "Twisted On A Train", playedAt: Date.UTC(2026, 9, 4, 21), artworkUrl: "https://is1-ssl.mzstatic.com/x/{w}x{h}bb.jpg", previewUrl: "https://audio-ssl.itunes.apple.com/p.m4a", station: "88nine" }],
+      });
+      const { message } = await mcpPostAs(handlerWith(undefined, undefined, playlist), call("save_find", { title: "Twisted On A Train", artist: "King Tuff" }), "user_1");
+      expect(message.result.structuredContent).toMatchObject({ view: "saved", status: "ok", findId: "f1" });
+      expect(message.result.structuredContent.cardHtml).toContain("600x600bb.jpg");
+      expect(message.result.structuredContent.cardHtml).toContain("p.m4a");
+    });
+    it("save_find by playId shows the saved card with a plain tile", async () => {
+      const { message } = await mcpPostAs(handlerWith(), call("save_find", { playId: "play_1" }), "user_1");
+      expect(message.result.structuredContent.cardHtml).toContain('class="art ph"');
+    });
+    it("save_find by playId uses the artwork and preview the save result carries", async () => {
+      const playlist = fakePlaylist({ saveFind: async () => ({ status: "ok", findId: "f1", appleMusic: "pending", artist: "Tank and the Bangas", title: "No ID", alreadySaved: false, artistId: null, artistName: "Tank and the Bangas", firstFollow: false, nextShow: null, story: null, recentlySaved: false, artworkUrl: "https://is1-ssl.mzstatic.com/x/{w}x{h}bb.jpg", previewUrl: "https://audio-ssl.itunes.apple.com/p.m4a" }) });
+      const { message } = await mcpPostAs(handlerWith(undefined, undefined, playlist), call("save_find", { playId: "play_1" }), "user_1");
+      const html = message.result.structuredContent.cardHtml;
+      expect(html).toContain("600x600bb.jpg");
+      expect(html).toContain('class="primary play" data-audio="https://audio-ssl.itunes.apple.com/p.m4a"');
+    });
+    it("save_find by number uses the save result's artwork too", async () => {
+      const playlist = fakePlaylist({
+        screenPlay: async () => "play_2",
+        saveFind: async () => ({ status: "ok", findId: "f1", appleMusic: "pending", artist: "A", title: "T", alreadySaved: false, artistId: null, artistName: "A", firstFollow: false, nextShow: null, story: null, recentlySaved: false, artworkUrl: "https://is1-ssl.mzstatic.com/y/{w}x{h}bb.jpg", previewUrl: null }),
+      });
+      const { message } = await mcpPostAs(handlerWith(undefined, undefined, playlist), call("save_find", { number: 2 }), "user_1");
+      expect(message.result.structuredContent.cardHtml).toContain("y/600x600bb.jpg");
+      expect(message.result.structuredContent.cardHtml).not.toContain("data-audio");
+    });
+    it("save_find sends no card when the song is not found", async () => {
+      const playlist = fakePlaylist({ saveFind: async () => ({ status: "not_found" }) });
+      const { message } = await mcpPostAs(handlerWith(undefined, undefined, playlist), call("save_find", { playId: "play_1" }), "user_1");
+      expect(message.result.structuredContent).toEqual({ status: "not_found" });
     });
     it("save_find is idempotent and delete_my_finds is destructive and idempotent", async () => {
       const { message } = await mcpPost(handlerWith(), { method: "tools/list" });
