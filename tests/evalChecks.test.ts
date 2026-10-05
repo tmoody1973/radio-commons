@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { LINK_ACCOUNT_SPEECH } from "@/lib/speech";
 import type { TrailEntry } from "@/lib/sim/trail";
 import {
-  checkFollowThao, checkRecentSongs, checkSaveNumber3, checkSearchPlaylist, checkTrackStory, checkWhatsNew,
+  checkFollowThao, checkRecentSongs, checkSaveNumber3, checkSearchPlaylist, checkStationArtistShows, checkTrackStory, checkWhatsNew,
 } from "@/lib/sim/evalChecks";
 
 const tool = (name: string, input: Record<string, unknown> = {}, isError = false, summary = "ok"): TrailEntry =>
@@ -72,5 +72,15 @@ describe("checkWhatsNew", () => {
     expect(checkWhatsNew([unlinked("whats_new_for_me")]).pass).toBe(true);
     expect(checkWhatsNew([tool("whats_new_for_me", {}, true, "boom")]).pass).toBe(false);
     expect(checkWhatsNew([]).pass).toBe(false);
+  });
+});
+
+describe("checkStationArtistShows", () => {
+  it("needs station_artist_shows for 88Nine, never the listener's follows digest", () => {
+    expect(checkStationArtistShows([tool("station_artist_shows", { station: "88nine" })]).pass).toBe(true);
+    expect(checkStationArtistShows([tool("station_artist_shows", {})]).pass).toBe(false);
+    expect(checkStationArtistShows([tool("station_artist_shows", { station: "88nine" }), tool("whats_new_for_me")]).pass).toBe(false);
+    expect(checkStationArtistShows([tool("station_artist_shows", { station: "88nine" }, true, "boom")]).pass).toBe(false);
+    expect(checkStationArtistShows([tool("whats_new_for_me")]).pass).toBe(false);
   });
 });

@@ -17,6 +17,7 @@ const PHRASE_TOOLS: Record<string, string> = {
   "Save that song": "save_find",
   "What is new from Radio Milwaukee": "latest_station_stories",
   "What's new for me": "whats_new_for_me",
+  "Do any 88Nine artists have concerts coming up": "station_artist_shows",
 };
 
 describe("Alexa+ add-on manifest", () => {

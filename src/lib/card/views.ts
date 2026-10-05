@@ -1,10 +1,10 @@
 import type { Passage, Story, StoryCardMatch } from "@/lib/backstory";
 import type { PublicEvent } from "@/lib/fieldGuide";
 import type { Badge } from "@/lib/map/geo";
-import type { Digest, DigestItem, FindRow, SavedFind } from "@/lib/playlist";
+import type { Digest, DigestItem, FindRow, SavedFind, StationShow } from "@/lib/playlist";
 import { pinnedPlaces } from "@/lib/map/staticMap";
 import { directionsUrl, streetAddress } from "@/lib/maps";
-import { ARTICLE_SOURCE, clock, longDate, monthYear } from "@/lib/speech";
+import { ARTICLE_SOURCE, clock, longDate, monthYear, showCalendarDay } from "@/lib/speech";
 import { localClock } from "@/lib/stationTime";
 import { sizedArtwork, STATION_NAMES, type SongCard } from "./song";
 import { cleanTicketUrl } from "./tickets";
@@ -25,6 +25,7 @@ export type CardView =
   | { view: "songs"; songs: SongCard[] }
   | { view: "digest"; artists: Digest["artists"]; items: DigestItem[] }
   | { view: "finds"; finds: FindRow[] }
+  | { view: "station-shows"; shows: StationShow[] }
   /** Artwork and preview are known only when the save went through a search hit; otherwise a plain tile. */
   | { view: "saved"; saved: SavedOk; artworkUrl: string | null; previewUrl: string | null };
 
@@ -307,6 +308,18 @@ function digestView(artists: Digest["artists"], items: DigestItem[]): string {
   return `<article class="card stories">${LOGO}<div class="carousel">${tiles}</div>${note}</article>`;
 }
 
+/** Artists the station plays with shows coming up, as digest-style tiles: the event photo, where, when, and tickets. */
+function stationShowsView(shows: StationShow[]): string {
+  const tiles = shows.slice(0, 10).map((show) => {
+    const day = showCalendarDay(show, { weekday: "short", month: "short", day: "numeric" }).replace(",", "");
+    const when = show.dateOnly ? day : `${day} · ${localClock(show.startsAtMs)}`;
+    const tickets = ticketsButton(show.ticketUrl, show.venueName);
+    return `<article class="tile digest">${art(show.imageUrl ?? null, show.artistName, "tile-art")}<span class="tile-title">${escape(show.artistName)}</span>`
+      + `<span class="tile-date">${escape(show.venueName)} · ${escape(show.city)}<br>${escape(when)}</span>${tickets ? `<span class="tile-actions">${tickets}</span>` : ""}</article>`;
+  }).join("");
+  return `<article class="card stories">${LOGO}<div class="carousel">${tiles}</div></article>`;
+}
+
 export function renderView(card: CardView): string {
   switch (card.view) {
     case "story": return storyView(card.story, card.releaseEvent ?? null);
@@ -320,5 +333,6 @@ export function renderView(card: CardView): string {
     case "digest": return digestView(card.artists, card.items);
     case "finds": return findsView(card.finds);
     case "saved": return savedView(card.saved, card.artworkUrl, card.previewUrl);
+    case "station-shows": return stationShowsView(card.shows);
   }
 }

@@ -47,3 +47,11 @@ export function checkWhatsNew(trail: TrailEntry[]): CheckResult {
   const calls = toolCalls(trail, "whats_new_for_me");
   return result(calls.length > 0 && calls.every((call) => worked(call, true)), calls);
 }
+
+/** "any 88nine artists have concerts coming up": the station's artists for 88Nine, never the listener's follows digest. */
+export function checkStationArtistShows(trail: TrailEntry[]): CheckResult {
+  const calls = toolCalls(trail, "station_artist_shows");
+  const digest = toolCalls(trail, "whats_new_for_me");
+  const right = calls.length > 0 && digest.length === 0 && calls.every((call) => call.input.station === "88nine" && !call.isError);
+  return result(right, [...calls, ...digest]);
+}

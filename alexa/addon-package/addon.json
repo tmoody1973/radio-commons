@@ -22,7 +22,8 @@
           "What concerts are coming up in Milwaukee this weekend",
           "Save that song",
           "What is new from Radio Milwaukee",
-          "What's new for me"
+          "What's new for me",
+          "Do any 88Nine artists have concerts coming up"
         ],
         "privacyAndCompliance": {
           "privacyPolicyUrl": "https://radio-commons.vercel.app/privacy"

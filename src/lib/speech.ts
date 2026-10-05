@@ -1,7 +1,7 @@
 import { creditLines, STATION_NAMES } from "@/lib/card/song";
 import type { Passage, Story, StoryCardMatch } from "@/lib/backstory";
 import type { PublicEvent, When } from "@/lib/fieldGuide";
-import type { DigestItem, FindRow, FollowResult, RecallResult, SavedFind, Station, TrackFacts, UnfollowResult } from "@/lib/playlist";
+import type { DigestItem, FindRow, FollowResult, RecallResult, SavedFind, Station, StationShow, TrackFacts, UnfollowResult } from "@/lib/playlist";
 import { localClock } from "@/lib/stationTime";
 import { streetAddress } from "@/lib/maps";
 
@@ -272,4 +272,21 @@ function spokenDigestItem(item: DigestItem, isFirst: boolean): string {
 export function spokenDigest(items: DigestItem[]): string {
   const spoken = items.slice(0, DIGEST_SPOKEN_ITEMS).map((item, i) => spokenDigestItem(item, i === 0)).filter(Boolean);
   return `Since your last visit: ${spoken.join(" ")}`;
+}
+
+const HOME_CITY = "milwaukee";
+// ponytail: a date-only listing's time is a placeholder midnight, so its calendar day is read in UTC (right for UTC or Milwaukee midnight).
+export const showCalendarDay = (show: Pick<StationShow, "startsAtMs" | "dateOnly">, options: Intl.DateTimeFormatOptions) =>
+  new Intl.DateTimeFormat("en-US", { ...options, timeZone: show.dateOnly ? "UTC" : "America/Chicago" }).format(show.startsAtMs);
+
+/** "Artists 88Nine has been playing with shows coming up: A at V in Madison, Tuesday, October 20; …, and 2 more on screen." */
+export function spokenStationShows(shows: StationShow[], station: Station | undefined): string {
+  const who = station ? STATION_NAMES[station] : "Radio Milwaukee";
+  if (shows.length === 0) return `None of the artists ${who} has been playing have shows listed right now.`;
+  const said = shows.slice(0, SPOKEN_LIST_MAX).map((show) => {
+    const city = show.city.trim().toLowerCase() === HOME_CITY ? "" : ` in ${show.city}`;
+    return `${show.artistName} at ${show.venueName}${city}, ${showCalendarDay(show, { weekday: "long", month: "long", day: "numeric" })}`;
+  });
+  const rest = shows.length - said.length;
+  return `Artists ${who} has been playing with shows coming up: ${said.join("; ")}${rest > 0 ? `, and ${rest} more on screen` : ""}.`;
 }

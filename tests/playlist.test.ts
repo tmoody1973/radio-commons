@@ -192,6 +192,20 @@ describe("playlist client", () => {
       await expect(client.searchPlaysIndexed(undefined, "x")).rejects.toBeInstanceOf(PlaylistUnavailable);
     });
 
+    it("stationArtistShows sends the station (or none), takes no server key, and tolerates extra or missing optional fields", async () => {
+      const { calls, fn } = record();
+      const show = { artistName: "Tank and the Bangas", playCount: 12, venueName: "Majestic Theatre", city: "Madison", startsAtMs: 5, dateOnly: false, ticketUrl: null, imageUrl: null, role: "headliner", extra: 1 };
+      const client = createPlaylistClient({ ...base, query: fn({ refreshedAt: null, shows: [show], cachedBy: "x" }) });
+      await expect(client.stationArtistShows("88nine")).resolves.toMatchObject({ refreshedAt: null, shows: [{ artistName: "Tank and the Bangas", city: "Madison" }] });
+      await client.stationArtistShows();
+      expect(calls).toEqual([["alexa:stationArtistShows", { station: "88nine" }], ["alexa:stationArtistShows", {}]]);
+    });
+
+    it("stationArtistShows throws PlaylistUnavailable on a malformed reply", async () => {
+      const client = createPlaylistClient({ ...base, query: async () => ({ shows: [{ artistName: "A" }] }) });
+      await expect(client.stationArtistShows()).rejects.toBeInstanceOf(PlaylistUnavailable);
+    });
+
     it("deleteFinds reports deletedFollows", async () => {
       const reply = { deletedFinds: 1, deletedLink: false, deletedFollows: 2 };
       await expect(createPlaylistClient({ ...base, mutation: async () => reply }).deleteFinds("u")).resolves.toEqual(reply);
