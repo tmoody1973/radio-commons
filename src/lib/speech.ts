@@ -232,6 +232,13 @@ export function spokenOnAir(stations: OnAirStation[]): string {
   return wordCount(full) <= ON_AIR_MAX_WORDS ? full : allOnAir(stations, false);
 }
 
+/** "Save that song" with several stations on air: ask which, never guess. Null when nothing is on air. */
+export function whichOnAirSpeech(stations: OnAirStation[]): string | null {
+  const choices = stations.flatMap(({ station, song }) => (song ? [`${STATION_NAMES[station]}'s "${song.title}"`] : []));
+  if (choices.length === 0) return null;
+  return `Which station's song: ${choices.length === 1 ? choices[0] : `${choices.slice(0, -1).join(", ")} or ${choices.at(-1)}`}?`;
+}
+
 const milwaukeeDay = (ms: number) => new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", timeZone: "America/Chicago" }).format(ms);
 
 /** "'One Mic' by Nas last played on HYFIN, October 3 at 3:16 a.m." (or "today at …"). */

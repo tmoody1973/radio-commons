@@ -15,7 +15,7 @@ import { createHash } from "node:crypto";
 import { eventMapPoints, MAP_H, MAP_W, pinnedEvents, pinnedPlaces } from "@/lib/map/staticMap";
 import {
   directAudioUrl, eventTime, EVENTS_UNAVAILABLE_SPEECH, NO_PLACES_FOR_EVENTS_SPEECH, NO_PLACES_SPEECH, spokenEvents, spokenPicks, NOT_ALLOWED_SPEECH, NOT_FOUND_SPEECH, EMPTY_DIGEST_SPEECH, EMPTY_DIGEST_NO_PICKS_SPEECH, LINK_ACCOUNT_SPEECH, LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH, PLAYLIST_UNAVAILABLE_SPEECH, spokenDigest, spokenFinds, spokenLatest, spokenMatches, spokenPassages,
-  NEWSLETTER_UNAVAILABLE_SPEECH, NO_NEWSLETTER_SPEECH, spokenBriefing, spokenOnAir, spokenPlaces, spokenRecall, spokenRecent, spokenSearch, spokenStationShows, spokenDeleted, spokenFollowed, spokenSaved, spokenUnfollowed, WHICH_ARTIST_TO_FOLLOW_SPEECH, WHICH_ARTIST_TO_UNFOLLOW_SPEECH, spokenStory, spokenTrackFacts, UNAVAILABLE_SPEECH,
+  NEWSLETTER_UNAVAILABLE_SPEECH, NO_NEWSLETTER_SPEECH, spokenBriefing, spokenOnAir, spokenPlaces, spokenRecall, spokenRecent, spokenSearch, spokenStationShows, spokenDeleted, spokenFollowed, spokenSaved, spokenUnfollowed, whichOnAirSpeech, WHICH_ARTIST_TO_FOLLOW_SPEECH, WHICH_ARTIST_TO_UNFOLLOW_SPEECH, spokenStory, spokenTrackFacts, UNAVAILABLE_SPEECH,
 } from "@/lib/speech";
 import { localWindow } from "@/lib/stationTime";
 import { getStation } from "@/lib/stations";
@@ -221,6 +221,11 @@ export function buildMcpHandler(deps: Deps) {
       if (!(error instanceof PlaylistUnavailable)) throw error;
       return null;
     }
+  };
+  // What each station is playing now, in MUSIC_STATIONS order: on_air_now's tiles, and save_find's cheap first look.
+  const onAirTiles = (stations: readonly Station[]) => {
+    const at = now().getTime();
+    return Promise.all(stations.map(async (where) => ({ station: where, song: onAirSong(await latestPlay(where), at) })));
   };
   // One guess gets the full song card; several become a numbered list so "save number 2" matches the screen.
   const recallCard = (matches: RecallMatch[], slug: Station) =>
@@ -581,10 +586,11 @@ export function buildMcpHandler(deps: Deps) {
           inputSchema: z.object({ station: STATION_SLUG.optional() }),
           ...CARD,
         },
-        async ({ station: slug }) =>
+        async ({ station: slug }, context) =>
           timed("on_air_now", async () => {
-            const at = now().getTime();
-            const tiles = await Promise.all((slug ? [slug] : MUSIC_STATIONS).map(async (where) => ({ station: where, song: onAirSong(await latestPlay(where), at) })));
+            const tiles = await onAirTiles(slug ? [slug] : MUSIC_STATIONS);
+            // ponytail: a station with no current song has no number, so "number 3" skips it; rows are numbered by song.
+            rememberScreen(context, tiles.flatMap(({ song }) => (song ? [song.playId] : [])));
             const stations = tiles.map(({ station: where, song }) => ({ station: where, song: song && { playId: song.playId, title: song.title, artist: song.artist, playedAt: song.playedAt } }));
             return { content: text(spokenOnAir(tiles)), structuredContent: card({ view: "on-air", tiles }, { stations }) };
           }, playlistUnavailable),
@@ -621,7 +627,7 @@ export function buildMcpHandler(deps: Deps) {
         "save_find",
         {
           title: "Save a song to 88Nine Finds",
-          description: "Save a song the listener heard on Radio Milwaukee to their 88Nine Finds (and Apple Music if connected). Always call this tool when the listener asks, even if they may not have linked their account — the tool starts account linking itself. Pass number (1-10) only when the listener says a number (\"save number 3\"). Otherwise pass the playId from recent_songs, find_song_played or search_playlist if you have it, and always also pass the song's title and artist (and station if known) so the right play is found even without an id. Use for 'save it', 'save number 3', 'save the song by Thao'.",
+          description: "Save a song the listener heard on Radio Milwaukee to their 88Nine Finds (and Apple Music if connected). Always call this tool when the listener asks, even if they may not have linked their account — the tool starts account linking itself. Pass number (1-10) only when the listener says a number (\"save number 3\"). Otherwise pass the playId from recent_songs, find_song_played or search_playlist if you have it, and always also pass the song's title and artist (and station if known) so the right play is found even without an id. Use for 'save it', 'save number 3', 'save the song by Thao'. After on_air_now, pass station when the listener names one (\"save the HYFIN song\"); if several stations were named and the listener doesn't say which, call with no song details and the tool asks which station. Never guess a station.",
           inputSchema: z.object({
             number: z.number().int().min(1).max(10).optional(),
             playId: PLAY_ID.optional(),
@@ -636,17 +642,28 @@ export function buildMcpHandler(deps: Deps) {
           timed("save_find", async () => {
             const listenerId = listenerIdFrom(context.http ?? {});
             if (!listenerId) return accountLinkingRequired();
+            // "Save that song" with nothing named: ask which station's song rather than guess.
+            if (number === undefined && !playId && !title && !artist && !slug) {
+              const which = whichOnAirSpeech(await onAirTiles(MUSIC_STATIONS));
+              return { content: text(which ?? spokenSaved({ status: "not_found" })), structuredContent: { status: which ? "which_station" : "not_found" } };
+            }
             // A named song always beats a number: the remembered list can be 30 minutes stale.
-            const onScreen = number === undefined || title ? null : await screenPlayOrNull(listenerId, number, Boolean(playId || title));
+            const onScreen = number === undefined || title ? null : await screenPlayOrNull(listenerId, number, Boolean(playId || title || slug));
             const firstId = onScreen ?? playId;
             let saved: SavedFind = firstId ? await deps.playlist().saveFind(listenerId, firstId) : { status: "not_found" };
             let hit: RecentSong | undefined;
-            // Hosts lose ids between turns; the title and artist the listener heard still name the song.
-            if (saved.status === "not_found" && (title || artist)) {
-              const hits = await deps.playlist().searchPlaysIndexed(slug, (title ?? artist)!);
-              const found = bestRecentMatch(hits, { title, artist });
+            // Hosts lose ids between turns; the station or the title and artist the listener heard still name the song.
+            // What's on air now is one cheap read per station, so it goes before the slow search of every play.
+            if (saved.status === "not_found" && (title || artist || slug)) {
+              const named = title || artist ? { title, artist } : null;
+              let songs: RecentSong[] = (await onAirTiles(slug ? [slug] : MUSIC_STATIONS)).flatMap(({ song }) => (song ? [song] : []));
+              let found = named ? bestRecentMatch(songs, named) : songs[0]?.playId ?? null;
+              if (!found && named) {
+                songs = await deps.playlist().searchPlaysIndexed(slug, (title ?? artist)!);
+                found = bestRecentMatch(songs, named);
+              }
               if (found) saved = await deps.playlist().saveFind(listenerId, found);
-              hit = hits.find((song) => song.playId === found);
+              hit = songs.find((song) => song.playId === found);
             }
             if (saved.status !== "ok") return { content: text(spokenSaved(saved)), structuredContent: { ...saved } };
             // The save result's own artwork wins; older playlist deploys omit it, so a search hit's is the fallback, then a plain tile.

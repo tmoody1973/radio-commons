@@ -347,7 +347,9 @@ function capabilitiesView(): string {
 /** Plays the stream in the card with the same one-at-a-time player as previews; reads "❚❚ Stop" while it plays. */
 const listenLive = (station: Station, cls: string) =>
   `<button type="button" class="${cls} row-play live" data-audio="${escape(LIVE_STREAMS[station])}" data-playing="❚❚ Stop">▶ Listen live</button>`;
-const saveSong = (song: RecentSong) => `<button type="button" class="secondary ask" data-ask="${escape(`Save "${song.title}" by ${song.artist}`)}">Save this song</button>`;
+// The station rides along so save_find reads that station's current song instead of searching every play.
+const saveSong = (song: RecentSong, station: Station) =>
+  `<button type="button" class="secondary ask" data-ask="${escape(`Save "${song.title}" by ${song.artist} from ${STATION_NAMES[station]}`)}">Save this song</button>`;
 
 /** One station, large: the song on air (or just "Live now"), Listen live and Save. */
 function onAirStationView({ station, song }: OnAirTile): string {
@@ -357,7 +359,7 @@ function onAirStationView({ station, song }: OnAirTile): string {
     : `<h2>${escape(name)}</h2><p class="line">Live now</p>`;
   return `<article class="card story music">${LOGO}<div class="body">${art(sizedArtwork(song?.artworkUrl ?? null), song?.artist ?? name, "art")}<div class="info">`
     + `<p class="meta">On air now · ${escape(name)}</p>${what}`
-    + `<div class="actions">${listenLive(station, "primary")}${song ? saveSong(song) : ""}</div></div></div></article>`;
+    + `<div class="actions">${listenLive(station, "primary")}${song ? saveSong(song, station) : ""}</div></div></div></article>`;
 }
 
 /** Every station as a row (four tiles with two buttons each don't fit the screen); no recent play is a plain "Live now" row. */
@@ -370,7 +372,7 @@ function onAirView(tiles: OnAirTile[]): string {
       ? `<b>${escape(song.title)}</b><small>${badge} · ${escape(song.artist)} · ${escape(song.when)}</small>`
       : `<b>${escape(name)}</b><small>${badge} · Live now</small>`;
     return `<div class="row onair-row">${art(sizedArtwork(song?.artworkUrl ?? null), song?.artist ?? name, "thumb")}<span class="what">${what}</span>`
-      + `${listenLive(station, "primary")}${song ? saveSong(song) : ""}</div>`;
+      + `${listenLive(station, "primary")}${song ? saveSong(song, station) : ""}</div>`;
   }).join("");
   return `<article class="card">${LOGO}<div class="list">${rows}</div></article>`;
 }

@@ -4,7 +4,7 @@ import { GIVE_UNAVAILABLE_SPEECH } from "@/lib/give";
 
 type ToolEntry = Extract<TrailEntry, { kind: "tool" }>;
 export interface CheckResult { pass: boolean; detail: string }
-export interface ShownSong { playId: string }
+export interface ShownSong { playId: string; station?: string }
 
 const toolCalls = (trail: TrailEntry[], name: string): ToolEntry[] =>
   trail.filter((entry): entry is ToolEntry => entry.kind === "tool" && entry.name === name);
@@ -20,11 +20,31 @@ export function checkRecentSongs(trail: TrailEntry[]): CheckResult {
   return result(calls.length > 0 && calls.every((call) => !call.isError), calls);
 }
 
-/** "save number 3": the number itself, or the playId of song 3 from the previous turn's on-screen list. Never an invented id. */
-export function checkSaveNumber3(trail: TrailEntry[], shown: ShownSong[]): CheckResult {
+/** "save number N": the number itself, or the playId of song N from the previous turn's on-screen list. Never an invented id. */
+export const checkSaveNumber = (n: number) => (trail: TrailEntry[], shown: ShownSong[]): CheckResult => {
   const calls = toolCalls(trail, "save_find");
-  const right = (call: ToolEntry) => call.input.number === 3 || (typeof call.input.playId === "string" && call.input.playId === shown[2]?.playId);
+  const right = (call: ToolEntry) => call.input.number === n || (typeof call.input.playId === "string" && call.input.playId === shown[n - 1]?.playId);
   return result(calls.length > 0 && calls.every((call) => right(call) && worked(call, true)), calls);
+};
+
+/** "save the HYFIN song" after on_air_now: that station, or the playId on_air_now showed for it. */
+export const checkSaveStation = (station: string) => (trail: TrailEntry[], shown: ShownSong[]): CheckResult => {
+  const calls = toolCalls(trail, "save_find");
+  const shownId = shown.find((song) => song.station === station)?.playId;
+  const right = (call: ToolEntry) => call.input.station === station || (shownId !== undefined && call.input.playId === shownId);
+  return result(calls.length > 0 && calls.every((call) => right(call) && worked(call, true)), calls);
+};
+
+const SONG_ARGS = ["number", "playId", "title", "artist", "station"];
+const SAVED = /^(Saved|It was already in your Finds)/;
+
+/** "save that song" with several stations on air: no save of a guessed song; Alexa (or save_find) asks which. */
+export function checkAsksWhichStation(trail: TrailEntry[]): CheckResult {
+  const calls = toolCalls(trail, "save_find");
+  const guessed = calls.some((call) => SONG_ARGS.some((key) => call.input[key] !== undefined) || SAVED.test(call.summary));
+  const reply = trail.findLast((entry) => entry.kind === "reply");
+  const asked = calls.length > 0 || (reply?.kind === "reply" && /which/i.test(reply.text));
+  return { pass: !guessed && asked, detail: `${describe(calls)} -> ${reply?.kind === "reply" ? reply.text : "no reply"}` };
 }
 
 export function checkSearchPlaylist(trail: TrailEntry[]): CheckResult {

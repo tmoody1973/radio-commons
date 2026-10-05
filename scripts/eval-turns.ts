@@ -2,7 +2,7 @@
 // Run: npm run eval:turns   (EVAL_URL overrides the target; SIM_PASSCODE comes from .env.local, never printed)
 import { loadEnvConfig } from "@next/env";
 import {
-  checkCancelNeedsLink, checkFollowThao, checkOnAirNow, checkSupport, checkRecentSongs, checkSaveNumber3, checkSearchPlaylist, checkStationArtistShows, checkTrackStory, checkWhatCanYouDo, checkWhatsNew,
+  checkCancelNeedsLink, checkFollowThao, checkOnAirNow, checkSupport, checkRecentSongs, checkAsksWhichStation, checkSaveNumber, checkSaveStation, checkSearchPlaylist, checkStationArtistShows, checkTrackStory, checkWhatCanYouDo, checkWhatsNew,
   type CheckResult, type ShownSong,
 } from "../src/lib/sim/evalChecks";
 import type { ChatMessage, TrailEntry } from "../src/lib/sim/trail";
@@ -17,7 +17,19 @@ interface Scenario { name: string; steps: Step[] }
 const SCENARIOS: Scenario[] = [
   { name: "save by number", steps: [
     { text: "what were the last 5 songs on 88nine", judge: checkRecentSongs },
-    { text: "save number 3", judge: checkSaveNumber3 },
+    { text: "save number 3", judge: checkSaveNumber(3) },
+  ] },
+  { name: "save from on air by number", steps: [
+    { text: "what's on right now", judge: checkOnAirNow() },
+    { text: "save number 2", judge: checkSaveNumber(2) },
+  ] },
+  { name: "save from on air by station", steps: [
+    { text: "what's on right now", judge: checkOnAirNow() },
+    { text: "save the HYFIN song", judge: checkSaveStation("hyfin") },
+  ] },
+  { name: "save from on air asks which", steps: [
+    { text: "what's on right now", judge: checkOnAirNow() },
+    { text: "save that song", judge: checkAsksWhichStation },
   ] },
   { name: "last play of an artist", steps: [{ text: "when did you last play Nas", judge: checkSearchPlaylist }] },
   { name: "credits", steps: [{ text: "what are the credits on Groove Thang", judge: checkTrackStory }] },
