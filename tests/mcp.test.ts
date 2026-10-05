@@ -352,6 +352,29 @@ describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
       expect(message.result.content[0].text).toMatch(/which song/i);
       expect(saved).toHaveLength(2);
     });
+    it("save_find: a named title beats a number; screenPlay null falls to the playId", async () => {
+      const okFind = { status: "ok" as const, findId: "f", appleMusic: "pending" as const, artist: "A", title: "T", alreadySaved: false, artistId: null, artistName: "A", firstFollow: false, nextShow: null, story: null, recentlySaved: false };
+      const saved: string[] = [];
+      let screenAsked = 0;
+      const playlist = fakePlaylist({
+        screenPlay: async () => { screenAsked += 1; return null; },
+        saveFind: async (_l, id) => { saved.push(id); return okFind; },
+        searchPlaysIndexed: async () => [{ playId: "play_named_id", artist: "Thao", title: "Sick", playedAt: 1, artworkUrl: null, previewUrl: null, station: "88nine" }],
+      });
+      await mcpPostAs(handlerWith(undefined, undefined, playlist), call("save_find", { number: 2, title: "Sick", artist: "Thao" }), "user_1");
+      expect(screenAsked).toBe(0);
+      expect(saved).toEqual(["play_named_id"]);
+      await mcpPostAs(handlerWith(undefined, undefined, playlist), call("save_find", { number: 2, playId: "play_given_id" }), "user_1");
+      expect(screenAsked).toBe(1);
+      expect(saved).toEqual(["play_named_id", "play_given_id"]);
+    });
+    it("a defer that throws synchronously leaves the reply intact", async () => {
+      const playlist = fakePlaylist({ recentSongs: async () => songs });
+      const handler = buildMcpHandler({ backstory: () => fakeBackstory(), fieldGuide: () => fakeFieldGuide(), playlist: () => playlist, now: () => NOW, defer: () => { throw new Error("outside request scope"); }, cardHtml: () => "" });
+      const { message } = await mcpPostAs(handler, call("recent_songs", { station: "88nine" }), "user_1");
+      expect(message.result.isError).toBeFalsy();
+      expect(message.result.content[0].text).toMatch(/^The last 3 on 88Nine/);
+    });
     it("save_find rejects a number outside 1-10", async () => {
       const { message } = await mcpPostAs(handlerWith(), call("save_find", { number: 11 }), "user_1");
       expect(message.error ?? message.result?.isError).toBeTruthy();

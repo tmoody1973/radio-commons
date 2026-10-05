@@ -179,6 +179,13 @@ describe("playlist client", () => {
       expect(calls[1]).toEqual(["alexa:searchPlays", { station: "88nine", query: "ezra" }]);
     });
 
+    it("searchPlaysIndexed allows a 1 s uncached search but gives up at 2.5 s", async () => {
+      const row = { _id: "p1", artist: "A", title: "T", playedAt: 1, artworkUrl: null, previewUrl: null, stationSlug: "hyfin" };
+      const after = (ms: number) => () => new Promise((resolve) => setTimeout(() => resolve([row]), ms));
+      await expect(createPlaylistClient({ ...base, query: after(1000) }).searchPlaysIndexed(undefined, "x")).resolves.toHaveLength(1);
+      await expect(createPlaylistClient({ ...base, query: after(2500) }).searchPlaysIndexed(undefined, "x")).rejects.toBeInstanceOf(PlaylistUnavailable);
+    });
+
     it("searchPlaysIndexed rejects an unknown station slug", async () => {
       const row = { _id: "p1", artist: "A", title: "T", playedAt: 1, artworkUrl: null, previewUrl: null, stationSlug: "nope" };
       const client = createPlaylistClient({ ...base, query: async () => [row] });

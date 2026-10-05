@@ -27,7 +27,7 @@ const SEARCH_RESULTS_SHOWN = 5;
 const MUSIC_STATIONS = ["88nine", "hyfin", "rhythmlab", "414music"] as const;
 const STATION_SLUG = z.enum(MUSIC_STATIONS);
 const MAX_RECENT_SONGS = 10;
-const PLAY_ID = z.string().regex(/^[a-z0-9_]{6,64}$/, "Use the playId from find_song_played, not the list number.");
+const PLAY_ID = z.string().regex(/^[a-z0-9_]{6,64}$/, "Use the playId from find_song_played; use the number field for list numbers.");
 const STORY_ID = /^[a-z0-9]{1,64}$/;
 // Show artwork on f.prxu.org, audio on Dovetail, our logo and map pictures, fonts, and the fullscreen map (library + Amazon tiles).
 const CARD_CSP = {
@@ -136,8 +136,14 @@ export function buildMcpHandler(deps: Deps) {
   const shows = station.shows.map((s) => s.slug) as [string, ...string[]];
   const card = (view: CardView, extra: Record<string, unknown> = {}) => ({ stationId: station.stationId, view: view.view, cardHtml: renderView(view), ...extra });
   // Memory writes never block or fail a reply; a failure logs a fixed event name (never the listener id).
-  const defer = (task: () => Promise<unknown>) =>
-    (deps.defer ?? ((run) => void run()))(() => task().catch(() => console.error(JSON.stringify({ event: "deferred_task_failed" }))));
+  const defer = (task: () => Promise<unknown>) => {
+      const logFailure = () => console.error(JSON.stringify({ event: "deferred_task_failed" }));
+      try {
+        (deps.defer ?? ((run) => void run()))(() => task().catch(logFailure));
+      } catch {
+        logFailure(); // e.g. after() outside a request scope: never fail the reply
+      }
+    };
   // So "save number 2" works later: remember the numbered list exactly as the listener sees it.
   const rememberScreen = (context: { http?: Parameters<typeof listenerIdFrom>[0] }, playIds: string[]) => {
     const listenerId = listenerIdFrom(context.http ?? {});
@@ -389,7 +395,7 @@ export function buildMcpHandler(deps: Deps) {
         {
           title: "Latest songs Radio Milwaukee played",
           description:
-            "The most recent songs on a Radio Milwaukee station, newest first, numbered. Use for 'what's playing?', 'what just played?', 'the last 5 songs on 88Nine'. Pass a song's playId to save_find or get_track_story ('save number 2'). For a song at a past time ('around 2 pm'), use find_song_played.",
+            "The most recent songs on a Radio Milwaukee station, newest first, numbered. Use for 'what's playing?', 'what just played?', 'the last 5 songs on 88Nine'. save_find takes the `number` field for 'save number 2'; get_track_story takes the playId. For a song at a past time ('around 2 pm'), use find_song_played.",
           inputSchema: z.object({
             station: z.enum(["hyfin", "88nine", "414music", "rhythmlab"]),
             count: z.number().int().min(1).max(MAX_RECENT_SONGS).optional(),
@@ -441,7 +447,7 @@ export function buildMcpHandler(deps: Deps) {
         "save_find",
         {
           title: "Save a song to 88Nine Finds",
-          description: "Save a song the listener heard on Radio Milwaukee to their 88Nine Finds (and Apple Music if connected). Requires a linked account. Pass number (1-10) when the listener says \"save number 3\" about the list on screen. Otherwise pass the playId from recent_songs, find_song_played or search_playlist if you have it, and always also pass the song's title and artist (and station if known) so the right play is found even without an id. Use for 'save it', 'save number 3', 'save the song by Thao'.",
+          description: "Save a song the listener heard on Radio Milwaukee to their 88Nine Finds (and Apple Music if connected). Requires a linked account. Pass number (1-10) only when the listener says a number (\"save number 3\"). Otherwise pass the playId from recent_songs, find_song_played or search_playlist if you have it, and always also pass the song's title and artist (and station if known) so the right play is found even without an id. Use for 'save it', 'save number 3', 'save the song by Thao'.",
           inputSchema: z.object({
             number: z.number().int().min(1).max(10).optional(),
             playId: PLAY_ID.optional(),
@@ -455,8 +461,8 @@ export function buildMcpHandler(deps: Deps) {
           timed("save_find", async () => {
             const listenerId = listenerIdFrom(context.http ?? {});
             if (!listenerId) return accountLinkingRequired();
-            // The number the listener saw on screen wins over any id the host remembered.
-            const onScreen = number === undefined ? null : await deps.playlist().screenPlay(listenerId, number);
+            // A named song always beats a number: the remembered list can be 30 minutes stale.
+            const onScreen = number === undefined || title ? null : await deps.playlist().screenPlay(listenerId, number);
             const firstId = onScreen ?? playId;
             let saved: SavedFind = firstId ? await deps.playlist().saveFind(listenerId, firstId) : { status: "not_found" };
             // Hosts lose ids between turns; the title and artist the listener heard still name the song.

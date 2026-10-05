@@ -105,6 +105,8 @@ type Call = (name: string, args: Record<string, unknown>) => Promise<unknown>;
 const CONNECT_TIMEOUT_MS = 5000;
 // The digest reads several tables per followed artist, so it gets more room than a plain lookup.
 const DIGEST_TIMEOUT_MS = 1500;
+// An uncached indexed search reads up to ~600 plays (0.7-1.2 s live); Amazon's guidance is 3 s.
+const SEARCH_TIMEOUT_MS = 2000;
 
 const toRecentSongs = (plays: z.infer<typeof publicPlaySchema>[]): RecentSong[] =>
   plays.map(({ _id, artist, title, playedAt, artworkUrl, previewUrl }) => ({ playId: _id, artist, title, playedAt, artworkUrl, previewUrl }));
@@ -151,7 +153,7 @@ export function createPlaylistClient({ query, mutation, action, serverKey, timeo
       await call(mutation, "digest:markSeen", keyed({ listenerId, seenAt }), nullSchema);
     },
     searchPlaysIndexed: async (station, text) => {
-      const plays = await call(query, "alexa:searchPlays", station ? { station, query: text } : { query: text }, z.array(indexedPlaySchema));
+      const plays = await call(query, "alexa:searchPlays", station ? { station, query: text } : { query: text }, z.array(indexedPlaySchema), SEARCH_TIMEOUT_MS);
       return plays.map(({ stationSlug, ...play }) => ({ ...toRecentSongs([play])[0], station: stationSlug }));
     },
     async connectAppleMusic(listenerId, musicUserToken) {

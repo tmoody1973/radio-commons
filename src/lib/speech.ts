@@ -220,7 +220,7 @@ function savedExtras(saved: Extract<SavedFind, { status: "ok" }>): string {
   const follow = saved.firstFollow ? `I'll keep an eye out for ${saved.artistName}` : "";
   const show = saved.nextShow ? `they play ${saved.nextShow.venue} in ${saved.nextShow.city} on ${showDay(saved.nextShow.startsAtMs)}` : "";
   const story = saved.story ? `we have their ${saved.story.show} story` : "";
-  const lead = follow ? (show ? `${follow} — ${show}` : follow) : capitalized(show);
+  const lead = follow ? (show ? `${follow} — ${show}` : follow) : show ? `${saved.artistName} ${show.replace(/^they play /, "plays ")}` : "";
   const sentence = story ? (lead ? `${lead}, and ${story}` : capitalized(story)) : lead;
   return sentence ? ` ${sentence}.` : "";
 }
