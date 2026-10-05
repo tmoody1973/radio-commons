@@ -1,7 +1,8 @@
 import { EVENT } from "./fixtures";
 import { describe, expect, it } from "vitest";
 import type { Story } from "@/lib/backstory";
-import { EVENTS_UNAVAILABLE_SPEECH, NOT_ALLOWED_SPEECH, NO_PASSAGE_SPEECH, clock, directAudioUrl, eventTime, monthYear, spokenEvents, spokenMatches, spokenPassages, spokenPicks, spokenPlaces, spokenStory } from "@/lib/speech";
+import type { SavedFind } from "@/lib/playlist";
+import { EVENTS_UNAVAILABLE_SPEECH, NOT_ALLOWED_SPEECH, NO_PASSAGE_SPEECH, clock, directAudioUrl, eventTime, monthYear, spokenEvents, spokenMatches, spokenPassages, spokenPicks, spokenPlaces, spokenSaved, spokenStory } from "@/lib/speech";
 
 const STORY: Story = {
   storyId: "s1", show: "Uniquely Milwaukee", title: "Creativity is sustainable, accessible at 414 Art Revival",
@@ -105,5 +106,39 @@ describe("events speech", () => {
   });
   it("says which mapped place takes reservations", () => {
     expect(spokenPlaces(["Bread House", "El Tsunami"], "Bread House")).toBe("That story mentions 2 mapped places. The first two are Bread House and El Tsunami. Bread House takes reservations; tap Reserve to book. Want directions to one?");
+  });
+});
+
+describe("spokenSaved", () => {
+  const ok = (over: Partial<Extract<SavedFind, { status: "ok" }>> = {}): SavedFind => ({
+    status: "ok", findId: "f1", appleMusic: "pending", artist: "Thao", title: "Sick of the Times", alreadySaved: false,
+    artistId: "a1", artistName: "Thao", firstFollow: false, nextShow: null, story: null, recentlySaved: false, ...over,
+  });
+  const APPLE_HINT = "To add these to your Apple Music library too, connect it at radiomilwaukee.org slash connect.";
+  const SAVED = 'Saved "Sick of the Times" by Thao to your 88Nine Finds, and I\'m adding it to Apple Music.';
+
+  it("weaves the follow, the next show and the story into one reply (Milwaukee date)", () => {
+    const saved = ok({ firstFollow: true, nextShow: { venue: "Turner Hall", city: "Milwaukee", startsAtMs: Date.UTC(2026, 9, 10, 1) }, story: { storyId: "s1", title: "T", show: "Studio Milwaukee" } });
+    expect(spokenSaved(saved)).toBe(`${SAVED} I'll keep an eye out for Thao — they play Turner Hall in Milwaukee on Friday, October 9, and we have their Studio Milwaukee story.`);
+  });
+
+  it("a save never fails because of the extra fields: nothing extra means just the saved sentence", () => {
+    expect(spokenSaved(ok())).toBe(SAVED);
+  });
+
+  it("each extra stands on its own", () => {
+    expect(spokenSaved(ok({ firstFollow: true }))).toBe(`${SAVED} I'll keep an eye out for Thao.`);
+    expect(spokenSaved(ok({ story: { storyId: "s1", title: "T", show: "Studio Milwaukee" } }))).toBe(`${SAVED} We have their Studio Milwaukee story.`);
+    expect(spokenSaved(ok({ nextShow: { venue: "Turner Hall", city: "Milwaukee", startsAtMs: Date.UTC(2026, 9, 10, 1) } }))).toBe(`${SAVED} They play Turner Hall in Milwaukee on Friday, October 9.`);
+  });
+
+  it("adds the Apple Music hint only when not linked and not saved a moment ago", () => {
+    const plain = 'Saved "Sick of the Times" by Thao to your 88Nine Finds.';
+    expect(spokenSaved(ok({ appleMusic: "not_linked" }))).toBe(`${plain} ${APPLE_HINT}`);
+    expect(spokenSaved(ok({ appleMusic: "not_linked", recentlySaved: true }))).toBe(plain);
+  });
+
+  it("asks which song when the play is gone", () => {
+    expect(spokenSaved({ status: "not_found" })).toMatch(/which song/);
   });
 });

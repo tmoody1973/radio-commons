@@ -84,7 +84,6 @@ export interface PlaylistClient {
   findSongPlayed(args: { station: Station; from: number; to: number; cues?: string[]; beforePlayId?: string; afterPlayId?: string }): Promise<RecallResult>;
   getTrackFacts(args: { trackId?: string; playId?: string }): Promise<TrackFacts>;
   recentSongs(station: Station, count: number): Promise<RecentSong[]>;
-  searchPlays(station: Station, query: string, limit: number): Promise<RecentSong[]>;
   saveFind(listenerId: string, playId: string): Promise<SavedFind>;
   listFinds(listenerId: string, limit?: number): Promise<FindRow[]>;
   deleteFinds(listenerId: string): Promise<z.infer<typeof deletedSchema>>;
@@ -95,7 +94,7 @@ export interface PlaylistClient {
   unfollow(listenerId: string, artist: string): Promise<UnfollowResult>;
   digest(listenerId: string): Promise<Digest>;
   markDigestSeen(listenerId: string, seenAt: number): Promise<void>;
-  /** Index-backed search across one station or all four; Task B2 switches the tools from searchPlays to this. */
+  /** Index-backed search (about the last two weeks) across one station or all four, newest first. */
   searchPlaysIndexed(station: Station | undefined, query: string): Promise<(RecentSong & { station: Station })[]>;
 }
 
@@ -135,8 +134,6 @@ export function createPlaylistClient({ query, mutation, action, serverKey, timeo
   return {
     findSongPlayed: (args) => call(query, "alexa:findSongPlayed", args, recallSchema),
     getTrackFacts: (args) => call(query, "alexa:getTrackFacts", args, factsSchema),
-    // The website widget's search: artist or title substring, newest first; depth grows with limit.
-    searchPlays: async (station, text, limit) => toRecentSongs(await call(query, "plays:searchByStation", { stationSlug: station, q: text, limit }, z.array(publicPlaySchema))),
     // The same newest-first public playlist the website widget shows (station IDs and promos already removed).
     recentSongs: async (station, count) =>
       toRecentSongs(await call(query, "plays:recentByStation", { stationSlug: station, limit: count }, z.array(publicPlaySchema))),

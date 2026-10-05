@@ -13,7 +13,7 @@ import { INITIALIZE, mcpPost, mcpPostAs, mcpRequest, send } from "./mcp-wire";
 
 const NOW = new Date("2026-10-04T20:00:00Z");
 const handlerWith = (backstory = fakeBackstory(), fieldGuide = fakeFieldGuide(), playlist = fakePlaylist()) =>
-  buildMcpHandler({ backstory: () => backstory, fieldGuide: () => fieldGuide, playlist: () => playlist, now: () => NOW, cardHtml: () => "<!doctype html><title>card</title>" });
+  buildMcpHandler({ backstory: () => backstory, fieldGuide: () => fieldGuide, playlist: () => playlist, now: () => NOW, defer: (task) => void task(), cardHtml: () => "<!doctype html><title>card</title>" });
 const PLAYLIST_TOOLS = ["find_song_played", "get_track_story", "save_find", "list_finds", "delete_my_finds"];
 const call = (name: string, args: Record<string, unknown>) => ({ method: "tools/call", params: { name, arguments: args } });
 
@@ -259,14 +259,15 @@ describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
   });
   it("search_playlist finds an artist across every station, newest first, and says when it last played", async () => {
     const asked: string[] = [];
-    const playlist = fakePlaylist({ searchPlays: async (station, query) => {
+    const playlist = fakePlaylist({ searchPlaysIndexed: async (station, query) => {
       asked.push(`${station}:${query}`);
-      if (station === "hyfin") return [{ playId: "play_h", artist: "Nas", title: "One Mic", playedAt: Date.UTC(2026, 9, 3, 8, 16), artworkUrl: null, previewUrl: null }];
-      if (station === "88nine") return [{ playId: "play_n", artist: "Nas", title: "N.Y. State of Mind", playedAt: Date.UTC(2026, 9, 1, 20), artworkUrl: null, previewUrl: null }];
-      return [];
+      return [
+        { playId: "play_h", artist: "Nas", title: "One Mic", playedAt: Date.UTC(2026, 9, 3, 8, 16), artworkUrl: null, previewUrl: null, station: "hyfin" },
+        { playId: "play_n", artist: "Nas", title: "N.Y. State of Mind", playedAt: Date.UTC(2026, 9, 1, 20), artworkUrl: null, previewUrl: null, station: "88nine" },
+      ];
     } });
     const { message } = await mcpPost(handlerWith(undefined, undefined, playlist), call("search_playlist", { query: "Nas" }));
-    expect(asked.sort()).toEqual(["414music:Nas", "88nine:Nas", "hyfin:Nas", "rhythmlab:Nas"]);
+    expect(asked).toEqual(["undefined:Nas"]);
     expect(message.result.content[0].text).toBe('"One Mic" by Nas last played on HYFIN, October 3 at 3:16 a.m.');
     expect(message.result.structuredContent.view).toBe("songs");
     expect(message.result.structuredContent.songs.map((s: { playId: string }) => s.playId)).toEqual(["play_h", "play_n"]);
@@ -275,7 +276,7 @@ describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
     const asked: unknown[] = [];
     const playlist = fakePlaylist({
       getTrackFacts: async (args) => { asked.push(args); return args.playId === "play_zhane" ? { status: "ok", title: "Groove Thang", artist: "Zhané" } : { status: "not_found" }; },
-      searchPlays: async (station) => station === "hyfin" ? [{ playId: "play_zhane", artist: "Zhané", title: "Groove Thang", playedAt: Date.UTC(2026, 9, 4, 8, 12), artworkUrl: null, previewUrl: null }] : [],
+      searchPlaysIndexed: async () => [{ playId: "play_zhane", artist: "Zhané", title: "Groove Thang", playedAt: Date.UTC(2026, 9, 4, 8, 12), artworkUrl: null, previewUrl: null, station: "hyfin" }],
     });
     const { message } = await mcpPost(handlerWith(undefined, undefined, playlist), call("get_track_story", { playId: "groove_thang", title: "Groove Thang", artist: "Zhane" }));
     expect(asked).toEqual([{ playId: "groove_thang" }, { playId: "play_zhane" }]);
@@ -303,6 +304,59 @@ describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
     const { message } = await mcpPost(handlerWith(undefined, undefined, facts), call("get_track_story", { playId: "play_1" }));
     expect(message.result.content[0].text).toBe('"Victory Dance" by Ezra Collective, released in 2024, on Partisan.');
   });
+  describe("screen memory", () => {
+    const songs = ["a", "b", "c"].map((title, i) => ({ playId: `play_${title}_id`, artist: `Artist ${i}`, title, playedAt: Date.UTC(2026, 9, 4, 21 - i), artworkUrl: null, previewUrl: null }));
+    const remembering = (extra: Parameters<typeof fakePlaylist>[0] = {}) => {
+      const remembered: [string, string[]][] = [];
+      return { remembered, playlist: fakePlaylist({ rememberScreen: async (id, ids) => { remembered.push([id, ids]); }, ...extra }) };
+    };
+    it("recent_songs remembers the on-screen order for a linked listener, and nothing for an anonymous one", async () => {
+      const { remembered, playlist } = remembering({ recentSongs: async () => songs });
+      await mcpPostAs(handlerWith(undefined, undefined, playlist), call("recent_songs", { station: "88nine" }), "user_1");
+      expect(remembered).toEqual([["user_1", ["play_a_id", "play_b_id", "play_c_id"]]]);
+      await mcpPost(handlerWith(undefined, undefined, playlist), call("recent_songs", { station: "88nine" }));
+      expect(remembered).toHaveLength(1);
+    });
+    it("search_playlist remembers the songs it shows", async () => {
+      const { remembered, playlist } = remembering({ searchPlaysIndexed: async () => songs.map((s) => ({ ...s, station: "88nine" as const })) });
+      await mcpPostAs(handlerWith(undefined, undefined, playlist), call("search_playlist", { query: "artist" }), "user_1");
+      expect(remembered).toEqual([["user_1", ["play_a_id", "play_b_id", "play_c_id"]]]);
+    });
+    it("find_song_played remembers only a list of two or more", async () => {
+      const match = (playId: string) => ({ label: "1", playId, artist: "A", title: "T", playedAt: 1, trackId: null, matchReason: null, artworkUrl: null, previewUrl: null, upcomingShows: [] });
+      const one = remembering({ findSongPlayed: async () => ({ status: "ok", matches: [match("play_one_id")] }) });
+      await mcpPostAs(handlerWith(undefined, undefined, one.playlist), call("find_song_played", { station: "88nine", startTime: "12:00", endTime: "13:00" }), "user_1");
+      expect(one.remembered).toEqual([]);
+      const two = remembering({ findSongPlayed: async () => ({ status: "options", matches: [match("play_x_id"), match("play_y_id")] }) });
+      await mcpPostAs(handlerWith(undefined, undefined, two.playlist), call("find_song_played", { station: "88nine", startTime: "12:00", endTime: "13:00" }), "user_1");
+      expect(two.remembered).toEqual([["user_1", ["play_x_id", "play_y_id"]]]);
+    });
+    it("a failed memory write never fails or changes the reply", async () => {
+      const { playlist } = remembering({ recentSongs: async () => songs, rememberScreen: async () => { throw new PlaylistUnavailable("down"); } });
+      const handler = buildMcpHandler({ backstory: () => fakeBackstory(), fieldGuide: () => fakeFieldGuide(), playlist: () => playlist, now: () => NOW, defer: (task) => void task(), cardHtml: () => "" });
+      const { message } = await mcpPostAs(handler, call("recent_songs", { station: "88nine" }), "user_1");
+      expect(message.result.isError).toBeFalsy();
+    });
+    it("save_find {number} saves the remembered play; a forgotten number falls to the title, then asks which song", async () => {
+      const saved: string[] = [];
+      const seen: [string, number][] = [];
+      const base = { screenPlay: async (id: string, n: number) => { seen.push([id, n]); return n === 3 ? "play_three_id" : null; },
+        saveFind: async (_l: string, id: string) => { saved.push(id); return id === "play_three_id" || id === "play_found_id" ? { status: "ok" as const, findId: "f", appleMusic: "pending" as const, artist: "A", title: "T", alreadySaved: false, artistId: null, artistName: "A", firstFollow: false, nextShow: null, story: null, recentlySaved: false } : { status: "not_found" as const }; } };
+      const playlist = fakePlaylist({ ...base, searchPlaysIndexed: async () => [{ playId: "play_found_id", artist: "Thao", title: "Sick", playedAt: 1, artworkUrl: null, previewUrl: null, station: "88nine" }] });
+      await mcpPostAs(handlerWith(undefined, undefined, playlist), call("save_find", { number: 3 }), "user_1");
+      expect(seen).toEqual([["user_1", 3]]);
+      expect(saved).toEqual(["play_three_id"]);
+      await mcpPostAs(handlerWith(undefined, undefined, playlist), call("save_find", { number: 4, title: "Sick", artist: "Thao" }), "user_1");
+      expect(saved).toEqual(["play_three_id", "play_found_id"]);
+      const { message } = await mcpPostAs(handlerWith(undefined, undefined, playlist), call("save_find", { number: 5 }), "user_1");
+      expect(message.result.content[0].text).toMatch(/which song/i);
+      expect(saved).toHaveLength(2);
+    });
+    it("save_find rejects a number outside 1-10", async () => {
+      const { message } = await mcpPostAs(handlerWith(), call("save_find", { number: 11 }), "user_1");
+      expect(message.error ?? message.result?.isError).toBeTruthy();
+    });
+  });
   describe("Finds tools", () => {
     it("save_find saves for the linked listener and confirms by voice", async () => {
       const saved: string[] = [];
@@ -322,7 +376,7 @@ describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
       const saved: string[] = [];
       const playlist = fakePlaylist({
         saveFind: async (_listener, playId) => { saved.push(playId); return playId === "play_real" ? { status: "ok", findId: "f1", appleMusic: "pending", artist: "King Tuff", title: "Twisted On A Train", alreadySaved: false, artistId: null, artistName: "A", firstFollow: false, nextShow: null, story: null, recentlySaved: false } : { status: "not_found" }; },
-        searchPlays: async (station) => station === "88nine" ? [{ playId: "play_real", artist: "King Tuff", title: "Twisted On A Train", playedAt: Date.UTC(2026, 9, 4, 21), artworkUrl: null, previewUrl: null }] : [],
+        searchPlaysIndexed: async () => [{ playId: "play_real", artist: "King Tuff", title: "Twisted On A Train", playedAt: Date.UTC(2026, 9, 4, 21), artworkUrl: null, previewUrl: null, station: "88nine" }],
       });
       const { message } = await mcpPostAs(handlerWith(undefined, undefined, playlist), call("save_find", { playId: "king_tuff_twisted_on_a_train", title: "Twisted On A Train", artist: "King Tuff" }), "user_1");
       expect(saved).toEqual(["king_tuff_twisted_on_a_train", "play_real"]);
@@ -332,7 +386,7 @@ describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
       const saved: string[] = [];
       const playlist = fakePlaylist({
         saveFind: async (_listener, playId) => { saved.push(playId); return { status: "ok", findId: "f1", appleMusic: "not_linked", artist: "Thao", title: "Sick of the Times", alreadySaved: false, artistId: null, artistName: "A", firstFollow: false, nextShow: null, story: null, recentlySaved: false }; },
-        searchPlays: async () => [{ playId: "play_thao", artist: "Thao", title: "Sick of the Times (feat. The Linda Lindas)", playedAt: Date.UTC(2026, 9, 4, 21), artworkUrl: null, previewUrl: null }],
+        searchPlaysIndexed: async () => [{ playId: "play_thao", artist: "Thao", title: "Sick of the Times (feat. The Linda Lindas)", playedAt: Date.UTC(2026, 9, 4, 21), artworkUrl: null, previewUrl: null, station: "88nine" }],
       });
       await mcpPostAs(handlerWith(undefined, undefined, playlist), call("save_find", { artist: "Thao", station: "88nine" }), "user_1");
       expect(saved).toEqual(["play_thao"]);

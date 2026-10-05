@@ -51,7 +51,6 @@ export const fakePlaylist = (overrides: Partial<PlaylistClient> = {}): PlaylistC
   }),
   getTrackFacts: async () => ({ status: "ok" }),
   recentSongs: async () => [],
-  searchPlays: async () => [],
   saveFind: async () => ({ status: "ok", findId: "find_1", appleMusic: "not_linked", artist: "Ezra Collective", title: "Victory Dance", alreadySaved: false,
     artistId: "artist_1", artistName: "Ezra Collective", firstFollow: false, nextShow: null, story: null, recentlySaved: false }),
   listFinds: async () => [{

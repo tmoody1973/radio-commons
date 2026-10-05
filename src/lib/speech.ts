@@ -206,7 +206,23 @@ export function spokenSearch(query: string, top: { artist: string; title: string
 export function spokenSaved(saved: SavedFind): string {
   if (saved.status === "not_found") return "I couldn't find that play anymore — which song did you mean?";
   const already = saved.alreadySaved ? "It was already in your Finds, so I moved it to the top" : `Saved "${saved.title}" by ${saved.artist} to your 88Nine Finds`;
-  return saved.appleMusic === "pending" ? `${already}, and I'm adding it to Apple Music.` : `${already}.`;
+  const base = saved.appleMusic === "pending" ? `${already}, and I'm adding it to Apple Music.` : `${already}.`;
+  const hint = saved.appleMusic === "not_linked" && !saved.recentlySaved ? ` ${APPLE_HINT}` : "";
+  return `${base}${savedExtras(saved)}${hint}`;
+}
+
+const APPLE_HINT = "To add these to your Apple Music library too, connect it at radiomilwaukee.org slash connect.";
+const showDay = (ms: number) => new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "America/Chicago" }).format(ms);
+const capitalized = (sentence: string) => sentence.charAt(0).toUpperCase() + sentence.slice(1);
+
+/** " I'll keep an eye out for Thao — they play Turner Hall in Milwaukee on Friday, October 9, and we have their Studio Milwaukee story." Each part is optional. */
+function savedExtras(saved: Extract<SavedFind, { status: "ok" }>): string {
+  const follow = saved.firstFollow ? `I'll keep an eye out for ${saved.artistName}` : "";
+  const show = saved.nextShow ? `they play ${saved.nextShow.venue} in ${saved.nextShow.city} on ${showDay(saved.nextShow.startsAtMs)}` : "";
+  const story = saved.story ? `we have their ${saved.story.show} story` : "";
+  const lead = follow ? (show ? `${follow} — ${show}` : follow) : capitalized(show);
+  const sentence = story ? (lead ? `${lead}, and ${story}` : capitalized(story)) : lead;
+  return sentence ? ` ${sentence}.` : "";
 }
 
 export function spokenFinds(finds: FindRow[]): string {
