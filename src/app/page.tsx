@@ -36,6 +36,7 @@ export default function Home() {
             <a href="#why">Why</a>
             <a href="#how">How it works</a>
             <a href="#stations">For stations</a>
+            <a href={L.links.judges}>For judges</a>
           </nav>
         </div>
         <section id="top" className={`${styles.wrap} ${styles.hero}`}>

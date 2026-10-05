@@ -57,6 +57,7 @@ export const LANDING = {
   footer: "Built by Tarik Moody for 88Nine Radio Milwaukee · Alexa+ hackathon 2026",
   links: {
     simulator: "/simulator",
+    judges: "/how-it-works",
     github: GITHUB,
     research: `${GITHUB}/blob/main/docs/research/2026-10-04-landscape.md`,
   },
