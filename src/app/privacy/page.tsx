@@ -17,14 +17,17 @@ export default function PrivacyPage() {
         <li>An account ID that identifies you to us (it is not your name).</li>
         <li>The artist, title and station of each song you saved, and when you saved it.</li>
         <li>If you connect Apple Music, that connection, stored encrypted.</li>
-        <li>The artists you follow, the last list of songs we showed you (kept 30 minutes), and when you last asked what&rsquo;s new. Deleting your data erases these too.</li>
+        <li>The artists you follow, including ones you follow automatically by saving one of their songs, and ones you&rsquo;ve told us to stop following, so a later save doesn&rsquo;t follow them again.</li>
+        <li>The last list of songs we showed you, used for 30 minutes so you can say &ldquo;save number 3&rdquo;, and replaced by the next list.</li>
+        <li>When you last asked what&rsquo;s new, so we can tell you what changed since then.</li>
+        <li>Deleting your data erases all of these.</li>
       </ul>
 
       <h2>Sign-in</h2>
       <p>Signing in is handled by Clerk, our sign-in provider. Clerk holds your email address so you can sign in; it is not copied into our song database.</p>
 
       <h2>Why</h2>
-      <p>The account ID and saved songs are how we remember your list between visits. The Apple Music connection is only used to add songs you saved to your library.</p>
+      <p>The account ID and saved songs are how we remember your list between visits. The Apple Music connection is only used to add songs you saved to your library. We also remember which song you meant, which artists to watch for you, and what&rsquo;s new since your last visit.</p>
 
       <h2>How to delete it</h2>
       <p>Say &ldquo;Alexa, delete my Finds&rdquo; to erase your saved songs, followed artists and Apple Music link, or {contact} and we will do it for you.</p>
