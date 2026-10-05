@@ -65,8 +65,10 @@ export function buttonConfig(signer: Pick<PayClient, "generateButtonSignature">,
 export type ButtonConfig = ReturnType<typeof buttonConfig>;
 
 export type CompleteResult =
-  | { status: "paid" | "pending"; chargePermissionId: string; reference: string }
-  | { status: "mismatch" | "failed" };
+  | { status: "paid"; chargePermissionId: string; reference: string }
+  | { status: "pending"; chargePermissionId: string; reference: string }
+  | { status: "mismatch" }
+  | { status: "failed" };
 
 const str = (value: unknown) => (typeof value === "string" ? value : "");
 const field = (data: Record<string, unknown>, ...path: string[]) =>
