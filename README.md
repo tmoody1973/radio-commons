@@ -25,7 +25,7 @@ Behind it: [Backstory](https://github.com/tmoody1973/backstory), the station's s
 
 | What | Status |
 | --- | --- |
-| **Weekly station briefing** — "What's new at Radio Milwaukee this week?" read from the station's newsletter, each item opening the real episode, song or picks | Spec written (`docs/superpowers/specs/2026-10-04-station-briefing-design.md`), awaiting approval |
+| **Weekly station briefing** — "What's new at Radio Milwaukee this week?" read from the station's newsletter, each item opening the real story, Concert Picks or page | Built (`station_briefing`); decision 007 |
 | **Local song stories** — link Backstory's premiere and session facts to the playlist's songs, so "tell me about this song" includes Radio Milwaukee's own coverage of Milwaukee artists | Next, now that the playlist tools exist |
 | Demo video and Devpost write-up | Next |
 
@@ -46,7 +46,7 @@ Listener ──voice──▶ Alexa+ ──MCP, Streamable HTTP──▶ radio-c
                      MKE Field Guide: /api/public/events, /api/public/picks (read-only)
 ```
 
-### The tools Alexa+ can call (16)
+### The tools Alexa+ can call (20)
 
 **Stories** (from Backstory; only editor-published)
 - **`find_station_story`** turns a listener's description into up to three published stories, read back as a numbered list. It also finds a story by something said in it ("the episode where they talked about stromboli"), but only in episodes whose detailed answers are on. If nothing matches well enough, it says so; it never guesses.
@@ -58,6 +58,9 @@ Listener ──voice──▶ Alexa+ ──MCP, Streamable HTTP──▶ radio-c
 - **`find_events`** finds upcoming events by words, time (tonight, this weekend), free only, or **near a place from a story on screen** (1 mile, widening once to 3): a map with the place starred, or a carousel. Every event has **Add to calendar**.
 - **`station_picks`** reads this week's Radio Milwaukee picks in the curator's own words, including the station's weekly **MKE Concert Picks** (imported automatically), topped up with station events.
 
+**Briefing** (from the station's weekly newsletter in Mailchimp)
+- **`station_briefing`** — "What's new at Radio Milwaukee this week?": up to four items from the newest weekly newsletter, in the station's own first sentences and credited to its date ("from the Oct. 1 newsletter"). On screen, each item opens its published story (Play), this week's Concert Picks, or the page on radiomilwaukee.org (Read). Sponsor content is dropped; no AI writes or retells anything. Reads only campaign titles and content, never subscriber data.
+
 **Songs** (from the station playlists: 88Nine, HYFIN, Rhythm Lab, 414 Music)
 - **`recent_songs`** — "What's playing?", "the last five songs on 88Nine": a numbered list with artwork and 30-second previews.
 - **`search_playlist`** — "When did you last play Nas?", "Have you played the new Thao song?": searches about two weeks of plays on every station.
@@ -68,6 +71,8 @@ Listener ──voice──▶ Alexa+ ──MCP, Streamable HTTP──▶ radio-c
 - **`save_find`** — "Save that song": adds it to the listener's 88Nine Finds, and to Apple Music if connected.
 - **`list_finds`** — "What's in my Finds?"
 - **`delete_my_finds`** — deletes all of a listener's Finds and disconnects Apple Music, only after they confirm.
+
+Also live (described in their own tool descriptions): `on_air_now`, `what_can_you_do`, `follow_artist`, `unfollow_artist`, `station_artist_shows`, `whats_new_for_me`.
 
 - **On screens**, every tool returns one card in Amazon's [MCP Design Guide for Alexa+](https://developer.amazon.com/docs/alexaplus/add-ons/mcp-addon-design-guide-overview.html) patterns: a **story card** (artwork, title, ▶ Play episode, Places), a **premiere card** (Play song, credits, release show), a **session card** (set list), a **quote card** (▶ Play from 10:45), a **song list** (artwork, preview, Save), a **carousel** (numbered, tap to pick) or a **map** (Amazon Location, numbered pins matching a list; "See all" opens a pan-and-zoom fullscreen map). Cards are authored at Amazon's 768×480 base and scale to the screen, in light and dark.
 - **Music:** the **Milwaukee Music Premiere** (a local song the station debuts each week) and **Studio Milwaukee Sessions** come through the same story tools. A premiere card shows the song, album, release date, credits and release show, with **▶ Play song** (and **Add to calendar** when the release show is in the event guide that week). A session card shows the set list and links to the session on radiomilwaukee.org; session audio is never played. Both are read from the station's articles, with quoted lyrics removed. **MKE Concert Picks**, the station's weekly list of recommended shows, become Field Guide staff picks, so `station_picks` reads them ("…from Radio Milwaukee's MKE Concert Picks"). Set `PLAY_PREMIERE_AUDIO=off` to link to premieres instead of playing them.
@@ -96,7 +101,7 @@ cp .env.example .env.local  # set BACKSTORY_CONVEX_URL; for maps AMAZON_LOCATION
                             # AMAZON_LOCATION_BROWSER_KEY (tiles only); for the simulator DEEPGRAM_API_KEY,
                             # SIM_AWS_ACCESS_KEY_ID / SIM_AWS_SECRET_ACCESS_KEY (Bedrock Haiku + Polly only), SIM_PASSCODE.
                             # Songs: PLAYLIST_CONVEX_URL, RADIO_COMMONS_SERVER_KEY. Linked accounts: the CLERK_* values,
-                            # MCP_RESOURCE_URL. Optional: FIELD_GUIDE_URL, PLAY_PREMIERE_AUDIO=off. See .env.example.
+                            # MCP_RESOURCE_URL. Optional: FIELD_GUIDE_URL, PLAY_PREMIERE_AUDIO=off, MAILCHIMP_API_KEY (briefing). See .env.example.
 npm run dev                 # MCP endpoint: http://localhost:3000/api/mcp
 ```
 

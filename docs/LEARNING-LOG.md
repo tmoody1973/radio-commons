@@ -80,3 +80,16 @@
 - The first live import matched 12 of 20 shows; Alexa then read the stock blurb as if the writer had said it, until the wording was fixed.
 
 **What we now believe:** read the actual source documents before designing — the structure decides what needs AI and what doesn't. Test against the production driver's limits, not just the test database's. And a fresh reviewer earns its cost: two of its findings would have broken the feature on day one.
+
+## 2026-10-05: weekly station briefing (slice 6)
+
+**What we expected:** newsletter links would match Backstory stories by the words in the page address — "/my-way-out-milwaukee" and a title with "My Way Out".
+
+**What happened:**
+- One of the two podcast links matched that way. The other, "/art-resale-shop-milwaukee", belongs to a story titled "…at 414 Art Revival": the address and the headline were written separately and share no distinctive word.
+- The fix was a second, narrower rule: if the show published exactly one episode on that Milwaukee date, that's the page. Two episodes that day still means "not sure", so the item becomes a Read link instead of a wrong episode.
+- The newsletter's plain-text version turned out to be clean enough to read without AI: headings start with `**`, each item has one station link, sponsors have none.
+- Run against the real Oct. 1 issue: six items; two open published stories, one opens Concert Picks, three are Read links.
+
+**What we now believe:** test matching rules on the real links, not the ones you'd write yourself; the live data had a case the tests didn't. And when unsure, a weaker answer (a Read link) beats a confident wrong one.
+
