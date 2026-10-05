@@ -194,6 +194,15 @@ describe("the card page", () => {
       expect(html).toContain('data-ask="Play the Ladies First story about Thao &lt;script&gt;alert(1)&lt;/script&gt;"');
       expect(html).not.toContain(XSS);
     });
+    it("gives no tile to an artist without a show, spins or story item", () => {
+      const quiet = renderView({ view: "digest", artists: [...artists, { artistId: "a9", name: "Quiet One", artworkUrl: null }], items });
+      expect(quiet).not.toContain("Quiet One");
+    });
+    it("renders no tiles for an Apple-only digest, just the line", () => {
+      const apple = renderView({ view: "digest", artists, items: [{ kind: "apple", added: 2, expired: 0 }] });
+      expect(apple).not.toContain('class="tile');
+      expect(apple).toContain("2 of your saved songs are in Apple Music");
+    });
     it("puts Apple Music as a final text line, not a tile", () => {
       expect(html).toContain("2 of your saved songs are in Apple Music");
       expect(html).toContain("Apple Music needs reconnecting");

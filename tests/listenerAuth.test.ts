@@ -27,6 +27,12 @@ describe("gateAuthTools", () => {
   it("returns 401 for a JSON-RPC batch that includes a Finds tool", async () => {
     expect((await gateAuthTools(ok)(batch("find_station_story", "save_find"))).status).toBe(401);
   });
+  it.each(["whats_new_for_me", "follow_artist", "unfollow_artist"])("returns 401 with the challenge for %s without a token, alone or in a batch", async (name) => {
+    const res = await gateAuthTools(ok)(rpc(name));
+    expect(res.status).toBe(401);
+    expect(res.headers.get("www-authenticate")).toMatch(/^Bearer resource_metadata=/);
+    expect((await gateAuthTools(ok)(batch("find_station_story", name))).status).toBe(401);
+  });
   it("passes a batch of only anonymous tools through", async () => {
     expect((await gateAuthTools(ok)(batch("find_station_story", "find_song_played"))).status).toBe(200);
   });

@@ -2,7 +2,7 @@ import { registerAppResource, registerAppTool, RESOURCE_MIME_TYPE } from "@model
 import { createMcpHandler } from "mcp-handler";
 import { z } from "zod";
 import { BackstoryUnavailable, type BackstoryClient, type Story } from "@/lib/backstory";
-import { PlaylistUnavailable, type PlaylistClient, type RecallMatch, type SavedFind, type Station } from "@/lib/playlist";
+import { PlaylistUnavailable, type Digest, type PlaylistClient, type RecallMatch, type SavedFind, type Station } from "@/lib/playlist";
 import { listenerIdFrom } from "@/lib/listenerAuth";
 import { FieldGuideUnavailable, type FieldGuideClient, type PublicEvent } from "@/lib/fieldGuide";
 import { fullPlacesView, renderView, type CardView, type EventItem } from "@/lib/card";
@@ -152,6 +152,18 @@ export function buildMcpHandler(deps: Deps) {
       speech: spokenPicks(events, at),
       ...(events.length ? { structuredContent: card({ view: "events", items: events.map((event) => ({ event, when: eventTime(event.startAt, at) })) }, { events }) } : {}),
     };
+  };
+  const digestReply = async (digest: Digest): Promise<ToolResult> => {
+    if (digest.items.length > 0) {
+      return { content: text(spokenDigest(digest.items)), structuredContent: card({ view: "digest", artists: digest.artists, items: digest.items }) };
+    }
+    try {
+      const { speech, structuredContent } = await picksReply();
+      return { content: text(`${EMPTY_DIGEST_SPEECH} ${speech}`), ...(structuredContent ? { structuredContent } : {}) };
+    } catch (error) {
+      if (!(error instanceof FieldGuideUnavailable)) throw error;
+      return { content: text(EMPTY_DIGEST_SPEECH) };
+    }
   };
   // So "save number 2" works later: remember the numbered list exactly as the listener sees it.
   const rememberScreen = (context: { http?: Parameters<typeof listenerIdFrom>[0] }, playIds: string[]) => {
@@ -564,17 +576,10 @@ export function buildMcpHandler(deps: Deps) {
             const listenerId = listenerIdFrom(context.http ?? {});
             if (!listenerId) return accountLinkingRequired();
             const digest = await deps.playlist().digest(listenerId);
+            // Build the whole reply first: a reply that throws must not mark the digest seen.
+            const reply = await digestReply(digest);
             defer(() => deps.playlist().markDigestSeen(listenerId, digest.now));
-            if (digest.items.length > 0) {
-              return { content: text(spokenDigest(digest.items)), structuredContent: card({ view: "digest", artists: digest.artists, items: digest.items }) };
-            }
-            try {
-              const { speech, structuredContent } = await picksReply();
-              return { content: text(`${EMPTY_DIGEST_SPEECH} ${speech}`), ...(structuredContent ? { structuredContent } : {}) };
-            } catch (error) {
-              if (!(error instanceof FieldGuideUnavailable)) throw error;
-              return { content: text(EMPTY_DIGEST_SPEECH) };
-            }
+            return reply;
           }, playlistUnavailable),
       );
 

@@ -537,6 +537,12 @@ describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
         expect(message.result.content[0].text).toBe(PLAYLIST_UNAVAILABLE_SPEECH);
         expect(seen).toEqual([]);
       });
+      it("does not mark seen when building the reply throws", async () => {
+        const seen: number[] = [];
+        const bad = { ...DIGEST, items: [{ ...DIGEST.items[0], startsAtMs: Number.NaN }] };
+        await run(fakePlaylist({ digest: async () => bad, markDigestSeen: async (_id, at) => { seen.push(at); } }));
+        expect(seen).toEqual([]);
+      });
       it("is a card tool", async () => {
         const { message } = await mcpPost(handlerWith(), { method: "tools/list" });
         expect(message.result.tools.find((t: { name: string }) => t.name === "whats_new_for_me")._meta.ui.resourceUri).toBe(CARD_URI);

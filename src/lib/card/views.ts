@@ -238,12 +238,13 @@ function digestLine(item: DigestItem): string {
 
 /** One tile per followed artist that has news, plus Apple Music status as a closing text line. */
 function digestView(artists: Digest["artists"], items: DigestItem[]): string {
-  const tiles = artists.map((artist) => {
+  const tiles = artists.flatMap((artist) => {
     const mine = items.filter((item) => "artistId" in item && item.artistId === artist.artistId);
+    if (mine.length === 0) return [];
     const story = mine.find((item): item is Extract<DigestItem, { kind: "story" }> => item.kind === "story");
     const ask = story ? `<button type="button" class="secondary ask" data-ask="${escape(`Play the ${story.show} story about ${artist.name}`)}">Play story</button>` : "";
-    return `<article class="tile digest">${art(artist.artworkUrl, artist.name, "tile-art")}<span class="tile-title">${escape(artist.name)}</span>`
-      + `<span class="tile-date">${mine.map((item) => escape(digestLine(item))).join("<br>")}</span>${ask ? `<span class="tile-actions">${ask}</span>` : ""}</article>`;
+    return [`<article class="tile digest">${art(artist.artworkUrl, artist.name, "tile-art")}<span class="tile-title">${escape(artist.name)}</span>`
+      + `<span class="tile-date">${mine.map((item) => escape(digestLine(item))).join("<br>")}</span>${ask ? `<span class="tile-actions">${ask}</span>` : ""}</article>`];
   }).join("");
   const apple = items.flatMap((item) => (item.kind === "apple" ? [
     ...(item.added > 0 ? [`${item.added} of your saved songs ${item.added === 1 ? "is" : "are"} in Apple Music.`] : []),
