@@ -21,7 +21,8 @@
           "What were the last five songs on 88Nine",
           "What concerts are coming up in Milwaukee this weekend",
           "Save that song",
-          "What is new from Radio Milwaukee"
+          "What is new from Radio Milwaukee",
+          "What's new for me"
         ],
         "privacyAndCompliance": {
           "privacyPolicyUrl": "https://radio-commons.vercel.app/privacy"

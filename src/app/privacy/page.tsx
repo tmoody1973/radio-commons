@@ -17,6 +17,7 @@ export default function PrivacyPage() {
         <li>An account ID that identifies you to us (it is not your name).</li>
         <li>The artist, title and station of each song you saved, and when you saved it.</li>
         <li>If you connect Apple Music, that connection, stored encrypted.</li>
+        <li>The artists you follow, the last list of songs we showed you (kept 30 minutes), and when you last asked what&rsquo;s new. Deleting your data erases these too.</li>
       </ul>
 
       <h2>Sign-in</h2>
@@ -26,7 +27,7 @@ export default function PrivacyPage() {
       <p>The account ID and saved songs are how we remember your list between visits. The Apple Music connection is only used to add songs you saved to your library.</p>
 
       <h2>How to delete it</h2>
-      <p>Say &ldquo;Alexa, delete my Finds&rdquo; to erase your saved songs and Apple Music link, or {contact} and we will do it for you.</p>
+      <p>Say &ldquo;Alexa, delete my Finds&rdquo; to erase your saved songs, followed artists and Apple Music link, or {contact} and we will do it for you.</p>
 
       <h2>What we do not store</h2>
       <p>Your voice recordings, your email address and your name are not kept in the song database.</p>
