@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { LINK_ACCOUNT_SPEECH } from "@/lib/speech";
 import type { TrailEntry } from "@/lib/sim/trail";
 import {
-  checkFollowThao, checkOnAirNow, checkRecentSongs, checkSaveNumber3, checkSearchPlaylist, checkStationArtistShows, checkTrackStory, checkWhatCanYouDo, checkWhatsNew,
+  checkCancelNeedsLink, checkFollowThao, checkOnAirNow, checkSupport, checkRecentSongs, checkSaveNumber3, checkSearchPlaylist, checkStationArtistShows, checkTrackStory, checkWhatCanYouDo, checkWhatsNew,
 } from "@/lib/sim/evalChecks";
 
 const tool = (name: string, input: Record<string, unknown> = {}, isError = false, summary = "ok"): TrailEntry =>
@@ -103,5 +103,23 @@ describe("checkWhatCanYouDo", () => {
     expect(checkWhatCanYouDo([tool("what_can_you_do")]).pass).toBe(true);
     expect(checkWhatCanYouDo([tool("latest_station_stories")]).pass).toBe(false);
     expect(checkWhatCanYouDo([tool("what_can_you_do", {}, true, "boom")]).pass).toBe(false);
+  });
+});
+
+describe("checkSupport", () => {
+  it("passes on support_radio_milwaukee that put the give card on screen", () => {
+    expect(checkSupport([tool("support_radio_milwaukee")], [], "give").pass).toBe(true);
+    expect(checkSupport([tool("support_radio_milwaukee")], [], undefined).pass).toBe(false);
+    expect(checkSupport([tool("support_radio_milwaukee", {}, true, "boom")], [], "give").pass).toBe(false);
+    expect(checkSupport([tool("station_picks")], [], "events").pass).toBe(false);
+  });
+});
+
+describe("checkCancelNeedsLink", () => {
+  it("passes only when an unlinked cancel_membership stopped at account linking", () => {
+    expect(checkCancelNeedsLink([unlinked("cancel_membership")]).pass).toBe(true);
+    expect(checkCancelNeedsLink([tool("cancel_membership")]).pass).toBe(false);
+    expect(checkCancelNeedsLink([]).pass).toBe(false);
+    expect(checkCancelNeedsLink([unlinked("delete_my_finds")]).pass).toBe(false);
   });
 });

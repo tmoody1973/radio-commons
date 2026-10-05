@@ -67,3 +67,15 @@ export function checkWhatCanYouDo(trail: TrailEntry[]): CheckResult {
   const calls = toolCalls(trail, "what_can_you_do");
   return result(calls.length > 0 && calls.every((call) => !call.isError), calls);
 }
+
+/** "I want to support Radio Milwaukee": the give tool, and its card (view "give") on screen. */
+export function checkSupport(trail: TrailEntry[], _shown: ShownSong[], view?: string): CheckResult {
+  const calls = toolCalls(trail, "support_radio_milwaukee");
+  return result(calls.length > 0 && calls.every((call) => !call.isError) && view === "give", calls);
+}
+
+/** "cancel my membership" from the unlinked eval: cancel_membership, stopped at account linking (it never runs anonymously). */
+export function checkCancelNeedsLink(trail: TrailEntry[]): CheckResult {
+  const calls = toolCalls(trail, "cancel_membership");
+  return result(calls.length > 0 && calls.every((call) => call.isError && call.summary === LINK_ACCOUNT_SPEECH), calls);
+}
