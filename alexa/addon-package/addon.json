@@ -26,7 +26,8 @@
           "Do any 88Nine artists have concerts coming up",
           "What can Radio Milwaukee do",
           "What's on Radio Milwaukee right now",
-          "I want to support Radio Milwaukee"
+          "I want to support Radio Milwaukee",
+          "Who's on 88Nine right now"
         ],
         "privacyAndCompliance": {
           "privacyPolicyUrl": "https://radio-commons.vercel.app/privacy"

@@ -83,6 +83,13 @@ export const checkOnAirNow = (station?: string) => (trail: TrailEntry[]): CheckR
   return result(calls.length > 0 && calls.every((call) => call.input.station === station && !call.isError), calls);
 };
 
+/** "who's on 88nine", "when is rhythm lab on": station_schedule without an error, its query naming the show or host when one was said. */
+export const checkStationSchedule = (named?: RegExp) => (trail: TrailEntry[]): CheckResult => {
+  const calls = toolCalls(trail, "station_schedule");
+  const right = (call: ToolEntry) => !call.isError && (!named || (typeof call.input.query === "string" && named.test(call.input.query)));
+  return result(calls.length > 0 && calls.every(right), calls);
+};
+
 /** "what can you do": the capabilities summary. */
 export function checkWhatCanYouDo(trail: TrailEntry[]): CheckResult {
   const calls = toolCalls(trail, "what_can_you_do");
