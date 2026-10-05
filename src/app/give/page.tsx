@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { RETURN_LINK_TTL_MS } from "@/lib/give";
-import { buttonConfig, giveEnv, payClientFrom, type GiveEnv } from "@/lib/give/amazonPay";
+import { buttonConfig, giveEnv, payClientFrom, returnOrigin, type GiveEnv } from "@/lib/give/amazonPay";
 import { openListener, sealListener } from "@/lib/give/token";
 import { dollars, LEVELS, tierById, tierLabel, type Tier } from "@/lib/give/tiers";
 import { AmazonPayButton } from "./AmazonPayButton";
@@ -11,13 +11,6 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const one = (value: string | string[] | undefined) => (typeof value === "string" ? value : undefined);
-
-async function siteOrigin(): Promise<string> {
-  const h = await headers();
-  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "radio-commons.vercel.app";
-  const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
-  return `${proto}://${host}`;
-}
 
 const withToken = (path: string, token: string | undefined) => (token ? `${path}${path.includes("?") ? "&" : "?"}t=${encodeURIComponent(token)}` : path);
 
@@ -34,7 +27,7 @@ export default async function GivePage({ searchParams }: PageProps<"/give">) {
   const listenerId = openListener(token, env.tokenSecret);
   // A fresh, longer token rides in the signed return URL, so the listener is still known when Amazon sends them back.
   const returnToken = listenerId ? sealListener(listenerId, env.tokenSecret, RETURN_LINK_TTL_MS) : undefined;
-  const returnUrl = withToken(`${await siteOrigin()}/give/thanks?tier=${encodeURIComponent(tier.id)}`, returnToken);
+  const returnUrl = withToken(`${returnOrigin(await headers())}/give/thanks?tier=${encodeURIComponent(tier.id)}`, returnToken);
   const config = await signedButton(env, tier, returnUrl);
   if (!config) return <NotSetUp />;
   return (

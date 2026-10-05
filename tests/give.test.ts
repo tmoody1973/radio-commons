@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { LEVELS, TIERS, tierById } from "@/lib/give/tiers";
 import { openListener, sealListener } from "@/lib/give/token";
-import { ALGORITHM, giveEnv, buttonConfig, cancelMembership, chargeNextPeriod, checkoutPayload, complete, type PayClient } from "@/lib/give/amazonPay";
+import { ALGORITHM, giveEnv, returnOrigin, buttonConfig, cancelMembership, chargeNextPeriod, checkoutPayload, complete, type PayClient } from "@/lib/give/amazonPay";
 import { nextPeriod, periodOf, readMembership, type Membership } from "@/lib/give/membership";
 
 const SECRET = "a-test-secret-that-is-long-enough-000000";
@@ -176,5 +176,28 @@ describe("membership periods and records", () => {
     expect(readMembership({ membership: { ...MEMBER, amount: 10 } })).toBeNull();
     expect(readMembership({ membership: { ...MEMBER, status: "weird" } })).toBeNull();
     expect(readMembership(null)).toBeNull();
+  });
+});
+
+describe("return URL origin", () => {
+  const SITE = "https://radio-commons.vercel.app";
+  const h = (headers: Record<string, string | undefined>) => new Headers(Object.entries(headers).filter((pair): pair is [string, string] => pair[1] !== undefined));
+  it("in production is always SITE, whatever Host or X-Forwarded-Host say", () => {
+    for (const headers of [
+      { host: "evil.example" }, { host: "radio-commons.vercel.app", "x-forwarded-host": "evil.example", "x-forwarded-proto": "https" },
+      { host: "localhost:3000" }, { "x-forwarded-host": "localhost:3000" }, {},
+    ]) expect(returnOrigin(h(headers), "production", SITE)).toBe(SITE);
+  });
+  it("the page's return URL can't be steered by a spoofed host in production", () => {
+    const url = `${returnOrigin(h({ host: "evil.example", "x-forwarded-host": "evil.example" }), "production", SITE)}/give/thanks?tier=ga-monthly`;
+    const config = buttonConfig({ generateButtonSignature: () => "sig" }, { merchantId: "M1", publicKeyId: "K", storeId: "S" }, tierById("ga-monthly")!, url);
+    expect(JSON.parse(config.createCheckoutSessionConfig.payloadJSON).webCheckoutDetails.checkoutResultReturnUrl).toBe(`${SITE}/give/thanks?tier=ga-monthly`);
+  });
+  it("in development allows only an exact localhost or 127.0.0.1 origin", () => {
+    expect(returnOrigin(h({ host: "localhost:3000" }), "development", SITE)).toBe("http://localhost:3000");
+    expect(returnOrigin(h({ host: "127.0.0.1:3077" }), "development", SITE)).toBe("http://127.0.0.1:3077");
+    for (const headers of [{ host: "localhost.evil.example" }, { host: "evil.example" }, { host: "localhost:3000", "x-forwarded-host": "evil.example" }, { host: "localhost:3000/x" }, { host: "localhost:3000", "x-forwarded-proto": "javascript" }]) {
+      expect(returnOrigin(h(headers), "development", SITE)).toBe(SITE);
+    }
   });
 });

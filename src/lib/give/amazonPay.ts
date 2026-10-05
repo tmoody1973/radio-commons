@@ -1,3 +1,4 @@
+import { SITE } from "@/lib/card/tokens";
 import type { Membership } from "./membership";
 import type { Tier } from "./tiers";
 
@@ -6,6 +7,21 @@ export const ALGORITHM = "AMZN-PAY-RSASSA-PSS-V2";
 // ponytail: sandbox is a constant, not an env var. Real money is a deliberate code change, never a config flip.
 export const SANDBOX = true;
 const USD = "USD";
+
+const LOCAL_ORIGIN = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d{1,5})?$/;
+
+/**
+ * Where Amazon sends the buyer back: always the fixed SITE, never a request header (an attacker-chosen Host would land
+ * in a URL we sign). The one exception is a local dev server, whose own localhost origin is used so the flow works there.
+ */
+export function returnOrigin(headers: Headers, nodeEnv = process.env.NODE_ENV, site = SITE): string {
+  if (nodeEnv !== "production") {
+    const host = headers.get("host") ?? "";
+    const origin = `${headers.get("x-forwarded-proto") ?? "http"}://${host}`;
+    if (LOCAL_ORIGIN.test(origin) && !headers.get("x-forwarded-host")) return origin;
+  }
+  return new URL(site).origin;
+}
 
 export interface GiveEnv { publicKeyId: string; privateKey: string; merchantId: string; storeId: string; tokenSecret: string }
 
