@@ -14,10 +14,6 @@ const PASSCODE_KEY = "radio-commons-sim-passcode";
 const MAX_RECORD_MS = 15_000;
 const DEVICE_W = 1328; // 1280 screen + bezel
 const DEVICE_H = 848;
-const EXAMPLES = [
-  "What was that This Bites episode about frugal dining?",
-  "What was that Uniquely Milwaukee story about the art shop in West Allis?",
-];
 
 function readPasscode(): string {
   try {
@@ -45,8 +41,16 @@ function linkAccount() {
 
 const LINK_OUTCOME_STATUS = { ok: "Linked your Radio Milwaukee account.", failed: "Couldn't link the account. Please try again." };
 
-/** `linked`: the server saw a session cookie when it rendered the page. `linkOutcome`: back from the login (?link=). */
-export function Simulator({ linked: linkedAtLoad = false, linkOutcome }: { linked?: boolean; linkOutcome?: "ok" | "failed" }) {
+interface SimulatorProps {
+  /** The server saw a session cookie when it rendered the page. */
+  linked?: boolean;
+  /** Back from the login (?link=). */
+  linkOutcome?: "ok" | "failed";
+  /** The capabilities card shown before the first question. */
+  introCard: CardPayload;
+}
+
+export function Simulator({ linked: linkedAtLoad = false, linkOutcome, introCard }: SimulatorProps) {
   const [phase, setPhase] = useState<Phase>("idle");
   const [captions, setCaptions] = useState("");
   const [status, setStatus] = useState(linkOutcome ? LINK_OUTCOME_STATUS[linkOutcome] : "");
@@ -254,10 +258,14 @@ export function Simulator({ linked: linkedAtLoad = false, linkOutcome }: { linke
                     />
                   </div>
                 ) : (
-                  <div className={styles.idle}>
-                    <h1>Radio Commons</h1>
-                    <p>Ask about a Radio Milwaukee story you half-remember.</p>
-                    {EXAMPLES.map((e) => <p key={e} className={styles.prompt}>Try: “{e}”</p>)}
+                  <div className={styles.intro}>
+                    <p className={styles.introCaption}>Say “What can Radio Milwaukee do?” to see this on Alexa.</p>
+                    <div className={styles.cardArea}>
+                      <CardHost
+                        card={introCard} theme={theme} displayMode="inline"
+                        onPlaying={() => voice.current?.pause()} onAsk={askFromCard} onDisplayMode={() => undefined} pauseSignal={0}
+                      />
+                    </div>
                   </div>
                 )}
                 <div className={`${styles.lightbar} ${lightbar}`} aria-hidden="true" />

@@ -55,3 +55,9 @@ export function checkStationArtistShows(trail: TrailEntry[]): CheckResult {
   const right = calls.length > 0 && digest.length === 0 && calls.every((call) => call.input.station === "88nine" && !call.isError);
   return result(right, [...calls, ...digest]);
 }
+
+/** "what can you do": the capabilities summary. */
+export function checkWhatCanYouDo(trail: TrailEntry[]): CheckResult {
+  const calls = toolCalls(trail, "what_can_you_do");
+  return result(calls.length > 0 && calls.every((call) => !call.isError), calls);
+}

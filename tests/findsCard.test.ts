@@ -106,6 +106,11 @@ describe("saved view", () => {
     expect(html).toContain("Tue Oct 20 · 8:00 p.m.");
     expect(html).toContain('class="secondary tickets" data-url="https://www.ticketmaster.com/event/07006"');
   });
+  it("the next show has an Add to calendar button, even without tickets", () => {
+    const html = renderView({ view: "saved", saved: saved({ nextShow: { venue: "Turner Hall", city: "Milwaukee", startsAtMs: SHOW_AT } }), artworkUrl: null, previewUrl: null });
+    expect(html).toContain('class="secondary calendar small" data-url="https://calendar.google.com/calendar/render?action=TEMPLATE&amp;text=Tank+and+the+Bangas+at+Turner+Hall');
+    expect(html).toContain('aria-label="Add Tank and the Bangas at Turner Hall to calendar"');
+  });
   it("shows a show without a photo or tickets as a plain row with no button", () => {
     const html = renderView({ view: "saved", saved: saved({ nextShow: { venue: "Turner Hall", city: "Milwaukee", startsAtMs: SHOW_AT } }), artworkUrl: null, previewUrl: null });
     expect(html).toContain("Turner Hall · Milwaukee");
@@ -137,6 +142,11 @@ describe("digest show with a photo and tickets", () => {
     expect(html).toContain(`src="${SHOW_PHOTO}"`);
     expect(html).not.toContain("artist.jpg");
     expect(html).toContain('class="secondary tickets" data-url="https://www.axs.com/events/1"');
+  });
+  it("the show line gets an Add to calendar button", () => {
+    const html = renderView({ view: "digest", artists, items: [{ ...show, imageUrl: null, ticketUrl: null }] });
+    expect(html).toContain('class="secondary calendar small"');
+    expect(html).toContain('aria-label="Add Tank and the Bangas at Majestic Theatre to calendar"');
   });
   it("keeps the artist artwork and no button without them", () => {
     const html = renderView({ view: "digest", artists, items: [{ ...show, imageUrl: null, ticketUrl: null }] });

@@ -2,11 +2,13 @@ import type { Passage, Story, StoryCardMatch } from "@/lib/backstory";
 import type { PublicEvent } from "@/lib/fieldGuide";
 import type { Badge } from "@/lib/map/geo";
 import type { Digest, DigestItem, FindRow, SavedFind, StationShow } from "@/lib/playlist";
+import { CAPABILITIES } from "@/lib/capabilities";
 import { pinnedPlaces } from "@/lib/map/staticMap";
 import { directionsUrl, streetAddress } from "@/lib/maps";
 import { ARTICLE_SOURCE, clock, longDate, monthYear, showCalendarDay } from "@/lib/speech";
 import { localClock } from "@/lib/stationTime";
 import { sizedArtwork, STATION_NAMES, type SongCard } from "./song";
+import { showCalendarUrl, type CalendarShow } from "./calendar";
 import { cleanTicketUrl } from "./tickets";
 import { SITE } from "./tokens";
 
@@ -26,6 +28,7 @@ export type CardView =
   | { view: "digest"; artists: Digest["artists"]; items: DigestItem[] }
   | { view: "finds"; finds: FindRow[] }
   | { view: "station-shows"; shows: StationShow[] }
+  | { view: "capabilities" }
   /** Artwork and preview are known only when the save went through a search hit; otherwise a plain tile. */
   | { view: "saved"; saved: SavedOk; artworkUrl: string | null; previewUrl: string | null };
 
@@ -239,6 +242,9 @@ const ticketsButton = (url: string | null | undefined, venue: string) => {
   const clean = cleanTicketUrl(url);
   return clean ? `<button type="button" class="secondary tickets" data-url="${escape(clean)}" aria-label="Get tickets at ${escape(venue)}">Get tickets</button>` : "";
 };
+/** Icon-only, so it fits beside Get tickets on a tile; the label says which show. */
+const showCalendarButton = (show: CalendarShow) =>
+  `<button type="button" class="secondary calendar small" data-url="${escape(showCalendarUrl(show))}" aria-label="${escape(`Add ${show.artist} at ${show.venue} to calendar`)}">${CAL}</button>`;
 // not_linked and failed get no chip: nothing the listener can do from this screen.
 const APPLE_CHIPS: Record<string, string> = { added: "In Apple Music", pending: "Adding…", expired: "Reconnect Apple Music" };
 
@@ -260,7 +266,7 @@ function findsView(finds: FindRow[]): string {
 function nextShowRow(show: NonNullable<SavedOk["nextShow"]>, artist: string): string {
   return `<div class="next"><p class="meta">Next show</p><div class="row-wrap"><div class="row show-row">${art(show.imageUrl ?? null, artist, "thumb")}`
     + `<span class="what"><b>${escape(show.venue)} · ${escape(show.city)}</b><small>${escape(shortDay(show.startsAtMs))} · ${escape(localClock(show.startsAtMs))}</small></span></div>`
-    + `${ticketsButton(show.ticketUrl, show.venue)}</div></div>`;
+    + `${ticketsButton(show.ticketUrl, show.venue)}${showCalendarButton({ ...show, artist })}</div></div>`;
 }
 
 /** The save, confirmed on screen: the song, where it went (Finds, Apple Music), and what comes with it (show, story, follow). */
@@ -295,7 +301,7 @@ function digestView(artists: Digest["artists"], items: DigestItem[]): string {
     const story = mine.find((item): item is Extract<DigestItem, { kind: "story" }> => item.kind === "story");
     const show = mine.find((item): item is Extract<DigestItem, { kind: "show" }> => item.kind === "show");
     const ask = story ? `<button type="button" class="secondary ask" data-ask="${escape(`Play the ${story.show} story about ${artist.name}`)}">Play story</button>` : "";
-    const actions = ask + (show ? ticketsButton(show.ticketUrl, show.venue) : "");
+    const actions = ask + (show ? ticketsButton(show.ticketUrl, show.venue) + showCalendarButton(show) : "");
     // The show's photo says "they're coming" better than the album cover does.
     return [`<article class="tile digest">${art(show?.imageUrl ?? artist.artworkUrl, artist.name, "tile-art")}<span class="tile-title">${escape(artist.name)}</span>`
       + `<span class="tile-date">${mine.map((item) => escape(digestLine(item))).join("<br>")}</span>${actions ? `<span class="tile-actions">${actions}</span>` : ""}</article>`];
@@ -313,11 +319,19 @@ function stationShowsView(shows: StationShow[]): string {
   const tiles = shows.slice(0, 10).map((show) => {
     const day = showCalendarDay(show, { weekday: "short", month: "short", day: "numeric" }).replace(",", "");
     const when = show.dateOnly ? day : `${day} · ${localClock(show.startsAtMs)}`;
-    const tickets = ticketsButton(show.ticketUrl, show.venueName);
+    const actions = ticketsButton(show.ticketUrl, show.venueName) + showCalendarButton({ ...show, artist: show.artistName, venue: show.venueName });
     return `<article class="tile digest">${art(show.imageUrl ?? null, show.artistName, "tile-art")}<span class="tile-title">${escape(show.artistName)}</span>`
-      + `<span class="tile-date">${escape(show.venueName)} · ${escape(show.city)}<br>${escape(when)}</span>${tickets ? `<span class="tile-actions">${tickets}</span>` : ""}</article>`;
+      + `<span class="tile-date">${escape(show.venueName)} · ${escape(show.city)}<br>${escape(when)}</span><span class="tile-actions">${actions}</span></article>`;
   }).join("");
   return `<article class="card stories">${LOGO}<div class="carousel">${tiles}</div></article>`;
+}
+
+/** "What can you do?": one tile per capability, each with a phrase the listener can tap to ask. */
+function capabilitiesView(): string {
+  const tiles = CAPABILITIES.map(({ title, description, example }) =>
+    `<article class="tile cap"><span class="tile-title">${escape(title)}</span><span class="cap-what">${escape(description)}</span>`
+    + `<button type="button" class="secondary ask say" data-ask="${escape(example)}">“${escape(example)}”</button></article>`).join("");
+  return `<article class="card caps">${LOGO}<div class="cap-grid">${tiles}</div></article>`;
 }
 
 export function renderView(card: CardView): string {
@@ -334,5 +348,6 @@ export function renderView(card: CardView): string {
     case "finds": return findsView(card.finds);
     case "saved": return savedView(card.saved, card.artworkUrl, card.previewUrl);
     case "station-shows": return stationShowsView(card.shows);
+    case "capabilities": return capabilitiesView();
   }
 }

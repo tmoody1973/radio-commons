@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { CAPABILITIES } from "@/lib/capabilities";
 import { buildMcpHandler } from "@/lib/mcp";
 import { fakeBackstory, fakeFieldGuide, fakePlaylist } from "./fixtures";
 import { mcpPost } from "./mcp-wire";
@@ -18,6 +19,7 @@ const PHRASE_TOOLS: Record<string, string> = {
   "What is new from Radio Milwaukee": "latest_station_stories",
   "What's new for me": "whats_new_for_me",
   "Do any 88Nine artists have concerts coming up": "station_artist_shows",
+  "What can Radio Milwaukee do": "what_can_you_do",
 };
 
 describe("Alexa+ add-on manifest", () => {
@@ -32,6 +34,10 @@ describe("Alexa+ add-on manifest", () => {
     const { message } = await mcpPost(handler, { method: "tools/list" });
     const served = message.result.tools.map((tool: { name: string }) => tool.name);
     expect(served).toEqual(expect.arrayContaining(Object.values(PHRASE_TOOLS)));
+  });
+
+  it("every capability tile's example is one of the example phrases", () => {
+    for (const { example } of CAPABILITIES) expect(listing.examplePhrases).toContain(example);
   });
 
   it("its privacy page and every icon are served by this app", () => {
