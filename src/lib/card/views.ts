@@ -354,18 +354,19 @@ function onAirStationView({ station, song }: OnAirTile): string {
     + `<div class="actions">${listenLive(station, "primary")}${song ? saveSong(song) : ""}</div></div></div></article>`;
 }
 
-/** Every station side by side; a station with no recent play is a plain tile that can still be played live. */
+/** Every station as a row (four tiles with two buttons each don't fit the screen); no recent play is a plain "Live now" row. */
 function onAirView(tiles: OnAirTile[]): string {
   if (tiles.length === 1) return onAirStationView(tiles[0]);
-  const cells = tiles.map(({ station, song }) => {
-    const name = escape(STATION_NAMES[station]);
+  const rows = tiles.map(({ station, song }) => {
+    const name = STATION_NAMES[station];
+    const badge = `<span class="station">${escape(name)}</span>`;
     const what = song
-      ? `${art(sizedArtwork(song.artworkUrl), song.artist, "tile-art")}<span class="station">${name}</span><span class="tile-title">${escape(song.title)}</span>`
-        + `<span class="tile-date">${escape(song.artist)} · ${escape(song.when)}</span>`
-      : `<span class="station">${name}</span><span class="tile-title">Live now</span>`;
-    return `<article class="tile song onair">${what}<span class="tile-actions">${listenLive(station, "primary")}${song ? saveSong(song) : ""}</span></article>`;
+      ? `<b>${escape(song.title)}</b><small>${badge} · ${escape(song.artist)} · ${escape(song.when)}</small>`
+      : `<b>${escape(name)}</b><small>${badge} · Live now</small>`;
+    return `<div class="row onair-row">${art(sizedArtwork(song?.artworkUrl ?? null), song?.artist ?? name, "thumb")}<span class="what">${what}</span>`
+      + `${listenLive(station, "primary")}${song ? saveSong(song) : ""}</div>`;
   }).join("");
-  return `<article class="card stories">${LOGO}<div class="onair-grid">${cells}</div></article>`;
+  return `<article class="card">${LOGO}<div class="list">${rows}</div></article>`;
 }
 
 export function renderView(card: CardView): string {

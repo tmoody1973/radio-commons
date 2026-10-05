@@ -65,9 +65,9 @@ blockquote{margin:0;font-size:40px;line-height:1.1;font-weight:700}blockquote.q-
 .cap-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;flex:1}
 .cap{padding:14px;gap:6px;cursor:default}.cap .tile-title{margin:0;font-size:20px}
 .cap-what{font-size:15px;line-height:1.3;color:var(--muted)}
-.onair-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;flex:1}.onair{min-width:0}.onair .tile-art{height:120px}
-.station{margin:10px 12px 0;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}.onair .tile-title{margin-top:4px}
-.tile-actions .primary{min-height:48px;padding:0 14px;font-size:15px;white-space:nowrap}
+.onair-row{cursor:default}.onair-row .what{flex:1}.onair-row .thumb{width:48px;height:48px;flex:none}
+.onair-row b,.onair-row small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.what .station{font-weight:700;color:var(--text)}
+.onair-row .primary,.onair-row .secondary{min-height:48px;padding:0 16px;font-size:15px;white-space:nowrap}
 .secondary.say{margin-top:auto;min-height:48px;padding:8px 14px;border-radius:14px;font-size:15px;line-height:1.25;text-align:left}
 #fullmap{position:fixed;inset:0}
 .overlay{position:fixed;zoom:var(--z)}
