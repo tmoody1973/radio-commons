@@ -11,7 +11,8 @@
     "typecheck": "next typegen && tsc --noEmit",
     "postinstall": "node scripts/embed-app-bundle.mjs",
     "alexa:deploy": "cd alexa && alexa-ai deploy",
-    "alexa:smoke": "node scripts/smoke.mjs"
+    "alexa:smoke": "node scripts/smoke.mjs",
+    "eval:turns": "npx --yes tsx scripts/eval-turns.ts"
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.1145.0",
