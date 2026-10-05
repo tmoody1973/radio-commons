@@ -17,6 +17,7 @@ Pilot station: [88Nine Radio Milwaukee](https://radiomilwaukee.org). Built for t
 | Briefing | "What's new at Radio Milwaukee this week?": up to four items from the newest 88Nine weekly newsletter in the station's own words, each opening its story (Play), Concert Picks or the page | Oct 5 |
 | Songs | "What's playing?", "When did you last play…?", "What was that song around 8:15?", "Tell me about this song" across 88Nine, HYFIN, Rhythm Lab and 414 Music | Oct 4 |
 | Finds | "Save that song" to the listener's 88Nine Finds and Apple Music, with a linked Radio Milwaukee account; privacy page at /privacy | Oct 4 |
+| Donations (sandbox) | "I want to support Radio Milwaukee": a monthly membership by voice, paid with Amazon Pay's sandbox (no real money), cancelled by voice. How to try it: see "Try a donation" below | Oct 5 |
 | Simulator | The full Alexa+ experience in a browser: voice in and out, Echo Show cards light and dark, "What Alexa did" trail for judges | Oct 2–4 |
 | Landing page | What it does, the smart-speaker case, how it works, how another station could use it | Oct 4 |
 
@@ -90,6 +91,22 @@ Amazon isn't giving hackathon participants the Alexa+ developer tools or simulat
 4. **What Alexa did** shows every step: words heard, each tool call and its time, where the answer came from.
 
 The page needs a passcode (ask the station) so strangers can't spend the API credit. A turn takes about 4 seconds from releasing the button to hearing the answer.
+
+### Try a donation (Amazon Pay sandbox, no real money)
+
+This shows a monthly Radio Milwaukee membership started by voice, paid with Amazon Pay, and cancelled by voice. It runs on Amazon Pay's sandbox (a practice mode), so no real money moves, ever.
+
+1. In the simulator, say "I want to support Radio Milwaukee" and tap a level. Or open https://radio-commons.vercel.app/give?tier=ga-monthly.
+2. Open the Amazon Pay page in a private (incognito) window, or signed out of any real Amazon account. A real Amazon login is refused with "Your order can't be completed with this account."
+3. Sign in with the sandbox test buyer. Its email and password are in the Devpost testing instructions (private to judges), not in this repo.
+4. Choose the card ending 1111, which always succeeds. The card ending 3434 shows a decline.
+5. The thank-you page shows the receipt. Press "Simulate next month" to see the second monthly charge.
+6. In the linked simulator, say "cancel my Radio Milwaukee membership", then "yes".
+7. Say "what's new for me". The reply mentions the membership.
+
+**What's real and what's simulated.** Real: the calls to Amazon Pay's sandbox API (create a checkout session, a charge permission, a charge, and close it). Simulated: the money (none moves), and "next month" is a button, not a wait. Alexa+'s own native checkout isn't available to hackathon entrants, so the simulator opens the Amazon Pay page instead.
+
+To run your own copy, see [docs/GIVE-SETUP.md](docs/GIVE-SETUP.md).
 
 ## Run it
 
