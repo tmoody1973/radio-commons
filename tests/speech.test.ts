@@ -79,6 +79,7 @@ describe("events speech", () => {
   it("says when it had to look farther, and when there's nothing", () => {
     expect(spokenEvents([EVENT], { now: NOW, near: "Ted's Ice Cream", widened: true })).toMatch(/^Nothing within a mile of Ted's Ice Cream, but within three miles: 1, Jazz Jam/);
     expect(spokenEvents([], { now: NOW, near: "Ted's Ice Cream", when: "tonight" })).toBe("I don't see anything near Ted's Ice Cream tonight.");
+    expect(spokenEvents([], { now: NOW, when: "tomorrow" })).toBe("I don't see anything for that tomorrow.");
     expect(spokenEvents([], { now: NOW, when: "this-weekend" })).toBe("I don't see anything for that this weekend.");
     expect(EVENTS_UNAVAILABLE_SPEECH).toBe("I can't reach Radio Milwaukee's event guide right now.");
   });

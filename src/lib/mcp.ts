@@ -65,7 +65,7 @@ const playlistUnavailable = (): ToolResult => ({ content: text(PLAYLIST_UNAVAILA
 const ACCOUNT_LINKING_REQUIRED = { error: "account_linking_required" };
 const accountLinkingRequired = (): ToolResult => ({ content: text(LINK_ACCOUNT_SPEECH), isError: true, structuredContent: ACCOUNT_LINKING_REQUIRED });
 const eventsUnavailable = (): ToolResult => ({ content: text(EVENTS_UNAVAILABLE_SPEECH), isError: true });
-const WHEN = ["tonight", "today", "this-weekend", "this-week"] as const;
+const WHEN = ["tonight", "today", "tomorrow", "this-weekend", "this-week"] as const;
 const clean = (story: Story): Story => {
   const audioUrl = directAudioUrl(story.audioUrl);
   // Premiere audio plays (Tarik, 2026-10-04) unless PLAY_PREMIERE_AUDIO=off; then the card links to the article.
@@ -285,7 +285,7 @@ export function buildMcpHandler(deps: Deps) {
         {
           title: "Find events in Milwaukee",
           description:
-            "Find upcoming events from Radio Milwaukee's event guide (the MKE Field Guide): by words (\"live music\"), time (tonight, today, this weekend, this week), free only, or near a place from a story the listener is looking at (nearStoryId, optionally nearPlace by name). Use only these results; never invent an event.",
+            "Find upcoming events from Radio Milwaukee's event guide (the MKE Field Guide): by words (\"live music\"), time (tonight, today, tomorrow, this weekend, this week), free only, or near a place from a story the listener is looking at (nearStoryId, optionally nearPlace by name). Use only these results; never invent an event.",
           inputSchema: z.object({
             query: z.string().min(1).max(120).optional(),
             when: z.enum(WHEN).optional(),

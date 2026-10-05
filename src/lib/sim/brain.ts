@@ -7,12 +7,25 @@ export function spokenReply(text: string): string {
   return text.replace(/\s*\[On screen:[^\]]*\]/g, "").replace(/\*{1,2}([^*]+)\*{1,2}/g, "$1").trim();
 }
 
-/** The trust rules from slice 1, given to the model that plays Alexa+. */
-export const SYSTEM_PROMPT = `You are playing Alexa+ on an Echo Show, using Radio Milwaukee's story tools.
+const MILWAUKEE_TIME_ZONE = "America/Chicago";
+
+/** A real Alexa knows the date; without this line the model asks the listener for it. */
+function milwaukeeNow(now: Date): string {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-US", { timeZone: MILWAUKEE_TIME_ZONE, weekday: "long", month: "long", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true })
+      .formatToParts(now).map((part) => [part.type, part.value]),
+  );
+  const meridiem = parts.dayPeriod.toLowerCase().startsWith("a") ? "a.m." : "p.m.";
+  return `${parts.weekday}, ${parts.month} ${parts.day}, ${parts.year}, ${parts.hour}:${parts.minute} ${meridiem}`;
+}
+
+/** The trust rules from slice 1, given to the model that plays Alexa+, led by the current Milwaukee date and time. */
+export const systemPrompt = (now: Date): string => `Right now in Milwaukee it is ${milwaukeeNow(now)} (${MILWAUKEE_TIME_ZONE}).
+You are playing Alexa+ on an Echo Show, using Radio Milwaukee's story tools.
 Answer only from the results of your tools. For any question about a Milwaukee place, person, business or event, or a story the listener describes, call find_station_story first (Radio Milwaukee may have covered it) before saying you don't know; when one story matches (or the listener picks one), call get_station_story and speak its answer.
 For a question about details inside a story the listener has found, call ask_station_story and quote its passage word for word, with the time, even if it is longer than the two-sentence limit below.
-For "what's new" or "the latest episode", call latest_station_stories (with the show if named). When you read a list, keep the tool's order and numbers (they match the screen) and never call one newer or older unless the tool says so. When the listener asks where a story's places are, call get_station_story with view "places"; it shows them numbered on a map.
-For events ("what's on tonight", "live music this weekend", "anything free"), call find_events; for "near there" or "near [a place in the story]", pass nearStoryId from the story on screen (and nearPlace if they named one). For "what is Radio Milwaukee recommending", call station_picks. Always say each event's venue and day/time, as the tool does.
+For "what's new for me", "what's new from my artists" or "anything new for me", call whats_new_for_me. For "what's new from Radio Milwaukee" or "the latest episode/story", call latest_station_stories (with the show if named). When you read a list, keep the tool's order and numbers (they match the screen) and never call one newer or older unless the tool says so. When the listener asks where a story's places are, call get_station_story with view "places"; it shows them numbered on a map.
+For events ("what's on tonight", "live music this weekend", "anything free"), call find_events; for events "tonight / today / tomorrow / this weekend / this week", call find_events with that when, and never ask the listener for today's date; for "near there" or "near [a place in the story]", pass nearStoryId from the story on screen (and nearPlace if they named one). For "what is Radio Milwaukee recommending", call station_picks. Always say each event's venue and day/time, as the tool does.
 When the listener asks to play or hear something (a song, a premiere, an episode, a session), call find_station_story with what they named, then get_station_story for the match, so its card with ▶ is on screen; then tell them to tap it. Never answer a play request without looking it up first.
 You can't start audio or open maps yourself: to play, tell the listener to tap ▶ on the screen; for directions, tell them to tap Directions or a place on the screen; to save an event, tell them to tap Add to calendar; to book a table, tell them to tap Reserve (shown when the restaurant takes reservations). For a Milwaukee Music Premiere, tell them to tap Play song to hear the track; a Studio Milwaukee Session is watched on the station's page (tap Watch on radiomilwaukee.org). Never sing or quote song lyrics.
 Story ids come only from tool results or an earlier "[On screen: …, storyId …]" note; never guess a storyId, and never read ids or those notes aloud. If you have no id for the story, call find_station_story with its title first.
@@ -31,6 +44,7 @@ interface BrainOptions {
   tools: McpTool[];
   callTool: (name: string, args: Record<string, unknown>) => Promise<McpToolResult>;
   converse: Converse;
+  now?: () => Date;
   maxToolCalls?: number;
   deadlineMs?: number;
 }
@@ -55,7 +69,7 @@ function withDeadline<T>(promise: Promise<T>, deadline: number): Promise<T> {
 }
 
 /** The Alexa+ role: let the model call our MCP tools until it answers, within a call cap and a time limit. */
-export async function runBrain({ history, tools, callTool, converse, maxToolCalls = 4, deadlineMs = 15_000 }: BrainOptions): Promise<BrainResult> {
+export async function runBrain({ history, tools, callTool, converse, now = () => new Date(), maxToolCalls = 4, deadlineMs = 15_000 }: BrainOptions): Promise<BrainResult> {
   const deadline = Date.now() + deadlineMs;
   const trail: TrailEntry[] = [];
   const messages: unknown[] = history.map((m) => ({ role: m.role, content: [{ text: m.text }] }));
@@ -65,7 +79,7 @@ export async function runBrain({ history, tools, callTool, converse, maxToolCall
   try {
     for (;;) {
       const started = Date.now();
-      const response = await withDeadline(converse({ system: SYSTEM_PROMPT, messages, tools }), deadline);
+      const response = await withDeadline(converse({ system: systemPrompt(now()), messages, tools }), deadline);
       trail.push({ kind: "think", ms: Date.now() - started });
       messages.push({ role: "assistant", content: response.content });
       const uses = response.content.flatMap((b) => ("toolUse" in b ? [b.toolUse] : []));
