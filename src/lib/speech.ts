@@ -108,6 +108,15 @@ export function spokenPlaces(names: string[], reservable?: string): string {
 }
 
 export const NO_PLACES_FOR_EVENTS_SPEECH = "Radio Milwaukee hasn't mapped places for that story. Where should I look?";
+export const NEWSLETTER_UNAVAILABLE_SPEECH = "I can't reach Radio Milwaukee's newsletter right now.";
+export const NO_NEWSLETTER_SPEECH = "I don't have a recent Radio Milwaukee newsletter.";
+
+/** The weekly briefing: up to four items, numbered like the card, each in the newsletter's own first sentence. */
+export function spokenBriefing(date: string, items: { heading: string; summary: string }[]): string {
+  const said = items.slice(0, 4).map((item, i) => `${i + 1}, ${item.heading}: ${item.summary}`).join("; ");
+  return `This week at Radio Milwaukee, from the ${date} newsletter: ${said} Which one?`;
+}
+
 export const EVENTS_UNAVAILABLE_SPEECH = "I can't reach Radio Milwaukee's event guide right now.";
 const CALENDAR_OFFER = "Want to add one to your calendar?";
 const MAX_SPOKEN_EVENTS = 3;

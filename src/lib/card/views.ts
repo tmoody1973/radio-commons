@@ -1,4 +1,5 @@
 import type { Passage, Story, StoryCardMatch } from "@/lib/backstory";
+import type { BriefingItem } from "@/lib/briefing";
 import type { PublicEvent } from "@/lib/fieldGuide";
 import type { Badge } from "@/lib/map/geo";
 import type { Digest, DigestItem, FindRow, RecentSong, SavedFind, Station, StationShow } from "@/lib/playlist";
@@ -34,7 +35,8 @@ export type CardView =
   | { view: "capabilities" }
   | { view: "on-air"; tiles: OnAirTile[] }
   /** Artwork and preview are known only when the save went through a search hit; otherwise a plain tile. */
-  | { view: "saved"; saved: SavedOk; artworkUrl: string | null; previewUrl: string | null };
+  | { view: "saved"; saved: SavedOk; artworkUrl: string | null; previewUrl: string | null }
+  | { view: "briefing"; date: string; items: BriefingItem[] };
 
 const escape = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
@@ -369,6 +371,19 @@ function onAirView(tiles: OnAirTile[]): string {
   return `<article class="card">${LOGO}<div class="list">${rows}</div></article>`;
 }
 
+function briefingView(date: string, items: BriefingItem[]): string {
+  const rows = items.slice(0, 6).map((item, i) => {
+    const { action } = item;
+    const button = action.kind === "story"
+      ? `<button type="button" class="primary ask" data-ask="${escape(`Tell me about the story "${action.title}"`)}">${PLAY} Play</button>`
+      : action.kind === "picks"
+        ? '<button type="button" class="secondary ask" data-ask="What is Radio Milwaukee recommending?">Picks</button>'
+        : `<button type="button" class="secondary details" data-url="${escape(action.url)}">Read</button>`;
+    return `<div class="row-wrap"><div class="row"><span class="num">${i + 1}</span><span class="what"><b>${escape(item.heading)}</b><small>${escape(item.summary)}</small></span></div>${button}</div>`;
+  }).join("");
+  return `<article class="card briefing">${LOGO}<span class="meta">From the ${escape(date)} newsletter</span><div class="list">${rows}</div></article>`;
+}
+
 export function renderView(card: CardView): string {
   switch (card.view) {
     case "story": return storyView(card.story, card.releaseEvent ?? null);
@@ -379,6 +394,7 @@ export function renderView(card: CardView): string {
     case "events-map": return eventsMapView(card.items, card.map);
     case "song": return songView(card.song);
     case "songs": return songsView(card.songs);
+    case "briefing": return briefingView(card.date, card.items);
     case "digest": return digestView(card.artists, card.items);
     case "finds": return findsView(card.finds);
     case "saved": return savedView(card.saved, card.artworkUrl, card.previewUrl);

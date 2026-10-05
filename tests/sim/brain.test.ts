@@ -148,6 +148,11 @@ describe("brain", () => {
     expect(SYSTEM_PROMPT).toContain("station_picks");
     expect(SYSTEM_PROMPT).toMatch(/tap Add to calendar/i);
   });
+
+  it("sends 'what's new this week' to the newsletter briefing and goes deeper only through the linked story or picks", () => {
+    expect(SYSTEM_PROMPT).toMatch(/what's new at Radio Milwaukee[^.]*station_briefing/i);
+    expect(SYSTEM_PROMPT).toMatch(/never add to the newsletter's own sentences/i);
+  });
   it("music: premieres play with Play song, sessions are watched on the station's page, lyrics are never quoted", () => {
     expect(SYSTEM_PROMPT).toMatch(/tap Play song/);
     expect(SYSTEM_PROMPT).toMatch(/Watch on radiomilwaukee\.org/);

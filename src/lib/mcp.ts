@@ -15,10 +15,12 @@ import { createHash } from "node:crypto";
 import { eventMapPoints, MAP_H, MAP_W, pinnedEvents, pinnedPlaces } from "@/lib/map/staticMap";
 import {
   directAudioUrl, eventTime, EVENTS_UNAVAILABLE_SPEECH, NO_PLACES_FOR_EVENTS_SPEECH, NO_PLACES_SPEECH, spokenEvents, spokenPicks, NOT_ALLOWED_SPEECH, NOT_FOUND_SPEECH, EMPTY_DIGEST_SPEECH, EMPTY_DIGEST_NO_PICKS_SPEECH, LINK_ACCOUNT_SPEECH, PLAYLIST_UNAVAILABLE_SPEECH, spokenDigest, spokenFinds, spokenLatest, spokenMatches, spokenPassages,
-  spokenOnAir, spokenPlaces, spokenRecall, spokenRecent, spokenSearch, spokenStationShows, spokenDeleted, spokenFollowed, spokenSaved, spokenUnfollowed, WHICH_ARTIST_TO_FOLLOW_SPEECH, WHICH_ARTIST_TO_UNFOLLOW_SPEECH, spokenStory, spokenTrackFacts, UNAVAILABLE_SPEECH,
+  NEWSLETTER_UNAVAILABLE_SPEECH, NO_NEWSLETTER_SPEECH, spokenBriefing, spokenOnAir, spokenPlaces, spokenRecall, spokenRecent, spokenSearch, spokenStationShows, spokenDeleted, spokenFollowed, spokenSaved, spokenUnfollowed, WHICH_ARTIST_TO_FOLLOW_SPEECH, WHICH_ARTIST_TO_UNFOLLOW_SPEECH, spokenStory, spokenTrackFacts, UNAVAILABLE_SPEECH,
 } from "@/lib/speech";
 import { localWindow } from "@/lib/stationTime";
 import { getStation } from "@/lib/stations";
+import { linkItems } from "@/lib/briefing";
+import { NewsletterUnavailable, newsletterFromEnv, type NewsletterClient } from "@/lib/newsletter";
 import { STREAM_HOST } from "@/lib/streams";
 
 export const CARD_URI = "ui://radio-commons/story-card.html";
@@ -56,6 +58,8 @@ interface Deps {
   backstory: () => BackstoryClient;
   fieldGuide: () => FieldGuideClient;
   playlist: () => PlaylistClient;
+  /** The weekly newsletter (station_briefing); defaults to the live Mailchimp reader. */
+  newsletter?: () => NewsletterClient;
   now?: () => Date;
   /** Runs work after the reply is sent (Next's `after`); the default just starts it. */
   defer?: (task: () => Promise<unknown>) => void;
@@ -240,7 +244,7 @@ export function buildMcpHandler(deps: Deps) {
         "latest_station_stories",
         {
           title: "The newest Radio Milwaukee stories",
-          description: "List the newest published Radio Milwaukee stories, optionally for one show, numbered so the listener can pick one. Use for 'what's new' or 'the latest episode'.",
+          description: "List the newest published Radio Milwaukee stories, optionally for one show, numbered so the listener can pick one. Use for 'the latest episode' or 'any new episodes of This Bites'; for what's new at the station this week, use station_briefing.",
           inputSchema: z.object({ show: z.enum(shows).optional() }),
           ...CARD,
         },
@@ -398,6 +402,33 @@ export function buildMcpHandler(deps: Deps) {
             const { speech, structuredContent } = await picksReply();
             return { content: text(speech), ...(structuredContent ? { structuredContent } : {}) };
           }, eventsUnavailable),
+      );
+
+      registerAppTool(
+        server,
+        "station_briefing",
+        {
+          title: "This week at Radio Milwaukee",
+          description: "A short briefing from Radio Milwaukee's newest weekly newsletter: up to four items in the station's own words, each opening its story, Concert Picks or page. Use for 'what's new at Radio Milwaukee this week?'.",
+          inputSchema: z.object({}),
+          ...CARD,
+        },
+        async () =>
+          timed("station_briefing", async () => {
+            let issue;
+            try {
+              issue = await (deps.newsletter ?? newsletterFromEnv)().latest();
+            } catch (error) {
+              if (error instanceof NewsletterUnavailable) return { content: text(NEWSLETTER_UNAVAILABLE_SPEECH), isError: true };
+              throw error;
+            }
+            if (!issue || issue.items.length === 0) return { content: text(NO_NEWSLETTER_SPEECH) };
+            const items = await linkItems(issue.items, deps.backstory());
+            return {
+              content: text(spokenBriefing(issue.date, items)),
+              structuredContent: card({ view: "briefing", date: issue.date, items }, { newsletter: issue.title, items }),
+            };
+          }, () => ({ content: text(NEWSLETTER_UNAVAILABLE_SPEECH), isError: true })),
       );
 
       registerAppTool(
