@@ -28,6 +28,18 @@ describe("simulator page helpers", () => {
     expect(onScreenFrom({ view: "events" })).toBeUndefined();
     expect(onScreenFrom(undefined)).toBeUndefined();
   });
+  it("ignores story lists (matches with storyId, no playId/artist) and never throws on them", () => {
+    const stories = { matches: [{ storyId: "s1", title: "Frugal dining", show: "This Bites" }] };
+    expect(onScreenFrom(stories)).toBeUndefined();
+    expect(nextHistory([], "latest stories", "Here they are.", onScreenFrom(stories)).at(-1)?.text).toBe("Here they are.");
+  });
+  it("keeps only the song items of a mixed list", () => {
+    const mixed = { matches: [{ storyId: "s1", title: "Frugal dining", show: "This Bites" }, { playId: "p9", title: "Valerie", artist: "Amy Winehouse" }] };
+    expect(onScreenFrom(mixed)).toEqual({ songs: [{ playId: "p9", title: "Valerie", artist: "Amy Winehouse" }] });
+  });
+  it("never throws on a malformed song item", () => {
+    expect(() => nextHistory([], "q", "r", { songs: [{ playId: "p1", title: "T" } as never] })).not.toThrow();
+  });
   it("never sends a history message the server would reject, trimming the reply before the ids", () => {
     const songs = Array.from({ length: 10 }, (_, i) => ({ playId: `p${i}`, title: `Song ${i}`, artist: `Artist ${i}` }));
     const text = nextHistory([], "q", "x".repeat(3000), { songs }).at(-1)!.text;

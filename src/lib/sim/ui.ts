@@ -11,14 +11,21 @@ const MAX_MESSAGE_CHARS = 2000; // the turn route rejects longer history message
 interface ShownSong { playId: string; title: string; artist: string }
 type OnScreen = { storyId: string; title: string } | { songs: ShownSong[] };
 
-const plain = (text: string) => text.replace(/["[\]]/g, "");
+const isShownSong = (item: unknown): item is ShownSong => {
+  const { playId, title, artist } = (item ?? {}) as Record<string, unknown>;
+  return typeof playId === "string" && typeof title === "string" && typeof artist === "string";
+};
+
+const plain = (text: string | undefined) => (text ?? "").replace(/["[\]]/g, "");
 
 /** What the card showed, in the form the next turn needs: a story's id, or each song's number and playId. */
 export function onScreenFrom(structured: Record<string, unknown> | undefined): OnScreen | undefined {
   const story = structured?.story as { storyId: string; title: string } | undefined;
   if (story?.storyId) return { storyId: story.storyId, title: story.title };
-  const songs = (structured?.songs ?? structured?.matches) as ShownSong[] | undefined;
-  if (Array.isArray(songs) && songs.length) return { songs: songs.map(({ playId, title, artist }) => ({ playId, title, artist })) };
+  const items = structured?.songs ?? structured?.matches;
+  // Story lists share the `matches` key; only items shaped like songs belong in the song note.
+  const songs = Array.isArray(items) ? items.filter(isShownSong) : [];
+  if (songs.length) return { songs: songs.map(({ playId, title, artist }) => ({ playId, title, artist })) };
   return undefined;
 }
 
