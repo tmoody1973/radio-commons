@@ -3,7 +3,7 @@ import { LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH, LINK_ACCOUNT_SPEECH } from "@/lib/s
 import { GIVE_UNAVAILABLE_SPEECH } from "@/lib/give";
 import type { TrailEntry } from "@/lib/sim/trail";
 import {
-  checkCancelNeedsLink, checkFollowThao, checkOnAirNow, checkSupport, checkRecentSongs, checkAsksWhichStation, checkSaveNumber, checkSaveStation, checkSearchPlaylist, checkStationArtistShows, checkTrackStory, checkWhatCanYouDo, checkWhatsNew,
+  checkCancelNeedsLink, checkFollowThao, checkOnAirNow, checkSupport, checkRecentSongs, checkAsksWhichStation, checkRecentSongsPage, checkSaveNumber, screenWords, checkSaveStation, checkSearchPlaylist, checkStationArtistShows, checkTrackStory, checkWhatCanYouDo, checkWhatsNew,
 } from "@/lib/sim/evalChecks";
 
 const tool = (name: string, input: Record<string, unknown> = {}, isError = false, summary = "ok"): TrailEntry =>
@@ -157,5 +157,21 @@ describe("checkCancelNeedsLink", () => {
     expect(checkCancelNeedsLink([tool("cancel_membership")]).pass).toBe(false);
     expect(checkCancelNeedsLink([]).pass).toBe(false);
     expect(checkCancelNeedsLink([unlinked("delete_my_finds")]).pass).toBe(false);
+  });
+});
+
+describe("screenWords (the --speaker pass)", () => {
+  it("finds screen-only phrasing, any case", () => {
+    expect(screenWords("And 2 more On Screen. Tap Listen live. It's on the card, or on the screen.")).toEqual(["On Screen", "Tap", "the card", "on the screen"]);
+  });
+  it("lets device-neutral speech through", () => {
+    expect(screenWords("The last 5 on 88Nine: 1, \"Taps\" by Screens. Want the next two? Cardinal is on tape.")).toEqual([]);
+  });
+});
+
+describe("checkRecentSongsPage", () => {
+  it("needs recent_songs asked for that page", () => {
+    expect(checkRecentSongsPage(2)([tool("recent_songs", { station: "88nine", count: 10, page: 2 })]).pass).toBe(true);
+    expect(checkRecentSongsPage(2)([tool("recent_songs", { station: "88nine" })]).pass).toBe(false);
   });
 });

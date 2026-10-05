@@ -300,9 +300,27 @@ describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
     const playlist = fakePlaylist({ recentSongs: async (station, count) => { asked.push([station, count]); return songs.slice(0, count); } });
     const { message } = await mcpPost(handlerWith(undefined, undefined, playlist), call("recent_songs", { station: "88nine", count: 5 }));
     expect(asked).toEqual([["88nine", 5]]);
-    expect(message.result.content[0].text).toBe('The last 5 on 88Nine, newest first: "Lauren" by Artist 0, "Eddie My Love" by Artist 1, "Birdhouse In Your Soul" by Artist 2, and 2 more on screen.');
+    expect(message.result.content[0].text).toBe('The last 5 on 88Nine, newest first: 1, "Lauren" by Artist 0; 2, "Eddie My Love" by Artist 1; 3, "Birdhouse In Your Soul" by Artist 2. Want the next two?');
     expect(message.result.structuredContent.view).toBe("songs");
     expect(message.result.structuredContent.songs.map((s: { number: number; playId: string }) => [s.number, s.playId])).toEqual([[1, "play_0"], [2, "play_1"], [3, "play_2"], [4, "play_3"], [5, "play_4"]]);
+  });
+  it("recent_songs page 2 speaks 4 and 5 and still remembers the whole list, so 'save number 5' works", async () => {
+    const remembered: string[][] = [];
+    const songs = ["Lauren", "Eddie My Love", "Birdhouse In Your Soul", "Valerie", "Heavy Foot"].map((title, i) => ({
+      playId: `play_${i}`, artist: `Artist ${i}`, title, playedAt: Date.UTC(2026, 9, 4, 21, 40 - i * 4), artworkUrl: null, previewUrl: null,
+    }));
+    const playlist = fakePlaylist({ recentSongs: async (_station, count) => songs.slice(0, count), rememberScreen: async (_l, ids) => { remembered.push(ids); } });
+    const { message } = await mcpPostAs(handlerWith(undefined, undefined, playlist), call("recent_songs", { station: "88nine", count: 5, page: 2 }), "user_1");
+    expect(message.result.content[0].text).toBe('Next on 88Nine: 4, "Valerie" by Artist 3; 5, "Heavy Foot" by Artist 4.');
+    expect(remembered).toEqual([songs.map((song) => song.playId)]);
+  });
+  it("list tools take a page and say how to use it", async () => {
+    const tools = (await mcpPost(handlerWith(), { method: "tools/list" })).message.result.tools as { name: string; description: string; inputSchema: { properties: Record<string, unknown> } }[];
+    for (const name of ["recent_songs", "list_finds", "station_artist_shows", "find_events"]) {
+      const tool = tools.find((t) => t.name === name)!;
+      expect(tool.inputSchema.properties).toHaveProperty("page");
+      expect(tool.description).toMatch(/page 2/);
+    }
   });
   it("recent_songs defaults to five", async () => {
     const asked: number[] = [];

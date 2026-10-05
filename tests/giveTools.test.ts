@@ -40,7 +40,7 @@ describe("support_radio_milwaukee", () => {
     const { message } = await mcpPostAs(handler(fakeGive()), call("support_radio_milwaukee"), "user_42");
     expect(message.result.isError).toBeFalsy();
     expect(message.result.content[0].text).toMatch(/demo/i);
-    expect(message.result.content[0].text).toMatch(/pick a size on the screen/i);
+    expect(message.result.content[0].text).toMatch(/t-shirt size.*radiomilwaukee\.org slash give/i);
     const data = message.result.structuredContent;
     expect(data.view).toBe("give");
     const links: string[] = Object.values(data.links);

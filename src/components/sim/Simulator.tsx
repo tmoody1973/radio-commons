@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { Device } from "@/lib/sim/brain";
 import type { ChatMessage, TrailEntry } from "@/lib/sim/trail";
 import { cardAfterTurn, needsAccountLink, nextHistory, onScreenFrom } from "@/lib/sim/ui";
 import { CardHost, type CardPayload, type DisplayMode, type Theme } from "./CardHost";
@@ -59,6 +60,10 @@ export function Simulator({ linked: linkedAtLoad = false, linkOutcome, introCard
   const [showTrail, setShowTrail] = useState(true); // for judges: what Alexa did, open by default
   const [heard, setHeard] = useState("");
   const [theme, setTheme] = useState<Theme>("light");
+  // Echo Dot: a speaker with no screen. No card renders, and Alexa is told it has no screen, as Alexa+ knows its device.
+  const [device, setDevice] = useState<Device>("show");
+  const deviceRef = useRef<Device>("show");
+  useEffect(() => { deviceRef.current = device; }, [device]);
   const [displayMode, setDisplayMode] = useState<DisplayMode>("inline");
   const [scale, setScale] = useState(1);
   const [pauseSignal, setPauseSignal] = useState(0);
@@ -105,6 +110,7 @@ export function Simulator({ linked: linkedAtLoad = false, linkOutcome, introCard
   const send = useCallback(async (form: FormData) => {
     const passcode = askPasscode();
     form.set("history", JSON.stringify(history.current));
+    form.set("device", deviceRef.current);
     setPhase("thinking");
     setStatus("");
     try {
@@ -222,7 +228,8 @@ export function Simulator({ linked: linkedAtLoad = false, linkOutcome, introCard
   };
 
   const lightbar = phase === "listening" ? styles.listening : phase === "thinking" ? styles.thinking : "";
-  const fullscreen = displayMode === "fullscreen" && card;
+  const dot = device === "dot";
+  const fullscreen = !dot && displayMode === "fullscreen" && card;
   return (
     <main className={styles.page}>
       <header className={styles.top}>
@@ -242,7 +249,7 @@ export function Simulator({ linked: linkedAtLoad = false, linkOutcome, introCard
       <div className={styles.stage}>
         <div className={styles.left}>
           <div ref={fit} className={styles.fit} style={{ height: DEVICE_H * scale }}>
-            <div className={styles.device} style={{ transform: `scale(${scale})` }} role="region" aria-label="Simulated Echo Show 8">
+            <div className={styles.device} style={{ transform: `scale(${scale})` }} role="region" aria-label={dot ? "Simulated Echo Dot (no screen)" : "Simulated Echo Show 8"}>
               <div className={styles.screen} data-theme={theme}>
                 {!fullscreen ? (
                   <div className={styles.conversation}>
@@ -250,7 +257,9 @@ export function Simulator({ linked: linkedAtLoad = false, linkOutcome, introCard
                     <p className={styles.captions} aria-live="polite">{captions}</p>
                   </div>
                 ) : null}
-                {card ? (
+                {dot ? (
+                  <p className={styles.introCaption}>Echo Dot: no screen. The listener only hears the answer.</p>
+                ) : card ? (
                   <div className={fullscreen ? styles.cardFull : styles.cardArea}>
                     <CardHost
                       card={card} theme={theme} displayMode={displayMode}
@@ -283,6 +292,13 @@ export function Simulator({ linked: linkedAtLoad = false, linkOutcome, introCard
               <input aria-label="Or type a question" placeholder="Or type a question" value={typed} maxLength={300} onChange={(e) => setTyped(e.target.value)} />
               <button type="submit" disabled={phase === "thinking"}>Ask</button>
             </form>
+            <div role="group" aria-label="Device">
+              {(["show", "dot"] as const).map((option) => (
+                <button key={option} type="button" className={styles.toggle} aria-pressed={device === option} onClick={() => setDevice(option)}>
+                  {option === "show" ? "Echo Show" : "Echo Dot"}
+                </button>
+              ))}
+            </div>
             <button type="button" className={styles.toggle} aria-pressed={theme === "dark"} onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}>
               {theme === "dark" ? "Light" : "Dark"} mode
             </button>

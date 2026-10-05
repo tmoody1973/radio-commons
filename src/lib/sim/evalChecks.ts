@@ -107,3 +107,15 @@ export function checkCancelNeedsLink(trail: TrailEntry[]): CheckResult {
   const calls = toolCalls(trail, "cancel_membership");
   return result(calls.length > 0 && calls.every((call) => call.isError && call.summary === LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH), calls);
 }
+
+/** "next three" after "the last ten songs": recent_songs again, asked for that page. */
+export const checkRecentSongsPage = (page: number) => (trail: TrailEntry[]): CheckResult => {
+  const calls = toolCalls(trail, "recent_songs");
+  return result(calls.length > 0 && calls.every((call) => call.input.page === page && !call.isError), calls);
+};
+
+// A speaker has no screen: these phrases strand a listener on an Echo Dot.
+const SCREEN_ONLY = /\bon (?:the )?screen\b|\btap\b|\bthe card\b/gi;
+
+/** The screen-only phrases in a spoken reply (empty when it works on a speaker). Used by `eval:turns --speaker`. */
+export const screenWords = (reply: string): string[] => reply.match(SCREEN_ONLY) ?? [];

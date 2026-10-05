@@ -20,4 +20,4 @@ export const CAPABILITIES: readonly Capability[] = [
 
 // Amazon: keep first-time guidance brief and offer "tell me more" rather than explaining everything up front.
 export const CAPABILITIES_SPEECH =
-  "I'm Radio Milwaukee. I can tell you what's on our stations, save songs to your Finds and Apple Music, find concerts, dig up our stories, and track artists you follow. Tap a tile, or say tell me more.";
+  "I'm Radio Milwaukee. I can tell you what's on our stations, save songs to your Finds and Apple Music, find concerts, dig up our stories, and track artists you follow. Say tell me more for examples.";

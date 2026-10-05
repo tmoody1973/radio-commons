@@ -92,6 +92,10 @@ Amazon isn't giving hackathon participants the Alexa+ developer tools or simulat
 
 The page needs a passcode (ask the station) so strangers can't spend the API credit. A turn takes about 4 seconds from releasing the button to hearing the answer.
 
+**Echo Show or Echo Dot.** The toggle under the device switches to an Echo Dot, a speaker with no screen: no card renders, only the spoken answer and the trail, and Alexa is told it has no screen (Alexa+ knows its own device). Every spoken answer is written to work there: lists are read three at a time with "Want the next two?", and "yes" or "the next three" continues the numbering, so "save number 5" still works.
+
+**Checking it by script.** `npm run eval:turns` sends real listener sentences through the live simulator and judges which tools Alexa called. `npm run eval:turns -- --speaker` runs the same sentences on the Echo Dot and also fails any reply that says "on screen", "tap" or "the card". `EVAL_URL` points either one at another deployment; the passcode comes from `.env.local`.
+
 ### Try a donation (Amazon Pay sandbox, no real money)
 
 This shows a monthly Radio Milwaukee membership started by voice, paid with Amazon Pay, and cancelled by voice. It runs on Amazon Pay's sandbox (a practice mode), so no real money moves, ever.

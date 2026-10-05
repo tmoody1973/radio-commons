@@ -69,6 +69,7 @@ export async function POST(request: NextRequest) {
       history: history.data,
       audio: audio instanceof File ? { bytes: new Uint8Array(await audio.arrayBuffer()), contentType: audio.type || "audio/webm" } : undefined,
       text: typeof text === "string" && text.trim() ? text : undefined,
+      device: form.get("device") === "dot" ? "dot" : "show",
     },
     deps,
   );

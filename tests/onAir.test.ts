@@ -38,7 +38,7 @@ describe("spokenOnAir", () => {
 
   it("names each station's song and hands off to Alexa's player", () => {
     const text = spokenOnAir(all({ "88nine": { title: "Lauren", artist: "Men I Trust" }, hyfin: { title: "Oya", artist: "Ibeyi" }, rhythmlab: { title: "Gold", artist: "Kiah" } }));
-    expect(text).toBe("On air now: 88Nine is playing \"Lauren\" by Men I Trust; HYFIN, \"Oya\" by Ibeyi; Rhythm Lab, \"Gold\" by Kiah; 414 Music, live. Tap Listen live, or say 'Alexa, play HYFIN' to keep listening.");
+    expect(text).toBe("On air now: 88Nine is playing \"Lauren\" by Men I Trust; HYFIN, \"Oya\" by Ibeyi; Rhythm Lab, \"Gold\" by Kiah; 414 Music, live. Say 'Alexa, play HYFIN' to keep listening.");
   });
 
   it("drops artist names to stay within about 45 words", () => {
@@ -50,8 +50,8 @@ describe("spokenOnAir", () => {
 
   it("one station: its song and how to keep listening", () => {
     expect(spokenOnAir([{ station: "hyfin", song: { title: "Oya", artist: "Ibeyi" } }]))
-      .toBe("HYFIN is playing \"Oya\" by Ibeyi. Tap Listen live, or say 'Alexa, play HYFIN' to keep listening.");
-    expect(spokenOnAir([{ station: "414music", song: null }])).toBe("414 Music is live now. Tap Listen live, or say 'Alexa, play 414 Music' to keep listening.");
+      .toBe("HYFIN is playing \"Oya\" by Ibeyi. Say 'Alexa, play HYFIN' to keep listening.");
+    expect(spokenOnAir([{ station: "414music", song: null }])).toBe("414 Music is live now. Say 'Alexa, play 414 Music' to keep listening.");
   });
 });
 
@@ -127,7 +127,7 @@ describe("on_air_now", () => {
   it("a play from long ago is not called on air", async () => {
     const playlist = fakePlaylist({ recentSongs: async () => [song("Old One", "Someone", 90)] });
     const { message } = await mcpPost(handlerWith(playlist), call({ station: "414music" }));
-    expect(message.result.content[0].text).toBe("414 Music is live now. Tap Listen live, or say 'Alexa, play 414 Music' to keep listening.");
+    expect(message.result.content[0].text).toBe("414 Music is live now. Say 'Alexa, play 414 Music' to keep listening.");
   });
 
   it("with a station: only that station, as one large tile", async () => {
@@ -135,7 +135,7 @@ describe("on_air_now", () => {
     const playlist = fakePlaylist({ recentSongs: async (station) => { asked.push(station); return [song("Oya", "Ibeyi")]; } });
     const { message } = await mcpPost(handlerWith(playlist), call({ station: "hyfin" }));
     expect(asked).toEqual(["hyfin"]);
-    expect(message.result.content[0].text).toBe("HYFIN is playing \"Oya\" by Ibeyi. Tap Listen live, or say 'Alexa, play HYFIN' to keep listening.");
+    expect(message.result.content[0].text).toBe("HYFIN is playing \"Oya\" by Ibeyi. Say 'Alexa, play HYFIN' to keep listening.");
     expect(message.result.structuredContent.cardHtml).toContain("3 min ago");
     expect(message.result.structuredContent.cardHtml).toContain(`data-audio="${LIVE_STREAMS.hyfin}"`);
   });
