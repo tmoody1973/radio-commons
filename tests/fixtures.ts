@@ -66,5 +66,6 @@ export const fakePlaylist = (overrides: Partial<PlaylistClient> = {}): PlaylistC
   digest: async () => ({ since: 0, now: 0, items: [], artists: [] }),
   markDigestSeen: async () => undefined,
   searchPlaysIndexed: async () => [],
+  stationArtistShows: async () => ({ refreshedAt: null, shows: [] }),
   ...overrides,
 });

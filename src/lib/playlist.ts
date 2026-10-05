@@ -70,6 +70,13 @@ const digestSchema = z.object({
   since: z.number(), now: z.number(), items: z.array(digestItemSchema),
   artists: z.array(z.object({ artistId: z.string(), name: z.string(), artworkUrl: z.string().nullable() })),
 });
+// The cached "artists the station plays, with shows coming up" list. Lenient: only what the tool reads is required.
+const stationShowSchema = z.object({
+  artistName: z.string(), venueName: z.string(), city: z.string(), startsAtMs: z.number(),
+  dateOnly: z.boolean().optional(), ticketUrl: z.string().nullable().optional(), imageUrl: z.string().nullable().optional(),
+  playCount: z.number().optional(), role: z.string().optional(), region: z.string().nullable().optional(), metro: z.string().optional(),
+}).passthrough();
+const stationShowsSchema = z.object({ refreshedAt: z.number().nullable().optional(), shows: z.array(stationShowSchema) }).passthrough();
 const nullSchema = z.null();
 const screenPlaySchema = z.string().nullable();
 const linkedSchema = z.object({ linked: z.literal(true) });
@@ -83,6 +90,8 @@ export type SavedFind = z.infer<typeof savedSchema>;
 export type Station = z.infer<typeof stationSchema>;
 export type Digest = z.infer<typeof digestSchema>;
 export type DigestItem = Digest["items"][number];
+export type StationShow = z.infer<typeof stationShowSchema>;
+export type StationShows = z.infer<typeof stationShowsSchema>;
 export type FollowResult = z.infer<typeof followedSchema>;
 export type UnfollowResult = z.infer<typeof unfollowedSchema>;
 
@@ -104,6 +113,8 @@ export interface PlaylistClient {
   markDigestSeen(listenerId: string, seenAt: number): Promise<void>;
   /** Index-backed search (about the last two weeks) across one station or all four, newest first. */
   searchPlaysIndexed(station: Station | undefined, query: string): Promise<(RecentSong & { station: Station })[]>;
+  /** Upcoming shows by artists one station (or, with none, every station) has been playing; Milwaukee first. */
+  stationArtistShows(station?: Station): Promise<StationShows>;
 }
 
 type Call = (name: string, args: Record<string, unknown>) => Promise<unknown>;
@@ -164,6 +175,7 @@ export function createPlaylistClient({ query, mutation, action, serverKey, timeo
       const plays = await call(query, "alexa:searchPlays", station ? { station, query: text } : { query: text }, z.array(indexedPlaySchema), SEARCH_TIMEOUT_MS);
       return plays.map(({ stationSlug, ...play }) => ({ ...toRecentSongs([play])[0], station: stationSlug }));
     },
+    stationArtistShows: (station) => call(query, "alexa:stationArtistShows", station ? { station } : {}, stationShowsSchema),
     async connectAppleMusic(listenerId, musicUserToken) {
       await call(action, "appleMusicLinks:connect", keyed({ listenerId, musicUserToken }), linkedSchema, CONNECT_TIMEOUT_MS);
     },

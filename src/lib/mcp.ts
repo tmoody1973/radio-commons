@@ -14,7 +14,7 @@ import { createHash } from "node:crypto";
 import { eventMapPoints, MAP_H, MAP_W, pinnedEvents, pinnedPlaces } from "@/lib/map/staticMap";
 import {
   directAudioUrl, eventTime, EVENTS_UNAVAILABLE_SPEECH, NO_PLACES_FOR_EVENTS_SPEECH, NO_PLACES_SPEECH, spokenEvents, spokenPicks, NOT_ALLOWED_SPEECH, NOT_FOUND_SPEECH, EMPTY_DIGEST_SPEECH, EMPTY_DIGEST_NO_PICKS_SPEECH, LINK_ACCOUNT_SPEECH, PLAYLIST_UNAVAILABLE_SPEECH, spokenDigest, spokenFinds, spokenLatest, spokenMatches, spokenPassages,
-  spokenPlaces, spokenRecall, spokenRecent, spokenSearch, spokenDeleted, spokenFollowed, spokenSaved, spokenUnfollowed, WHICH_ARTIST_TO_FOLLOW_SPEECH, WHICH_ARTIST_TO_UNFOLLOW_SPEECH, spokenStory, spokenTrackFacts, UNAVAILABLE_SPEECH,
+  spokenPlaces, spokenRecall, spokenRecent, spokenSearch, spokenStationShows, spokenDeleted, spokenFollowed, spokenSaved, spokenUnfollowed, WHICH_ARTIST_TO_FOLLOW_SPEECH, WHICH_ARTIST_TO_UNFOLLOW_SPEECH, spokenStory, spokenTrackFacts, UNAVAILABLE_SPEECH,
 } from "@/lib/speech";
 import { localWindow } from "@/lib/stationTime";
 import { getStation } from "@/lib/stations";
@@ -287,7 +287,7 @@ export function buildMcpHandler(deps: Deps) {
         {
           title: "Find events in Milwaukee",
           description:
-            "Find upcoming events from Radio Milwaukee's event guide (the MKE Field Guide): by words (\"live music\"), time (tonight, today, tomorrow, this weekend, this week), free only, or near a place from a story the listener is looking at (nearStoryId, optionally nearPlace by name). Use only these results; never invent an event.",
+            "Find upcoming events from Radio Milwaukee's event guide (the MKE Field Guide): by words (\"live music\"), time (tonight, today, tomorrow, this weekend, this week), free only, or near a place from a story the listener is looking at (nearStoryId, optionally nearPlace by name). Use only these results; never invent an event. For general events not tied to the station's artists; for concerts by artists a station plays (\"88Nine artists with shows\"), use station_artist_shows.",
           inputSchema: z.object({
             query: z.string().min(1).max(120).optional(),
             when: z.enum(WHEN).optional(),
@@ -339,6 +339,25 @@ export function buildMcpHandler(deps: Deps) {
               structuredContent: card({ view: "events-map", items: items(events), map: { url, w: MAP_W, h: MAP_H, badges, anchor: { ...star, name: place.name } } }, { events }),
             };
           }, eventsUnavailable),
+      );
+
+      registerAppTool(
+        server,
+        "station_artist_shows",
+        {
+          title: "Shows by artists Radio Milwaukee plays",
+          description: "Upcoming concerts by artists Radio Milwaukee's stations have been playing, Milwaukee-area shows first. Use for \"88Nine artists with concerts coming up\", \"artists you play\", \"artists on HYFIN\", \"who's touring\", \"which artists from the station have concerts\". Pass station when the listener names one; omit it for all of Radio Milwaukee. No linked account needed. Not for the artists the listener follows (whats_new_for_me) or general events tonight or this weekend (find_events). Use only these results; never invent a show.",
+          inputSchema: z.object({ station: STATION_SLUG.optional() }),
+          ...CARD,
+        },
+        async ({ station: slug }) =>
+          timed("station_artist_shows", async () => {
+            const { shows } = await deps.playlist().stationArtistShows(slug);
+            return {
+              content: text(spokenStationShows(shows, slug)),
+              ...(shows.length ? { structuredContent: card({ view: "station-shows", shows }, { shows }) } : {}),
+            };
+          }, playlistUnavailable),
       );
 
       registerAppTool(
@@ -589,7 +608,7 @@ export function buildMcpHandler(deps: Deps) {
         "whats_new_for_me",
         {
           title: "What's new from my artists",
-          description: "What's new since the listener last asked, from the artists they follow: upcoming shows, new plays on Radio Milwaukee stations, new stories. Always call this tool when the listener asks, even if they may not have linked their account — the tool starts account linking itself. Use for 'what's new for me?'.",
+          description: "What's new since the listener last asked, from the artists the listener follows: upcoming shows, new plays on Radio Milwaukee stations, new stories. Always call this tool when the listener asks, even if they may not have linked their account — the tool starts account linking itself. Use ONLY when the listener says me, my or I follow: 'what's new for me?', 'my artists', 'do any artists I follow have concerts?'. Not for \"88Nine artists\", artists a station plays, or who's touring: use station_artist_shows.",
           inputSchema: z.object({}),
           ...CARD,
         },

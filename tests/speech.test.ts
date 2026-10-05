@@ -2,7 +2,7 @@ import { EVENT } from "./fixtures";
 import { describe, expect, it } from "vitest";
 import type { Story } from "@/lib/backstory";
 import type { SavedFind } from "@/lib/playlist";
-import { EVENTS_UNAVAILABLE_SPEECH, NOT_ALLOWED_SPEECH, NO_PASSAGE_SPEECH, clock, directAudioUrl, eventTime, monthYear, spokenEvents, spokenMatches, spokenPassages, spokenPicks, spokenPlaces, spokenFollowed, spokenSaved, spokenStory, spokenUnfollowed, spokenDigest, spokenFinds } from "@/lib/speech";
+import { EVENTS_UNAVAILABLE_SPEECH, NOT_ALLOWED_SPEECH, NO_PASSAGE_SPEECH, clock, directAudioUrl, eventTime, monthYear, spokenEvents, spokenMatches, spokenPassages, spokenPicks, spokenPlaces, spokenFollowed, spokenSaved, spokenStory, spokenUnfollowed, spokenDigest, spokenFinds, spokenStationShows } from "@/lib/speech";
 
 const STORY: Story = {
   storyId: "s1", show: "Uniquely Milwaukee", title: "Creativity is sustainable, accessible at 414 Art Revival",
@@ -207,5 +207,28 @@ describe("follow speech", () => {
       const text = spokenDigest([show, spins, story, { kind: "apple", added: 3, expired: 0 }]);
       expect(text).toBe("Since your last visit: Thao plays Turner Hall in Milwaukee on Thursday, October 8. HYFIN played Nas 3 times and 88Nine once. And there's a new Ladies First story about Zhané.");
     });
+  });
+});
+
+describe("spokenStationShows", () => {
+  const show = (artistName: string, venueName: string, city: string, startsAtMs: number, dateOnly = false) =>
+    ({ artistName, playCount: 3, venueName, city, startsAtMs, dateOnly, ticketUrl: null, imageUrl: null, role: "headliner", metro: "milwaukee" });
+  const tank = show("Tank and the Bangas", "Majestic Theatre", "Madison", Date.parse("2026-10-21T01:00:00Z"));
+  const ezra = show("Ezra Collective", "Pabst Theater", "Milwaukee", Date.parse("2026-10-23T01:00:00Z"));
+  // A date-only listing at midnight UTC is still that calendar day, not the evening before in Milwaukee.
+  const thao = show("Thao", "Turner Hall", "milwaukee", Date.UTC(2026, 9, 24), true);
+
+  it("speaks three, names the city only outside Milwaukee, and counts the rest on screen", () => {
+    const text = spokenStationShows([tank, ezra, thao, ezra, ezra], "88nine");
+    expect(text).toBe("Artists 88Nine has been playing with shows coming up: Tank and the Bangas at Majestic Theatre in Madison, Tuesday, October 20; Ezra Collective at Pabst Theater, Thursday, October 22; Thao at Turner Hall, Saturday, October 24, and 2 more on screen.");
+  });
+
+  it("says Radio Milwaukee when no station was named, with no 'more' for a short list", () => {
+    expect(spokenStationShows([ezra], undefined)).toBe("Artists Radio Milwaukee has been playing with shows coming up: Ezra Collective at Pabst Theater, Thursday, October 22.");
+  });
+
+  it("is honest when nothing is listed", () => {
+    expect(spokenStationShows([], "hyfin")).toBe("None of the artists HYFIN has been playing have shows listed right now.");
+    expect(spokenStationShows([], undefined)).toBe("None of the artists Radio Milwaukee has been playing have shows listed right now.");
   });
 });

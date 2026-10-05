@@ -18,12 +18,12 @@ const PLAYLIST_TOOLS = ["find_song_played", "get_track_story", "save_find", "lis
 const call = (name: string, args: Record<string, unknown>) => ({ method: "tools/call", params: { name, arguments: args } });
 
 describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
-  it("initializes on protocol 2025-11-25 and lists the sixteen tools", async () => {
+  it("initializes on protocol 2025-11-25 and lists the seventeen tools", async () => {
     const handler = handlerWith();
     const init = await mcpPost(handler, INITIALIZE);
     expect(init.message.result?.protocolVersion).toBe("2025-11-25");
     const tools = await mcpPost(handler, { method: "tools/list" }, 2);
-    expect(tools.message.result.tools.map((t: { name: string }) => t.name).sort()).toEqual(["ask_station_story", "delete_my_finds", "find_events", "find_song_played", "find_station_story", "follow_artist", "get_station_story", "get_track_story", "latest_station_stories", "list_finds", "recent_songs", "save_find", "search_playlist", "station_picks", "unfollow_artist", "whats_new_for_me"]);
+    expect(tools.message.result.tools.map((t: { name: string }) => t.name).sort()).toEqual(["ask_station_story", "delete_my_finds", "find_events", "find_song_played", "find_station_story", "follow_artist", "get_station_story", "get_track_story", "latest_station_stories", "list_finds", "recent_songs", "save_find", "search_playlist", "station_artist_shows", "station_picks", "unfollow_artist", "whats_new_for_me"]);
   });
 
   it("linked-account tools tell the host to always call them so Alexa+ can start account linking", async () => {
@@ -34,6 +34,50 @@ describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
       expect(tool.description).not.toContain("Requires a linked account");
       expect(tool.description).toContain("starts account linking itself");
     }
+  });
+
+  describe("station_artist_shows", () => {
+    const SHOW = { artistName: "Tank and the Bangas", playCount: 12, venueName: "Majestic Theatre", city: "Madison", startsAtMs: Date.parse("2026-10-21T01:00:00Z"),
+      dateOnly: false, ticketUrl: null, imageUrl: null, role: "headliner" as const, metro: "madison" };
+    const tools = async () => (await mcpPost(handlerWith(), { method: "tools/list" })).message.result.tools as { name: string; description: string; _meta?: { ui?: { resourceUri?: string } } }[];
+    const description = async (name: string) => (await tools()).find((t) => t.name === name)!.description;
+
+    it("is a card tool that needs no linked account", async () => {
+      expect((await tools()).find((t) => t.name === "station_artist_shows")!._meta!.ui!.resourceUri).toBe(CARD_URI);
+      expect(AUTH_TOOLS as readonly string[]).not.toContain("station_artist_shows");
+    });
+
+    it("asks for the named station, speaks the shows and puts them on the card, without a listener", async () => {
+      const asked: unknown[] = [];
+      const playlist = fakePlaylist({ stationArtistShows: async (slug) => { asked.push(slug); return { refreshedAt: 1, shows: [SHOW] }; } });
+      const { message } = await mcpPost(handlerWith(undefined, undefined, playlist), call("station_artist_shows", { station: "88nine" }));
+      expect(asked).toEqual(["88nine"]);
+      expect(message.result.content[0].text).toBe("Artists 88Nine has been playing with shows coming up: Tank and the Bangas at Majestic Theatre in Madison, Tuesday, October 20.");
+      expect(message.result.structuredContent).toMatchObject({ view: "station-shows", shows: [{ artistName: "Tank and the Bangas" }] });
+      expect(message.result.structuredContent.cardHtml).toContain("Majestic Theatre · Madison");
+    });
+
+    it("an empty or never-refreshed cache is a plain sentence, no card, no error", async () => {
+      const { message } = await mcpPost(handlerWith(), call("station_artist_shows", {}));
+      expect(message.result.isError).toBeFalsy();
+      expect(message.result.content[0].text).toBe("None of the artists Radio Milwaukee has been playing have shows listed right now.");
+      expect(message.result.structuredContent?.cardHtml).toBeUndefined();
+    });
+
+    it("a playlist outage is the playlist apology", async () => {
+      const playlist = fakePlaylist({ stationArtistShows: async () => { throw new PlaylistUnavailable("down"); } });
+      const { message } = await mcpPost(handlerWith(undefined, undefined, playlist), call("station_artist_shows", {}));
+      expect(message.result.content[0].text).toBe(PLAYLIST_UNAVAILABLE_SPEECH);
+    });
+
+    it("descriptions route station-artist questions here and keep the follows digest to me/my/I follow", async () => {
+      expect(await description("station_artist_shows")).toMatch(/88Nine artists/);
+      const digest = await description("whats_new_for_me");
+      expect(digest).toMatch(/ONLY when the listener says me, my or I follow/);
+      expect(digest).toMatch(/not for "88Nine artists"/i);
+      expect(digest).toContain("station_artist_shows");
+      expect(await description("find_events")).toContain("station_artist_shows");
+    });
   });
 
   it("find_station_story returns matches and a spoken shortlist", async () => {

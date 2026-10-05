@@ -208,4 +208,25 @@ describe("the card page", () => {
       expect(html).toContain("Apple Music needs reconnecting");
     });
   });
+  describe("station-shows view", () => {
+    const show = { artistName: `Tank ${XSS}`, playCount: 9, venueName: "Majestic Theatre", city: "Madison", startsAtMs: Date.parse("2026-10-21T01:00:00Z"), dateOnly: false,
+      ticketUrl: "https://www.ticketmaster.com/event/1?camefrom=x", imageUrl: "https://s1.ticketm.net/t.jpg", role: "headliner" as const, metro: "madison" };
+    const bare = { ...show, artistName: "Thao", venueName: "Turner Hall", city: "Milwaukee", startsAtMs: Date.UTC(2026, 9, 24), dateOnly: true, ticketUrl: null, imageUrl: null };
+    const html = renderView({ view: "station-shows", shows: [show, bare] });
+    it("one tile per show: the event photo, or a plain tile", () => {
+      expect(html.match(/class="tile digest"/g)).toHaveLength(2);
+      expect(html).toContain('src="https://s1.ticketm.net/t.jpg"');
+      expect(html).toContain('class="tile-art ph"');
+    });
+    it("shows venue · city and the date, with the time only when there is one", () => {
+      expect(html).toContain("Majestic Theatre · Madison");
+      expect(html).toContain("Tue Oct 20 · 8:00");
+      expect(html).toContain("Turner Hall · Milwaukee<br>Sat Oct 24</span>");
+    });
+    it("offers Get tickets only with a ticket link, cleaned, and escapes everything", () => {
+      expect(html.match(/>Get tickets</g)).toHaveLength(1);
+      expect(html).toContain('data-url="https://www.ticketmaster.com/event/1"');
+      expect(html).not.toContain(XSS);
+    });
+  });
 });
