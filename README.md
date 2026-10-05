@@ -4,28 +4,28 @@
 
 Pilot station: [88Nine Radio Milwaukee](https://radiomilwaukee.org). Built for the Amazon Developer Hackathon 2026 (Alexa+ track). **Site:** https://radio-commons.vercel.app · **Simulator:** https://radio-commons.vercel.app/simulator
 
-## Status (October 4, 2026)
+## Status (October 5, 2026)
 
 **Built and live**
 
 | Area | What a listener can do | Since |
 | --- | --- | --- |
-| Stories | Find a This Bites, Uniquely Milwaukee or Ladies First episode by what they remember (even words said in it), hear the summary, play it, see its places on a map, get directions, ask a detail question answered in the episode's own words at the exact moment | Oct 2–3 |
+| Stories | Find a This Bites, Uniquely Milwaukee, Ladies First or Radio Milwaukee Artist Interviews episode by what they remember (even words said in it), hear the summary, play it, see its places on a map, get directions, ask a detail question answered in the episode's own words at the exact moment | Oct 2–3 |
 | Events | "What's on near there tonight?" from Radio Milwaukee's event guide (the MKE Field Guide): map near a story's places, carousel by day or type, free shows, Add to calendar, restaurant Reserve links | Oct 3–4 |
 | Picks | "What is Radio Milwaukee recommending?": staff picks plus the station's weekly MKE Concert Picks (imported automatically each week) | Oct 4 |
 | Music | Milwaukee Music Premieres (30, with Play song, credits, release show) and Studio Milwaukee Sessions (24, set lists, link to the session) | Oct 4 |
+| Briefing | "What's new at Radio Milwaukee this week?": up to four items from the newest 88Nine weekly newsletter in the station's own words, each opening its story (Play), Concert Picks or the page | Oct 5 |
 | Songs | "What's playing?", "When did you last play…?", "What was that song around 8:15?", "Tell me about this song" across 88Nine, HYFIN, Rhythm Lab and 414 Music | Oct 4 |
 | Finds | "Save that song" to the listener's 88Nine Finds and Apple Music, with a linked Radio Milwaukee account; privacy page at /privacy | Oct 4 |
 | Simulator | The full Alexa+ experience in a browser: voice in and out, Echo Show cards light and dark, "What Alexa did" trail for judges | Oct 2–4 |
 | Landing page | What it does, the smart-speaker case, how it works, how another station could use it | Oct 4 |
 
-Behind it: [Backstory](https://github.com/tmoody1973/backstory), the station's story engine (transcripts, checked facts, editor review; 102 stories across five shows), the station's playlist database, and the [MKE Field Guide](https://mke-field-guide.vercel.app) (events, venues, staff picks, the review admin).
+Behind it: [Backstory](https://github.com/tmoody1973/backstory), the station's story engine (transcripts, checked facts, editor review; 118 stories across six shows, each reaching Alexa only after an editor approves it), the station's playlist database, and the [MKE Field Guide](https://mke-field-guide.vercel.app) (events, venues, staff picks, the review admin).
 
 **Planned before the October 23 deadline**
 
 | What | Status |
 | --- | --- |
-| **Weekly station briefing** — "What's new at Radio Milwaukee this week?" read from the station's newsletter, each item opening the real story, Concert Picks or page | Built (`station_briefing`); decision 007 |
 | **Local song stories** — link Backstory's premiere and session facts to the playlist's songs, so "tell me about this song" includes Radio Milwaukee's own coverage of Milwaukee artists | Next, now that the playlist tools exist |
 | Demo video and Devpost write-up | Next |
 
@@ -143,7 +143,7 @@ Account linking uses the listener Clerk app (OAuth 2.1, PKCE S256, refresh token
 
 - Specs, one per slice: `docs/superpowers/specs/` (story tools, simulator, ask the episode, events, music coverage, station briefing)
 - Plans: `docs/superpowers/plans/`
-- Decisions, in plain English: `docs/decisions/` (001 foundation · 002 simulator · 003 transcript answers · 004 Amazon's design guide · 005 events from the Field Guide · 006 music coverage)
+- Decisions, in plain English: `docs/decisions/` (001 foundation · 002 simulator · 003 transcript answers · 004 Amazon's design guide · 005 events from the Field Guide · 006 music coverage · 007 station briefing)
 - What we learned, slice by slice: `docs/LEARNING-LOG.md`
 - Who else is doing this, and the smart-speaker numbers: `docs/research/2026-10-04-landscape.md`
 
