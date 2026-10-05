@@ -58,9 +58,10 @@ blockquote{margin:0;font-size:40px;line-height:1.1;font-weight:700}blockquote.q-
 .ev-head{display:flex;align-items:center;gap:8px;margin:12px 12px 0}.event .badge{position:static}
 .ev-cat{font-size:14px;font-weight:600;color:var(--muted);text-transform:capitalize}
 .tag{margin-left:auto;padding:4px 10px;border-radius:9999px;background:var(--secondary);color:var(--text);font-size:13px;font-weight:700}
-.tile-actions{display:flex;gap:8px;margin:4px 12px 12px}.tile-actions .secondary{min-height:48px;padding:0 14px;font-size:15px;white-space:nowrap}
+.tile-actions{display:flex;flex-wrap:wrap;gap:8px;margin:4px 12px 12px}.tile-actions .secondary{min-height:48px;padding:0 14px;font-size:15px;white-space:nowrap}
 .event-row{cursor:default}.event-row .what{flex:1}.secondary.small{min-height:48px;min-width:48px;padding:0;justify-content:center}
 .pin.anchor{background:var(--text);color:var(--card);font-size:16px}
+.row-wrap .calendar{min-height:52px;min-width:52px}
 #fullmap{position:fixed;inset:0}
 .overlay{position:fixed;zoom:var(--z)}
 .bar{top:10px;left:10px;right:10px;display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-radius:16px;background:var(--card)}
