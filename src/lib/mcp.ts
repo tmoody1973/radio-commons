@@ -474,7 +474,7 @@ export function buildMcpHandler(deps: Deps) {
         "save_find",
         {
           title: "Save a song to 88Nine Finds",
-          description: "Save a song the listener heard on Radio Milwaukee to their 88Nine Finds (and Apple Music if connected). Requires a linked account. Pass number (1-10) only when the listener says a number (\"save number 3\"). Otherwise pass the playId from recent_songs, find_song_played or search_playlist if you have it, and always also pass the song's title and artist (and station if known) so the right play is found even without an id. Use for 'save it', 'save number 3', 'save the song by Thao'.",
+          description: "Save a song the listener heard on Radio Milwaukee to their 88Nine Finds (and Apple Music if connected). Always call this tool when the listener asks, even if they may not have linked their account — the tool starts account linking itself. Pass number (1-10) only when the listener says a number (\"save number 3\"). Otherwise pass the playId from recent_songs, find_song_played or search_playlist if you have it, and always also pass the song's title and artist (and station if known) so the right play is found even without an id. Use for 'save it', 'save number 3', 'save the song by Thao'.",
           inputSchema: z.object({
             number: z.number().int().min(1).max(10).optional(),
             playId: PLAY_ID.optional(),
@@ -505,7 +505,7 @@ export function buildMcpHandler(deps: Deps) {
         "list_finds",
         {
           title: "List my Finds",
-          description: "List the listener's saved Radio Milwaukee Finds, newest first, numbered. Requires a linked account. Use for 'what's in my Finds?'.",
+          description: "List the listener's saved Radio Milwaukee Finds, newest first, numbered. Always call this tool when the listener asks, even if they may not have linked their account — the tool starts account linking itself. Use for 'what's in my Finds?'.",
           inputSchema: z.object({ limit: z.number().int().min(1).max(10).optional() }),
         },
         async ({ limit }, context) =>
@@ -521,7 +521,7 @@ export function buildMcpHandler(deps: Deps) {
         "delete_my_finds",
         {
           title: "Delete my Finds",
-          description: "Permanently delete all of the listener's Finds and disconnect Apple Music. Requires a linked account. Only call after the listener has clearly confirmed.",
+          description: "Permanently delete all of the listener's Finds and disconnect Apple Music. Always call this tool when the listener asks, even if they may not have linked their account — the tool starts account linking itself. Only call after the listener has clearly confirmed.",
           inputSchema: z.object({}),
           annotations: { destructiveHint: true, idempotentHint: true },
         },
@@ -538,7 +538,7 @@ export function buildMcpHandler(deps: Deps) {
         "follow_artist",
         {
           title: "Follow an artist",
-          description: "Follow an artist so the listener can later ask what's new from the artists they follow. Requires a linked account. Pass the artist's name, or the playId of a song by them. Use for 'follow Thao' and 'follow this artist' (pass the playId of the song that just played).",
+          description: "Follow an artist so the listener can later ask what's new from the artists they follow. Always call this tool when the listener asks, even if they may not have linked their account — the tool starts account linking itself. Pass the artist's name, or the playId of a song by them. Use for 'follow Thao' and 'follow this artist' (pass the playId of the song that just played).",
           inputSchema: z.object({ artist: z.string().max(100).optional(), playId: PLAY_ID.optional() }),
           annotations: { idempotentHint: true },
         },
@@ -557,7 +557,7 @@ export function buildMcpHandler(deps: Deps) {
         "unfollow_artist",
         {
           title: "Unfollow an artist",
-          description: "Stop following an artist. Requires a linked account. Use for 'stop following Thao' and 'unfollow Thao'.",
+          description: "Stop following an artist. Always call this tool when the listener asks, even if they may not have linked their account — the tool starts account linking itself. Use for 'stop following Thao' and 'unfollow Thao'.",
           inputSchema: z.object({ artist: z.string().max(100) }),
           annotations: { idempotentHint: true },
         },
@@ -577,7 +577,7 @@ export function buildMcpHandler(deps: Deps) {
         "whats_new_for_me",
         {
           title: "What's new from my artists",
-          description: "What's new since the listener last asked, from the artists they follow: upcoming shows, new plays on Radio Milwaukee stations, new stories. Requires a linked account. Use for 'what's new for me?'.",
+          description: "What's new since the listener last asked, from the artists they follow: upcoming shows, new plays on Radio Milwaukee stations, new stories. Always call this tool when the listener asks, even if they may not have linked their account — the tool starts account linking itself. Use for 'what's new for me?'.",
           inputSchema: z.object({}),
           ...CARD,
         },
