@@ -72,6 +72,18 @@ blockquote{margin:0;font-size:40px;line-height:1.1;font-weight:700}blockquote.q-
 .onair-row b,.onair-row small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.what .station{font-weight:700;color:var(--text)}
 .onair-row .primary,.onair-row .secondary{min-height:48px;padding:0 16px;font-size:15px;white-space:nowrap}
 .secondary.say{margin-top:auto;min-height:48px;padding:8px 14px;border-radius:14px;font-size:15px;line-height:1.25;text-align:left}
+.give .top{justify-content:flex-start}.demo{padding:4px 12px;border-radius:9999px;background:var(--text);color:var(--card);font-size:13px;font-weight:700}
+.give h2{margin:0}.give-body{display:flex;gap:20px;flex:1}.give-main{flex:1;display:flex;flex-direction:column;gap:10px;min-width:0}
+.give input[type=radio]{position:absolute;opacity:0;pointer-events:none}
+.switch{display:flex;align-self:flex-start;padding:4px;border-radius:9999px;background:var(--secondary)}
+.switch label{min-height:44px;padding:0 20px;border-radius:9999px;display:flex;align-items:center;font-weight:600;cursor:pointer}
+#give-monthly:checked~.switch label[for=give-monthly],#give-once:checked~.switch label[for=give-once]{background:var(--accent);color:var(--on-accent)}
+#give-monthly:focus-visible~.switch label[for=give-monthly],#give-once:focus-visible~.switch label[for=give-once]{outline:3px solid var(--text);outline-offset:2px}
+.give-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#give-monthly:checked~.give-grid.once,#give-once:checked~.give-grid.monthly{display:none}
+.give-tier{min-height:64px;padding:6px 16px;border-radius:16px;flex-direction:column;align-items:flex-start;justify-content:center;gap:0}
+.give-tier b{font-size:22px}.give-tier small{font-size:14px;color:var(--muted)}
+.give-qr{width:168px;flex:none;display:flex;flex-direction:column;gap:6px;align-self:center}.give-qr svg{width:168px;height:168px;border-radius:8px;display:block}
 #fullmap{position:fixed;inset:0}
 .overlay{position:fixed;zoom:var(--z)}
 .bar{top:10px;left:10px;right:10px;display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-radius:16px;background:var(--card)}

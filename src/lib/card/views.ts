@@ -5,6 +5,7 @@ import type { Badge } from "@/lib/map/geo";
 import type { Digest, DigestItem, FindRow, RecentSong, SavedFind, Station, StationShow } from "@/lib/playlist";
 import { LIVE_STREAMS } from "@/lib/streams";
 import { CAPABILITIES } from "@/lib/capabilities";
+import { dollars, LEVELS, type GiveKind } from "@/lib/give/tiers";
 import { pinnedPlaces } from "@/lib/map/staticMap";
 import { directionsUrl, streetAddress } from "@/lib/maps";
 import { ARTICLE_SOURCE, clock, longDate, monthYear, showCalendarDay } from "@/lib/speech";
@@ -36,7 +37,9 @@ export type CardView =
   | { view: "on-air"; tiles: OnAirTile[] }
   /** Artwork and preview are known only when the save went through a search hit; otherwise a plain tile. */
   | { view: "saved"; saved: SavedOk; artworkUrl: string | null; previewUrl: string | null }
-  | { view: "briefing"; date: string; items: BriefingItem[] };
+  | { view: "briefing"; date: string; items: BriefingItem[] }
+  /** links: tier id → its /give URL; qrSvg is our own QR code (from the qrcode library), placed as is. */
+  | { view: "give"; links: Record<string, string>; qrSvg: string; shortUrl: string };
 
 const escape = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
@@ -384,6 +387,24 @@ function briefingView(date: string, items: BriefingItem[]): string {
   return `<article class="card briefing">${LOGO}<span class="meta">From the ${escape(date)} newsletter</span><div class="list">${rows}</div></article>`;
 }
 
+const GIVE_DEMO = "DEMO · Amazon Pay sandbox · no real money";
+const giveTiers = (kind: GiveKind, links: Record<string, string>) =>
+  `<div class="give-grid ${kind}">${LEVELS.map((level) => {
+    const url = links[`${level.slug}-${kind}`];
+    return url ? `<button type="button" class="secondary details give-tier" data-url="${escape(url)}"><b>${escape(dollars(level[kind]))}${kind === "monthly" ? "/mo" : ""}</b><small>${escape(level.name)}</small></button>` : "";
+  }).join("")}</div>`;
+
+/** Support Radio Milwaukee: Monthly | One-time (CSS radios, no script), four levels each opening /give, and a QR for screens that can't open a browser. */
+function giveView(links: Record<string, string>, qrSvg: string, shortUrl: string): string {
+  return `<article class="card give"><div class="top">${LOGO}<span class="demo">${GIVE_DEMO}</span></div><div class="give-body"><div class="give-main">`
+    + `<h2>Support Radio Milwaukee</h2>`
+    + `<input type="radio" name="give-kind" id="give-monthly" checked><input type="radio" name="give-kind" id="give-once">`
+    + `<div class="switch"><label for="give-monthly">Monthly</label><label for="give-once">One-time</label></div>`
+    + giveTiers("monthly", links) + giveTiers("once", links)
+    + `<p class="line small">More levels on radiomilwaukee.org</p></div>`
+    + `<aside class="give-qr">${qrSvg}<p class="line small">Or open ${escape(shortUrl)} on your phone</p></aside></div></article>`;
+}
+
 export function renderView(card: CardView): string {
   switch (card.view) {
     case "story": return storyView(card.story, card.releaseEvent ?? null);
@@ -401,5 +422,6 @@ export function renderView(card: CardView): string {
     case "station-shows": return stationShowsView(card.shows);
     case "capabilities": return capabilitiesView();
     case "on-air": return onAirView(card.tiles);
+    case "give": return giveView(card.links, card.qrSvg, card.shortUrl);
   }
 }

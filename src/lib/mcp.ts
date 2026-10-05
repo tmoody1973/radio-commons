@@ -22,6 +22,13 @@ import { getStation } from "@/lib/stations";
 import { linkItems } from "@/lib/briefing";
 import { NewsletterUnavailable, newsletterFromEnv, type NewsletterClient } from "@/lib/newsletter";
 import { STREAM_HOST } from "@/lib/streams";
+import QRCode from "qrcode";
+import {
+  CANCEL_FAILED_SPEECH, CANCELLED_SPEECH, CARD_LINK_TTL_MS, confirmCancelSpeech, GIVE_SPEECH, GIVE_UNAVAILABLE_SPEECH, giveFromEnv, memberLine, NO_MEMBERSHIP_SPEECH, type Give,
+} from "@/lib/give";
+import { cancelMembership } from "@/lib/give/amazonPay";
+import { sealListener } from "@/lib/give/token";
+import { TIERS } from "@/lib/give/tiers";
 
 export const CARD_URI = "ui://radio-commons/story-card.html";
 const CLOCK_TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -53,6 +60,8 @@ const CARD_CSP = {
 };
 const INLINE_PLACES = 3;
 const CARD = { _meta: { ui: { resourceUri: CARD_URI } } };
+// "Thanks for being a member" is a nicety: past this, the digest goes out without it.
+const MEMBER_LINE_BUDGET_MS = 300;
 
 interface Deps {
   backstory: () => BackstoryClient;
@@ -64,6 +73,8 @@ interface Deps {
   /** Runs work after the reply is sent (Next's `after`); the default just starts it. */
   defer?: (task: () => Promise<unknown>) => void;
   cardHtml: () => string;
+  /** Sandbox giving (support_radio_milwaukee, cancel_membership); null when Amazon Pay isn't configured. Defaults to the env. */
+  give?: () => Give | null;
 }
 
 interface ToolResult {
@@ -153,6 +164,7 @@ function placesCard(story: Story) {
 
 export function buildMcpHandler(deps: Deps) {
   const now = deps.now ?? (() => new Date());
+  const give = deps.give ?? giveFromEnv;
   const station = getStation();
   const shows = station.shows.map((s) => s.slug) as [string, ...string[]];
   const card = (view: CardView, extra: Record<string, unknown> = {}) => ({ stationId: station.stationId, view: view.view, cardHtml: renderView(view), ...extra });
@@ -215,6 +227,35 @@ export function buildMcpHandler(deps: Deps) {
     matches.length === 0 ? {}
       : matches.length === 1 ? card({ view: "song", song: songCardFromMatch(matches[0], slug) })
         : card({ view: "songs", songs: matches.map((match) => songCardFromMatch(match, slug)) });
+  // The give card: every tier's /give link (sealed listener token when linked) and a QR of the short page for screens without a browser.
+  const giveCard = async (setup: Give, listenerId: string | undefined) => {
+    const token = listenerId ? sealListener(listenerId, setup.tokenSecret, CARD_LINK_TTL_MS, now().getTime()) : null;
+    const giveUrl = (tier?: string) => {
+      const url = new URL("/give", SITE);
+      if (tier) url.searchParams.set("tier", tier);
+      if (token) url.searchParams.set("t", token);
+      return url.toString();
+    };
+    const links = Object.fromEntries(TIERS.map((tier) => [tier.id, giveUrl(tier.id)]));
+    const qrSvg = await QRCode.toString(giveUrl(), { type: "svg", margin: 1, errorCorrectionLevel: "M" });
+    return card({ view: "give", links, qrSvg, shortUrl: `${new URL(SITE).host}/give` }, { links });
+  };
+  // Null on any failure or after the budget: a membership lookup must never slow or break the digest.
+  const activeMembership = async (listenerId: string) => {
+    const store = give()?.memberships;
+    if (!store) return null;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const late = new Promise<null>((resolve) => { timer = setTimeout(() => resolve(null), MEMBER_LINE_BUDGET_MS); });
+    try {
+      const membership = await Promise.race([store.get(listenerId), late]);
+      return membership?.status === "active" ? membership : null;
+    } catch {
+      console.error(JSON.stringify({ event: "membership_read_failed" }));
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
+  };
   return createMcpHandler(
     (server) => {
       registerAppTool(
@@ -700,12 +741,58 @@ export function buildMcpHandler(deps: Deps) {
           timed("whats_new_for_me", async () => {
             const listenerId = listenerIdFrom(context.http ?? {});
             if (!listenerId) return accountLinkingRequired();
-            const digest = await deps.playlist().digest(listenerId);
+            const [digest, membership] = await Promise.all([deps.playlist().digest(listenerId), activeMembership(listenerId)]);
             // Build the whole reply first: a reply that throws must not mark the digest seen.
             const reply = await digestReply(digest);
             defer(() => deps.playlist().markDigestSeen(listenerId, digest.now));
-            return reply;
+            if (!membership) return reply;
+            const [first, ...rest] = reply.content;
+            return { ...reply, content: [{ ...first, text: `${first.text} ${memberLine(membership)}` }, ...rest] };
           }, playlistUnavailable),
+      );
+
+      registerAppTool(
+        server,
+        "support_radio_milwaukee",
+        {
+          title: "Support Radio Milwaukee",
+          description: "Become a Radio Milwaukee member (monthly) or make a one-time gift, with Amazon Pay. This is a sandbox demo: no real money moves, and the reply says so. Shows a card with the station's membership levels; each opens a secure Amazon Pay page. Use for \"I want to support Radio Milwaukee\", \"donate\", \"become a member\", \"give to the station\". No linked account needed. Speak the reply as given.",
+          inputSchema: z.object({}),
+          ...CARD,
+        },
+        async (_args, context) => {
+          const setup = give();
+          if (!setup) return { content: text(GIVE_UNAVAILABLE_SPEECH) };
+          return { content: text(GIVE_SPEECH), structuredContent: await giveCard(setup, listenerIdFrom(context.http ?? {})) };
+        },
+      );
+
+      server.registerTool(
+        "cancel_membership",
+        {
+          title: "Cancel my Radio Milwaukee membership",
+          description: "Cancel the listener's monthly Radio Milwaukee membership (an Amazon Pay sandbox demo). Always call this tool when the listener asks, even if they may not have linked their account — the tool starts account linking itself. First call it without confirmed: it returns the question to ask. Only after the listener clearly says yes, call it again with confirmed true. Use for \"cancel my membership\", \"stop my monthly donation\".",
+          inputSchema: z.object({ confirmed: z.boolean().optional() }),
+          annotations: { destructiveHint: true, idempotentHint: true },
+        },
+        async ({ confirmed }, context) => {
+          const listenerId = listenerIdFrom(context.http ?? {});
+          if (!listenerId) return accountLinkingRequired();
+          const setup = give();
+          if (!setup?.memberships) return { content: text(GIVE_UNAVAILABLE_SPEECH) };
+          try {
+            const membership = await setup.memberships.get(listenerId);
+            if (membership?.status !== "active") return { content: text(NO_MEMBERSHIP_SPEECH), structuredContent: { member: false } };
+            if (confirmed !== true) return { content: text(confirmCancelSpeech(membership)), structuredContent: { member: true, needsConfirmation: true } };
+            await cancelMembership(await setup.pay(), membership.chargePermissionId);
+            // Amazon has closed it, which is what matters; a failed note here only costs the "member since" line.
+            await setup.memberships.set(listenerId, { ...membership, status: "cancelled" }).catch(() => console.error(JSON.stringify({ event: "membership_write_failed" })));
+            return { content: text(CANCELLED_SPEECH), structuredContent: { member: false, cancelled: true } };
+          } catch {
+            console.error(JSON.stringify({ event: "cancel_membership_failed" }));
+            return { content: text(CANCEL_FAILED_SPEECH), isError: true };
+          }
+        },
       );
 
       registerAppResource(server, "Story card", CARD_URI, { description: "A Radio Milwaukee story, quote, list or map, in Alexa+ style." }, async () => ({
