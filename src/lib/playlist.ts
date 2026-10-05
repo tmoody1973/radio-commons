@@ -77,6 +77,31 @@ const stationShowSchema = z.object({
   playCount: z.number().optional(), role: z.string().optional(), region: z.string().nullable().optional(), metro: z.string().optional(),
 }).passthrough();
 const stationShowsSchema = z.object({ refreshedAt: z.number().nullable().optional(), shows: z.array(stationShowSchema) }).passthrough();
+// 88Nine's schedule (alexa:stationSchedule, alexa:hostProfile). Lenient: photos, links and host profiles arrive with a later playlist deploy.
+const optionalUrl = z.string().nullable().optional();
+const latestPieceSchema = z.object({ title: z.string(), url: z.string(), publishedAt: z.union([z.number(), z.string()]).nullable().optional() }).passthrough();
+const hostCardSchema = z.object({ name: z.string(), imageUrl: optionalUrl, profileUrl: optionalUrl, latest: z.array(latestPieceSchema).default([]) }).passthrough();
+const airtimeSchema = z.object({
+  day: z.string(), start: z.string(), end: z.string(), dayOfWeek: z.number().optional(), startMin: z.number().optional(), endMin: z.number().optional(),
+}).passthrough();
+const airingSchema = z.object({ startsAt: z.number(), endsAt: z.number() }).nullable().optional();
+const scheduleSlotSchema = z.object({
+  name: z.string(), hosts: z.array(z.string()).default([]), startsAt: z.number(), endsAt: z.number(),
+  imageUrl: optionalUrl, link: optionalUrl, hostProfiles: z.array(hostCardSchema).optional(),
+}).passthrough();
+const scheduleProgramSchema = z.object({
+  name: z.string(), hosts: z.array(z.string()).default([]), airtimes: z.array(airtimeSchema).default([]),
+  lastAired: airingSchema, nextAiring: airingSchema, airingNow: z.boolean().default(false),
+  imageUrl: optionalUrl, link: optionalUrl, hostProfiles: z.array(hostCardSchema).optional(),
+}).passthrough();
+const stationScheduleSchema = z.object({
+  refreshedAt: z.number().nullable().optional(), station: z.string(),
+  onNow: scheduleSlotSchema.nullable().default(null), next: scheduleSlotSchema.nullable().default(null),
+  match: scheduleProgramSchema.nullable().default(null), matches: z.array(scheduleProgramSchema).default([]),
+}).passthrough();
+const hostProfileSchema = hostCardSchema.extend({
+  programs: z.array(z.object({ name: z.string(), airtimes: z.array(airtimeSchema).default([]) }).passthrough()).default([]),
+}).nullable();
 const nullSchema = z.null();
 const screenPlaySchema = z.string().nullable();
 const linkedSchema = z.object({ linked: z.literal(true) });
@@ -94,6 +119,13 @@ export type StationShow = z.infer<typeof stationShowSchema>;
 export type StationShows = z.infer<typeof stationShowsSchema>;
 export type FollowResult = z.infer<typeof followedSchema>;
 export type UnfollowResult = z.infer<typeof unfollowedSchema>;
+
+export type HostCard = z.infer<typeof hostCardSchema>;
+export type Airtime = z.infer<typeof airtimeSchema>;
+export type ScheduleSlot = z.infer<typeof scheduleSlotSchema>;
+export type ScheduleProgram = z.infer<typeof scheduleProgramSchema>;
+export type StationSchedule = z.infer<typeof stationScheduleSchema>;
+export type HostProfile = z.infer<typeof hostProfileSchema>;
 
 export class PlaylistUnavailable extends Error {}
 
@@ -115,6 +147,10 @@ export interface PlaylistClient {
   searchPlaysIndexed(station: Station | undefined, query: string): Promise<(RecentSong & { station: Station })[]>;
   /** Upcoming shows by artists one station (or, with none, every station) has been playing; Milwaukee first. */
   stationArtistShows(station?: Station): Promise<StationShows>;
+  /** 88Nine's schedule at `at`: who's on now and next, and (with a query) the shows or hosts that match, best first. */
+  stationSchedule(args: { station: "88nine"; query?: string; at?: number }): Promise<StationSchedule>;
+  /** A host's photo, latest pieces and shows; null when there is no such host. */
+  hostProfile(name: string): Promise<HostProfile>;
 }
 
 type Call = (name: string, args: Record<string, unknown>) => Promise<unknown>;
@@ -175,6 +211,8 @@ export function createPlaylistClient({ query, mutation, action, serverKey, timeo
       const plays = await call(query, "alexa:searchPlays", station ? { station, query: text } : { query: text }, z.array(indexedPlaySchema), SEARCH_TIMEOUT_MS);
       return plays.map(({ stationSlug, ...play }) => ({ ...toRecentSongs([play])[0], station: stationSlug }));
     },
+    stationSchedule: (args) => call(query, "alexa:stationSchedule", args, stationScheduleSchema),
+    hostProfile: (name) => call(query, "alexa:hostProfile", { name }, hostProfileSchema),
     stationArtistShows: (station) => call(query, "alexa:stationArtistShows", station ? { station } : {}, stationShowsSchema),
     async connectAppleMusic(listenerId, musicUserToken) {
       await call(action, "appleMusicLinks:connect", keyed({ listenerId, musicUserToken }), linkedSchema, CONNECT_TIMEOUT_MS);

@@ -10,6 +10,27 @@ describe("playlist client", () => {
     await expect(client.findSongPlayed({ station: "88nine", from: 0, to: 1 })).rejects.toBeInstanceOf(PlaylistUnavailable);
   });
 
+  it("reads 88Nine's schedule leniently: fields a later deploy adds may be missing", async () => {
+    const asked: [string, Record<string, unknown>][] = [];
+    const slot = { name: "Midday", hosts: ["Erin Wolf"], startsAt: 1, endsAt: 2 };
+    const client = createPlaylistClient({ ...base, query: async (name, args) => { asked.push([name, args]); return { refreshedAt: null, station: "88nine", onNow: slot, next: null }; } });
+    const schedule = await client.stationSchedule({ station: "88nine", query: "erin", at: 5 });
+    expect(asked).toEqual([["alexa:stationSchedule", { station: "88nine", query: "erin", at: 5 }]]);
+    expect(schedule.onNow).toMatchObject(slot);
+    expect(schedule.matches).toEqual([]);
+    expect(schedule.match).toBeNull();
+    const program = { name: "Rhythm Lab Radio", hosts: ["Tarik Moody"], airtimes: [{ day: "Friday", start: "10 PM", end: "12 AM" }] };
+    const found = await createPlaylistClient({ ...base, query: async () => ({ station: "88nine", onNow: null, next: null, match: program, matches: [program] }) })
+      .stationSchedule({ station: "88nine", query: "rhythm" });
+    expect(found.matches[0]).toMatchObject({ ...program, airingNow: false });
+  });
+
+  it("hostProfile passes null through, and a missing function is PlaylistUnavailable", async () => {
+    await expect(createPlaylistClient({ ...base, query: async () => null }).hostProfile("Nobody")).resolves.toBeNull();
+    const missing = createPlaylistClient({ ...base, query: async () => { throw new Error("Could not find public function for 'alexa:hostProfile'"); } });
+    await expect(missing.hostProfile("Erin Wolf")).rejects.toBeInstanceOf(PlaylistUnavailable);
+  });
+
   it("times out a slow call", async () => {
     const slow = () => new Promise((resolve) => setTimeout(() => resolve({ status: "no_spins", matches: [] }), 50));
     const client = createPlaylistClient({ ...base, query: slow, timeoutMs: 5 });
