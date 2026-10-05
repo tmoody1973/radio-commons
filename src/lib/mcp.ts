@@ -15,7 +15,7 @@ import { createHash } from "node:crypto";
 import { eventMapPoints, MAP_H, MAP_W, pinnedEvents, pinnedPlaces } from "@/lib/map/staticMap";
 import {
   directAudioUrl, eventTime, EVENTS_UNAVAILABLE_SPEECH, NO_PLACES_FOR_EVENTS_SPEECH, NO_PLACES_SPEECH, spokenEvents, spokenPicks, NOT_ALLOWED_SPEECH, NOT_FOUND_SPEECH, EMPTY_DIGEST_SPEECH, EMPTY_DIGEST_NO_PICKS_SPEECH, LINK_ACCOUNT_SPEECH, LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH, PLAYLIST_UNAVAILABLE_SPEECH, spokenDigest, spokenFinds, spokenLatest, spokenMatches, spokenPassages,
-  NEWSLETTER_UNAVAILABLE_SPEECH, NO_NEWSLETTER_SPEECH, spokenBriefing, spokenOnAir, spokenPlaces, spokenRecall, spokenRecent, spokenSearch, spokenStationShows, spokenDeleted, spokenFollowed, spokenSaved, spokenUnfollowed, WHICH_ARTIST_TO_FOLLOW_SPEECH, WHICH_ARTIST_TO_UNFOLLOW_SPEECH, spokenStory, spokenTrackFacts, UNAVAILABLE_SPEECH,
+  NEWSLETTER_UNAVAILABLE_SPEECH, NO_NEWSLETTER_SPEECH, spokenBriefing, spokenOnAir, spokenPlaces, spokenRecall, spokenRecent, spokenSearch, spokenStationShows, spokenDeleted, spokenFollowed, spokenSaved, spokenUnfollowed, noSongOnAirSpeech, whichOnAirSpeech, WHICH_ARTIST_TO_FOLLOW_SPEECH, WHICH_ARTIST_TO_UNFOLLOW_SPEECH, spokenStory, spokenTrackFacts, UNAVAILABLE_SPEECH,
 } from "@/lib/speech";
 import { localWindow } from "@/lib/stationTime";
 import { getStation } from "@/lib/stations";
@@ -59,6 +59,10 @@ const CARD_CSP = {
   connectDomains: ["https://maps.geo.us-east-1.amazonaws.com", "https://unpkg.com"],
 };
 const INLINE_PLACES = 3;
+const LIST_PAGE = 3;
+// A speaker can't show the rest of a list, so lists are spoken three at a time and the listener asks for more.
+const PAGE = z.number().int().min(1).max(4).optional();
+const PAGING = " Speaks three at a time; when the reply offers the next ones and the listener says yes, more, the next ones or keep going, call this tool again with the same arguments and page 2 (then 3). Numbers keep counting across pages.";
 const CARD = { _meta: { ui: { resourceUri: CARD_URI } } };
 // "Thanks for being a member" is a nicety: past this, the digest goes out without it.
 const MEMBER_LINE_BUDGET_MS = 300;
@@ -222,6 +226,29 @@ export function buildMcpHandler(deps: Deps) {
       return null;
     }
   };
+  // What each station is playing now, in MUSIC_STATIONS order: on_air_now's tiles, and save_find's cheap first look.
+  const onAirTiles = async (stations: readonly Station[]) => (await onAirRows(stations)).map(({ station: where, song }) => ({ station: where, song }));
+  // `latest` is the station's newest play even when it is too old to be "on air"; screen memory needs it for that row.
+  const onAirRows = (stations: readonly Station[]) => {
+    const at = now().getTime();
+    return Promise.all(stations.map(async (where) => {
+      const latest = await latestPlay(where);
+      return { station: where, song: onAirSong(latest, at), latest };
+    }));
+  };
+  /**
+   * The on-air screen keeps one slot per card row. A row with no song holds the station's last (old) play, so the numbers
+   * after it don't shift; this spots that slot. ponytail: an on-air screen is the only list of exactly four whose slot N is
+   * station N's latest, stale play; a 4-song list ending on an idle 414 Music's last play would read as "no song" too.
+   */
+  const idleOnAirRow = async (listenerId: string, number: number, playId: string): Promise<Station | null> => {
+    const where = MUSIC_STATIONS[number - 1];
+    if (!where) return null;
+    const latest = await latestPlay(where);
+    if (latest?.playId !== playId || onAirSong(latest, now().getTime())) return null;
+    // Only now (rare) look for a fifth slot: a longer list is a song list, where an old play is a real choice.
+    return (await screenPlayOrNull(listenerId, MUSIC_STATIONS.length + 1, true)) === null ? where : null;
+  };
   // One guess gets the full song card; several become a numbered list so "save number 2" matches the screen.
   const recallCard = (matches: RecallMatch[], slug: Station) =>
     matches.length === 0 ? {}
@@ -356,25 +383,28 @@ export function buildMcpHandler(deps: Deps) {
         {
           title: "Find events in Milwaukee",
           description:
-            "Find upcoming events from Radio Milwaukee's event guide (the MKE Field Guide): by words (\"live music\"), time (tonight, today, tomorrow, this weekend, this week), free only, or near a place from a story the listener is looking at (nearStoryId, optionally nearPlace by name). Use only these results; never invent an event. For general events not tied to the station's artists; for concerts by artists a station plays (\"88Nine artists with shows\"), use station_artist_shows.",
+            "Find upcoming events from Radio Milwaukee's event guide (the MKE Field Guide): by words (\"live music\"), time (tonight, today, tomorrow, this weekend, this week), free only, or near a place from a story the listener is looking at (nearStoryId, optionally nearPlace by name). Use only these results; never invent an event. For general events not tied to the station's artists; for concerts by artists a station plays (\"88Nine artists with shows\"), use station_artist_shows." + PAGING,
           inputSchema: z.object({
             query: z.string().min(1).max(120).optional(),
             when: z.enum(WHEN).optional(),
             freeOnly: z.boolean().optional(),
             nearStoryId: z.string().min(1).max(64).optional(),
             nearPlace: z.string().min(1).max(80).optional(),
+            page: PAGE,
           }),
           ...CARD,
         },
-        async ({ query, when, freeOnly, nearStoryId, nearPlace }) =>
+        async ({ query, when, freeOnly, nearStoryId, nearPlace, page = 1 }) =>
           timed("find_events", async () => {
             const now = new Date();
             const base = { ...(query ? { q: query } : {}), ...(when ? { when } : {}), ...(freeOnly ? { free: true } : {}) };
             const items = (events: PublicEvent[]): EventItem[] => events.map((event) => ({ event, when: eventTime(event.startAt, now) }));
             if (!nearStoryId) {
-              const events = (await deps.fieldGuide().events({ ...base, limit: 5 })).slice(0, 5);
+              // One past this page, so the reply knows whether to offer more; the card shows every event so far.
+              const limit = Math.max(5, page * LIST_PAGE + 1);
+              const events = (await deps.fieldGuide().events({ ...base, limit })).slice(0, limit);
               return {
-                content: text(spokenEvents(events, { now, when })),
+                content: text(spokenEvents(events, { now, when, page })),
                 ...(events.length ? { structuredContent: card({ view: "events", items: items(events) }, { events }) } : {}),
               };
             }
@@ -415,15 +445,15 @@ export function buildMcpHandler(deps: Deps) {
         "station_artist_shows",
         {
           title: "Shows by artists Radio Milwaukee plays",
-          description: "Upcoming concerts by artists Radio Milwaukee's stations have been playing, Milwaukee-area shows first. Use for \"88Nine artists with concerts coming up\", \"artists you play\", \"artists on HYFIN\", \"who's touring\", \"which artists from the station have concerts\". Pass station when the listener names one; omit it for all of Radio Milwaukee. No linked account needed. Not for the artists the listener follows (whats_new_for_me) or general events tonight or this weekend (find_events). Use only these results; never invent a show.",
-          inputSchema: z.object({ station: STATION_SLUG.optional() }),
+          description: "Upcoming concerts by artists Radio Milwaukee's stations have been playing, Milwaukee-area shows first. Use for \"88Nine artists with concerts coming up\", \"artists you play\", \"artists on HYFIN\", \"who's touring\", \"which artists from the station have concerts\". Pass station when the listener names one; omit it for all of Radio Milwaukee. No linked account needed. Not for the artists the listener follows (whats_new_for_me) or general events tonight or this weekend (find_events). Use only these results; never invent a show." + PAGING,
+          inputSchema: z.object({ station: STATION_SLUG.optional(), page: PAGE }),
           ...CARD,
         },
-        async ({ station: slug }) =>
+        async ({ station: slug, page }) =>
           timed("station_artist_shows", async () => {
             const { shows } = await deps.playlist().stationArtistShows(slug);
             return {
-              content: text(spokenStationShows(shows, slug)),
+              content: text(spokenStationShows(shows, slug, page)),
               ...(shows.length ? { structuredContent: card({ view: "station-shows", shows }, { shows }) } : {}),
             };
           }, playlistUnavailable),
@@ -472,7 +502,7 @@ export function buildMcpHandler(deps: Deps) {
         "what_can_you_do",
         {
           title: "What Radio Milwaukee can do",
-          description: "A short summary of what Radio Milwaukee can do here, with a tile and an example to tap for each. Use for \"what can you do\", \"help\", \"what can Radio Milwaukee do\", \"how do I use this\". Speak the summary as given. If the listener then says \"tell me more\", describe the capabilities from this result two at a time, each with its example. No linked account needed.",
+          description: "A short summary of what Radio Milwaukee can do here, with an example phrase for each. Use for \"what can you do\", \"help\", \"what can Radio Milwaukee do\", \"how do I use this\". Speak the summary as given. If the listener then says \"tell me more\", describe the capabilities from this result two at a time, each with its example. No linked account needed.",
           inputSchema: z.object({}),
           ...CARD,
         },
@@ -550,20 +580,21 @@ export function buildMcpHandler(deps: Deps) {
         {
           title: "Latest songs Radio Milwaukee played",
           description:
-            "The most recent songs on a Radio Milwaukee station, newest first, numbered. Use for 'what did you just play?', 'what just played?', 'the last 5 songs on 88Nine'. For what's on or playing right now, or to listen, use on_air_now. save_find takes the `number` field for 'save number 2'; get_track_story takes the playId. For a song at a past time ('around 2 pm'), use find_song_played.",
+            "The most recent songs on a Radio Milwaukee station, newest first, numbered. Use for 'what did you just play?', 'what just played?', 'the last 5 songs on 88Nine'. For what's on or playing right now, or to listen, use on_air_now. save_find takes the `number` field for 'save number 2'; get_track_story takes the playId. For a song at a past time ('around 2 pm'), use find_song_played." + PAGING,
           inputSchema: z.object({
             station: z.enum(["hyfin", "88nine", "414music", "rhythmlab"]),
             count: z.number().int().min(1).max(MAX_RECENT_SONGS).optional(),
+            page: PAGE,
           }),
           ...CARD,
         },
-        async ({ station: slug, count }, context) =>
+        async ({ station: slug, count, page }, context) =>
           timed("recent_songs", async () => {
             const songs = await deps.playlist().recentSongs(slug, count ?? DEFAULT_RECENT_SONGS);
             rememberScreen(context, songs.map((song) => song.playId));
             const numbered = songs.map(({ playId, artist, title, playedAt }, i) => ({ number: i + 1, playId, artist, title, playedAt }));
             return {
-              content: [...text(spokenRecent(STATION_NAMES[slug], songs)), ...text(JSON.stringify({ songs: numbered }))],
+              content: [...text(spokenRecent(STATION_NAMES[slug], songs, page)), ...text(JSON.stringify({ songs: numbered }))],
               structuredContent: {
                 ...(songs.length ? card({ view: "songs", songs: songs.map(songCardFromRecent) }) : {}),
                 stationId: station.stationId, songs: numbered,
@@ -577,14 +608,19 @@ export function buildMcpHandler(deps: Deps) {
         "on_air_now",
         {
           title: "On air now on Radio Milwaukee",
-          description: "What's on Radio Milwaukee's stations right now, with a Listen live button that plays each station's live stream on screen. Use for \"what's on now\", \"what's on Radio Milwaukee right now\", \"what's playing right now on HYFIN\", \"listen to 88Nine\", \"play HYFIN\", \"put on Rhythm Lab\". Pass station when the listener names one; omit it for all four stations. No linked account needed. Not for 'the last 5 songs' or 'what did you just play' (recent_songs). Speak the answer as given.",
+          description: "What's on Radio Milwaukee's stations right now, with a Listen live button (on devices with a screen) that plays each station's live stream. Use for \"what's on now\", \"what's on Radio Milwaukee right now\", \"what's playing right now on HYFIN\", \"listen to 88Nine\", \"play HYFIN\", \"put on Rhythm Lab\". Pass station when the listener names one; omit it for all four stations. No linked account needed. Not for 'the last 5 songs' or 'what did you just play' (recent_songs). Speak the answer as given.",
           inputSchema: z.object({ station: STATION_SLUG.optional() }),
           ...CARD,
         },
-        async ({ station: slug }) =>
+        async ({ station: slug }, context) =>
           timed("on_air_now", async () => {
-            const at = now().getTime();
-            const tiles = await Promise.all((slug ? [slug] : MUSIC_STATIONS).map(async (where) => ({ station: where, song: onAirSong(await latestPlay(where), at) })));
+            const rows = await onAirRows(slug ? [slug] : MUSIC_STATIONS);
+            const tiles = rows.map(({ station: where, song }) => ({ station: where, song }));
+            // One slot per card row, so "number 3" is the third row. A station with no play at all ends the list: later
+            // numbers then find nothing and ask, instead of shifting onto the wrong row. One station alone isn't numbered.
+            const gap = rows.findIndex(({ latest }) => !latest);
+            const slots = (gap === -1 ? rows : rows.slice(0, gap)).map(({ latest }) => latest!.playId);
+            if (!slug) rememberScreen(context, slots);
             const stations = tiles.map(({ station: where, song }) => ({ station: where, song: song && { playId: song.playId, title: song.title, artist: song.artist, playedAt: song.playedAt } }));
             return { content: text(spokenOnAir(tiles)), structuredContent: card({ view: "on-air", tiles }, { stations }) };
           }, playlistUnavailable),
@@ -621,7 +657,7 @@ export function buildMcpHandler(deps: Deps) {
         "save_find",
         {
           title: "Save a song to 88Nine Finds",
-          description: "Save a song the listener heard on Radio Milwaukee to their 88Nine Finds (and Apple Music if connected). Always call this tool when the listener asks, even if they may not have linked their account — the tool starts account linking itself. Pass number (1-10) only when the listener says a number (\"save number 3\"). Otherwise pass the playId from recent_songs, find_song_played or search_playlist if you have it, and always also pass the song's title and artist (and station if known) so the right play is found even without an id. Use for 'save it', 'save number 3', 'save the song by Thao'.",
+          description: "Save a song the listener heard on Radio Milwaukee to their 88Nine Finds (and Apple Music if connected). Always call this tool when the listener asks, even if they may not have linked their account — the tool starts account linking itself. Pass number (1-10) only when the listener says a number (\"save number 3\"). Otherwise pass the playId from recent_songs, find_song_played or search_playlist if you have it, and always also pass the song's title and artist (and station if known) so the right play is found even without an id. Use for 'save it', 'save number 3', 'save the song by Thao'. After on_air_now, pass station when the listener names one (\"save the HYFIN song\"); if several stations were named and the listener doesn't say which, call with no song details and the tool asks which station. Never guess a station.",
           inputSchema: z.object({
             number: z.number().int().min(1).max(10).optional(),
             playId: PLAY_ID.optional(),
@@ -636,17 +672,30 @@ export function buildMcpHandler(deps: Deps) {
           timed("save_find", async () => {
             const listenerId = listenerIdFrom(context.http ?? {});
             if (!listenerId) return accountLinkingRequired();
+            // "Save that song" with nothing named: ask which station's song rather than guess.
+            if (number === undefined && !playId && !title && !artist && !slug) {
+              const which = whichOnAirSpeech(await onAirTiles(MUSIC_STATIONS));
+              return { content: text(which ?? spokenSaved({ status: "not_found" })), structuredContent: { status: which ? "which_station" : "not_found" } };
+            }
             // A named song always beats a number: the remembered list can be 30 minutes stale.
-            const onScreen = number === undefined || title ? null : await screenPlayOrNull(listenerId, number, Boolean(playId || title));
+            const onScreen = number === undefined || title ? null : await screenPlayOrNull(listenerId, number, Boolean(playId || title || slug));
+            const idle = onScreen && number !== undefined ? await idleOnAirRow(listenerId, number, onScreen) : null;
+            if (idle) return { content: text(noSongOnAirSpeech(STATION_NAMES[idle])), structuredContent: { status: "no_song", station: idle } };
             const firstId = onScreen ?? playId;
             let saved: SavedFind = firstId ? await deps.playlist().saveFind(listenerId, firstId) : { status: "not_found" };
             let hit: RecentSong | undefined;
-            // Hosts lose ids between turns; the title and artist the listener heard still name the song.
-            if (saved.status === "not_found" && (title || artist)) {
-              const hits = await deps.playlist().searchPlaysIndexed(slug, (title ?? artist)!);
-              const found = bestRecentMatch(hits, { title, artist });
+            // Hosts lose ids between turns; the station or the title and artist the listener heard still name the song.
+            // What's on air now is one cheap read per station, so it goes before the slow search of every play.
+            if (saved.status === "not_found" && (title || artist || slug)) {
+              const named = title || artist ? { title, artist } : null;
+              let songs: RecentSong[] = (await onAirTiles(slug ? [slug] : MUSIC_STATIONS)).flatMap(({ song }) => (song ? [song] : []));
+              let found = named ? bestRecentMatch(songs, named) : songs[0]?.playId ?? null;
+              if (!found && named) {
+                songs = await deps.playlist().searchPlaysIndexed(slug, (title ?? artist)!);
+                found = bestRecentMatch(songs, named);
+              }
               if (found) saved = await deps.playlist().saveFind(listenerId, found);
-              hit = hits.find((song) => song.playId === found);
+              hit = songs.find((song) => song.playId === found);
             }
             if (saved.status !== "ok") return { content: text(spokenSaved(saved)), structuredContent: { ...saved } };
             // The save result's own artwork wins; older playlist deploys omit it, so a search hit's is the fallback, then a plain tile.
@@ -660,16 +709,16 @@ export function buildMcpHandler(deps: Deps) {
         "list_finds",
         {
           title: "List my Finds",
-          description: "List the listener's saved Radio Milwaukee Finds, newest first, numbered. Always call this tool when the listener asks, even if they may not have linked their account — the tool starts account linking itself. Use for 'what's in my Finds?'.",
-          inputSchema: z.object({ limit: z.number().int().min(1).max(10).optional() }),
+          description: "List the listener's saved Radio Milwaukee Finds, newest first, numbered. Always call this tool when the listener asks, even if they may not have linked their account — the tool starts account linking itself. Use for 'what's in my Finds?'." + PAGING,
+          inputSchema: z.object({ limit: z.number().int().min(1).max(10).optional(), page: PAGE }),
           ...CARD,
         },
-        async ({ limit }, context) =>
+        async ({ limit, page }, context) =>
           timed("list_finds", async () => {
             const listenerId = listenerIdFrom(context.http ?? {});
             if (!listenerId) return accountLinkingRequired();
             const finds = await deps.playlist().listFinds(listenerId, limit);
-            return { content: text(spokenFinds(finds)), structuredContent: { ...(finds.length ? card({ view: "finds", finds }) : {}), finds } };
+            return { content: text(spokenFinds(finds, page)), structuredContent: { ...(finds.length ? card({ view: "finds", finds }) : {}), finds } };
           }, playlistUnavailable),
       );
 

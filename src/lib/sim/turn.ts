@@ -1,5 +1,5 @@
 import { timingSafeEqual } from "node:crypto";
-import { APOLOGY, runBrain, type Converse } from "@/lib/sim/brain";
+import { APOLOGY, runBrain, type Converse, type Device } from "@/lib/sim/brain";
 import type { McpSession } from "@/lib/sim/mcpClient";
 import { signSpeech } from "@/lib/sim/speakToken";
 import type { ChatMessage, TrailEntry } from "@/lib/sim/trail";
@@ -21,6 +21,8 @@ export interface TurnInput {
   text?: string;
   /** The listener's OAuth access token once the simulator is linked, as Alexa+ sends it. */
   accessToken?: string;
+  /** Echo Show (the default) or Echo Dot, the simulator's no-screen mode. */
+  device?: Device;
 }
 
 export interface TurnResult {
@@ -102,6 +104,7 @@ export async function handleTurn(input: TurnInput, deps: TurnDeps): Promise<Repl
     tools: session.tools,
     callTool: (name, args) => session.callTool(name, args),
     converse: deps.converse,
+    device: input.device,
   });
   trail.push(...brain.trail);
   const story = brain.lastStory?.story as { storyId?: string } | undefined;

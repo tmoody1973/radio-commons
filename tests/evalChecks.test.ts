@@ -3,7 +3,7 @@ import { LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH, LINK_ACCOUNT_SPEECH } from "@/lib/s
 import { GIVE_UNAVAILABLE_SPEECH } from "@/lib/give";
 import type { TrailEntry } from "@/lib/sim/trail";
 import {
-  checkCancelNeedsLink, checkFollowThao, checkOnAirNow, checkSupport, checkRecentSongs, checkSaveNumber3, checkSearchPlaylist, checkStationArtistShows, checkTrackStory, checkWhatCanYouDo, checkWhatsNew,
+  checkCancelNeedsLink, checkFollowThao, checkOnAirNow, checkSupport, checkRecentSongs, checkAsksWhichStation, checkRecentSongsPage, checkSaveNumber, screenWords, checkSaveStation, checkSearchPlaylist, checkStationArtistShows, checkTrackStory, checkWhatCanYouDo, checkWhatsNew,
 } from "@/lib/sim/evalChecks";
 
 const tool = (name: string, input: Record<string, unknown> = {}, isError = false, summary = "ok"): TrailEntry =>
@@ -32,7 +32,9 @@ describe("checkOnAirNow", () => {
   });
 });
 
-describe("checkSaveNumber3", () => {
+const checkSaveNumber3 = checkSaveNumber(3);
+
+describe("checkSaveNumber(3)", () => {
   it("passes with number 3 or song 3's playId", () => {
     expect(checkSaveNumber3([tool("save_find", { number: 3 })], shown).pass).toBe(true);
     expect(checkSaveNumber3([tool("save_find", { playId: "p3" })], shown).pass).toBe(true);
@@ -49,6 +51,30 @@ describe("checkSaveNumber3", () => {
   it("does not let an unrelated linking refusal excuse a failing save_find", () => {
     const trail = [tool("save_find", { number: 3 }, true, "boom"), unlinked("list_finds")];
     expect(checkSaveNumber3(trail, shown).pass).toBe(false);
+  });
+});
+
+describe("saving after on_air_now", () => {
+  const onAir = [{ playId: "p88", station: "88nine" }, { playId: "phyfin", station: "hyfin" }];
+  it("'save number 2': the number or the second station's playId", () => {
+    expect(checkSaveNumber(2)([tool("save_find", { number: 2 })], onAir).pass).toBe(true);
+    expect(checkSaveNumber(2)([tool("save_find", { playId: "phyfin" })], onAir).pass).toBe(true);
+    expect(checkSaveNumber(2)([tool("save_find", { playId: "p88" })], onAir).pass).toBe(false);
+  });
+  it("'save the HYFIN song': the station, or HYFIN's shown playId", () => {
+    expect(checkSaveStation("hyfin")([tool("save_find", { station: "hyfin" })], onAir).pass).toBe(true);
+    expect(checkSaveStation("hyfin")([tool("save_find", { playId: "phyfin" })], onAir).pass).toBe(true);
+    expect(checkSaveStation("hyfin")([unlinked("save_find", { station: "hyfin" })], onAir).pass).toBe(true);
+    expect(checkSaveStation("hyfin")([tool("save_find", { station: "88nine" })], onAir).pass).toBe(false);
+    expect(checkSaveStation("hyfin")([], onAir).pass).toBe(false);
+  });
+  it("'save that song': asks which, never saves a guessed song", () => {
+    const reply = (text: string): TrailEntry => ({ kind: "reply", text, ms: 1, sourced: true });
+    expect(checkAsksWhichStation([tool("save_find", {}, false, "Which station's song: …?"), reply("Which station's song: HYFIN's \"Oya\" or 88Nine's \"Lauren\"?")]).pass).toBe(true);
+    expect(checkAsksWhichStation([reply("Which station do you mean?")]).pass).toBe(true);
+    expect(checkAsksWhichStation([unlinked("save_find", {}), reply("Link your account.")]).pass).toBe(true);
+    expect(checkAsksWhichStation([tool("save_find", { station: "hyfin" }), reply("Saved.")]).pass).toBe(false);
+    expect(checkAsksWhichStation([reply("Saved it.")]).pass).toBe(false);
   });
 });
 
@@ -131,5 +157,21 @@ describe("checkCancelNeedsLink", () => {
     expect(checkCancelNeedsLink([tool("cancel_membership")]).pass).toBe(false);
     expect(checkCancelNeedsLink([]).pass).toBe(false);
     expect(checkCancelNeedsLink([unlinked("delete_my_finds")]).pass).toBe(false);
+  });
+});
+
+describe("screenWords (the --speaker pass)", () => {
+  it("finds screen-only phrasing, any case", () => {
+    expect(screenWords("And 2 more On Screen. Tap Listen live. It's on the card, or on the screen.")).toEqual(["On Screen", "Tap", "the card", "on the screen"]);
+  });
+  it("lets device-neutral speech through", () => {
+    expect(screenWords("The last 5 on 88Nine: 1, \"Taps\" by Screens. Want the next two? Cardinal is on tape.")).toEqual([]);
+  });
+});
+
+describe("checkRecentSongsPage", () => {
+  it("needs recent_songs asked for that page", () => {
+    expect(checkRecentSongsPage(2)([tool("recent_songs", { station: "88nine", count: 10, page: 2 })]).pass).toBe(true);
+    expect(checkRecentSongsPage(2)([tool("recent_songs", { station: "88nine" })]).pass).toBe(false);
   });
 });

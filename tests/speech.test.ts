@@ -2,7 +2,11 @@ import { EVENT } from "./fixtures";
 import { describe, expect, it } from "vitest";
 import type { Story } from "@/lib/backstory";
 import type { SavedFind } from "@/lib/playlist";
-import { EVENTS_UNAVAILABLE_SPEECH, NOT_ALLOWED_SPEECH, NO_PASSAGE_SPEECH, clock, directAudioUrl, eventTime, monthYear, spokenEvents, spokenMatches, spokenPassages, spokenPicks, spokenPlaces, spokenFollowed, spokenSaved, spokenStory, spokenUnfollowed, spokenDigest, spokenFinds, spokenStationShows } from "@/lib/speech";
+import { EVENTS_UNAVAILABLE_SPEECH, NOT_ALLOWED_SPEECH, NO_PASSAGE_SPEECH, clock, directAudioUrl, eventTime, monthYear, spokenEvents, spokenMatches, spokenPassages, spokenPicks, spokenPlaces, spokenFollowed, spokenSaved, spokenStory, spokenUnfollowed, spokenDigest, spokenFinds, spokenRecent, spokenStationShows } from "@/lib/speech";
+import { readFileSync } from "node:fs";
+import { CAPABILITIES_SPEECH } from "@/lib/capabilities";
+import { GIVE_SPEECH } from "@/lib/give";
+import { screenWords } from "@/lib/sim/evalChecks";
 
 const STORY: Story = {
   storyId: "s1", show: "Uniquely Milwaukee", title: "Creativity is sustainable, accessible at 414 Art Revival",
@@ -54,7 +58,7 @@ describe("speech", () => {
     expect(spokenPassages([{ text: "The stromboli is the deal.", startMs: 1_122_000, speaker: "Ann Christenson" }]))
       .toBe("At 18:42, Ann Christenson says: 'The stromboli is the deal.' Want to hear that part?");
     expect(spokenPassages([{ text: "A.", startMs: 0, speaker: null }, { text: "B.", startMs: 61_000, speaker: null }]))
-      .toBe("At 0:00, the episode says: 'A.' One more moment is on the screen. Want to hear that part?");
+      .toBe("At 0:00, the episode says: 'A.' There's one more moment. Want to hear that part?");
     expect(spokenPassages([])).toBe(NO_PASSAGE_SPEECH);
     expect(NOT_ALLOWED_SPEECH).toBe("Detailed answers aren't available for this episode.");
   });
@@ -106,7 +110,7 @@ describe("events speech", () => {
     expect(spokenPicks([station], new Date("2026-10-03T22:00:00Z"))).toMatch(/^1, Radio Milwaukee presents Friko at /);
   });
   it("says which mapped place takes reservations", () => {
-    expect(spokenPlaces(["Bread House", "El Tsunami"], "Bread House")).toBe("That story mentions 2 mapped places. The first two are Bread House and El Tsunami. Bread House takes reservations; tap Reserve to book. Want directions to one?");
+    expect(spokenPlaces(["Bread House", "El Tsunami"], "Bread House")).toBe("That story mentions 2 mapped places. The first two are Bread House and El Tsunami. Bread House takes reservations. Want directions to one?");
   });
 });
 
@@ -154,13 +158,44 @@ describe("spokenSaved", () => {
   });
 });
 
+describe("spokenRecent", () => {
+  const songs = ["A", "B", "C", "D", "E"].map((title) => ({ title, artist: `By ${title}` }));
+  it("numbers three, offers the rest, and page 2 keeps counting", () => {
+    expect(spokenRecent("88Nine", songs)).toBe('The last 5 on 88Nine, newest first: 1, "A" by By A; 2, "B" by By B; 3, "C" by By C. Want the next two?');
+    expect(spokenRecent("88Nine", songs, 2)).toBe('Next on 88Nine: 4, "D" by By D; 5, "E" by By E.');
+    expect(spokenRecent("88Nine", [...songs, ...songs], 2)).toBe('Next on 88Nine: 4, "D" by By D; 5, "E" by By E; 6, "A" by By A. Want the next three?');
+    expect(spokenRecent("88Nine", songs, 3)).toBe("That's all of the last 5 on 88Nine.");
+  });
+});
+
+describe("events paging", () => {
+  const NOW = new Date("2026-10-03T22:00:00Z");
+  it("offers the next ones instead of the calendar, and page 2 numbers from 4", () => {
+    const five = [1, 2, 3, 4, 5].map((n) => ({ ...EVENT, title: `Show ${n}` }));
+    expect(spokenEvents(five, { now: NOW })).toMatch(/3, Show 3[^;]*\. Want the next two\?$/);
+    expect(spokenEvents(five, { now: NOW, page: 2 })).toMatch(/^More from Radio Milwaukee's event guide: 4, Show 4.*; 5, Show 5.*\. Want to add one to your calendar\?$/);
+  });
+});
+
+describe("screen-free speech", () => {
+  it("no spoken string in speech.ts, the capabilities summary or the give reply needs a screen", () => {
+    expect(screenWords(readFileSync("src/lib/speech.ts", "utf8"))).toEqual([]);
+    expect(screenWords(CAPABILITIES_SPEECH)).toEqual([]);
+    expect(screenWords(GIVE_SPEECH)).toEqual([]);
+    expect(GIVE_SPEECH).toContain("radiomilwaukee.org slash give");
+  });
+});
+
 describe("spokenFinds", () => {
   const row = (label: string, status = "added") => ({
     label, findId: `f${label}`, playId: "p", trackId: null, artist: `Artist ${label}`, title: `Song ${label}`, stationSlug: "88nine",
     savedAt: 0, appleMusic: { status, reason: null }, artworkUrl: null, previewUrl: null,
   });
-  it("reads at most three, then counts the rest on screen", () => {
-    expect(spokenFinds(["1", "2", "3", "4", "5"].map((l) => row(l)))).toBe('Your latest Finds — 1: "Song 1" by Artist 1; 2: "Song 2" by Artist 2; 3: "Song 3" by Artist 3; and 2 more on screen.');
+  it("reads at most three, then offers the next ones; page 2 reads them", () => {
+    const five = ["1", "2", "3", "4", "5"].map((l) => row(l));
+    expect(spokenFinds(five)).toBe('Your latest Finds — 1: "Song 1" by Artist 1; 2: "Song 2" by Artist 2; 3: "Song 3" by Artist 3. Want the next two?');
+    expect(spokenFinds(five, 2)).toBe('More of your Finds — 4: "Song 4" by Artist 4; 5: "Song 5" by Artist 5.');
+    expect(spokenFinds(five, 3)).toBe("That's all your Finds.");
   });
   it("reads a short list whole and keeps the reconnect sentence", () => {
     expect(spokenFinds([row("1"), row("2", "expired")])).toBe('Your latest Finds — 1: "Song 1" by Artist 1; 2: "Song 2" by Artist 2. Apple Music needs reconnecting at radiomilwaukee.org slash connect.');
@@ -218,9 +253,10 @@ describe("spokenStationShows", () => {
   // A date-only listing at midnight UTC is still that calendar day, not the evening before in Milwaukee.
   const thao = show("Thao", "Turner Hall", "milwaukee", Date.UTC(2026, 9, 24), true);
 
-  it("speaks three, names the city only outside Milwaukee, and counts the rest on screen", () => {
+  it("speaks three, names the city only outside Milwaukee, and offers the next ones", () => {
     const text = spokenStationShows([tank, ezra, thao, ezra, ezra], "88nine");
-    expect(text).toBe("Artists 88Nine has been playing with shows coming up: Tank and the Bangas at Majestic Theatre in Madison, Tuesday, October 20; Ezra Collective at Pabst Theater, Thursday, October 22; Thao at Turner Hall, Saturday, October 24, and 2 more on screen.");
+    expect(text).toBe("Artists 88Nine has been playing with shows coming up: Tank and the Bangas at Majestic Theatre in Madison, Tuesday, October 20; Ezra Collective at Pabst Theater, Thursday, October 22; Thao at Turner Hall, Saturday, October 24. Want the next two?");
+    expect(spokenStationShows([tank, ezra, thao, tank], "88nine", 2)).toBe("More shows from artists 88Nine has been playing: Tank and the Bangas at Majestic Theatre in Madison, Tuesday, October 20.");
   });
 
   it("says Radio Milwaukee when no station was named, with no 'more' for a short list", () => {

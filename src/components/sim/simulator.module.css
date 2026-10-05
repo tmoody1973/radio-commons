@@ -40,6 +40,7 @@
 .ask { display: flex; gap: 8px; flex: 1 1 360px; max-width: 560px; }
 .ask input { flex: 1; font: inherit; font-size: 17px; min-height: 56px; box-sizing: border-box; padding: 0 20px; border-radius: 999px; border: 2px solid #3A3F46; background: #14181E; color: #F4F5F7; }
 .ask button, .toggle { font: inherit; font-size: 16px; min-height: 48px; padding: 0 18px; border-radius: 999px; border: 2px solid #3A3F46; background: transparent; color: #F4F5F7; cursor: pointer; }
+.toggle[aria-pressed="true"] { border-color: #13C2FF; color: #13C2FF; }
 .status { text-align: center; color: #F7941D; min-height: 1.45em; margin: 10px 0 0; }
 .account { display: flex; gap: 10px; align-items: center; margin-left: auto; }
 .chip { font-size: 15px; font-weight: 600; padding: 6px 14px; border-radius: 999px; background: #1F3A2B; color: #8FE3B0; }

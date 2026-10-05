@@ -120,6 +120,20 @@ describe("brain", () => {
     });
     expect(result.reply).toBe("From This Bites. Want directions?");
   });
+  it("after on_air_now, saves by station or number and asks which station instead of guessing", () => {
+    expect(SYSTEM_PROMPT).toMatch(/save the HYFIN song" call save_find with that station/);
+    expect(SYSTEM_PROMPT).toMatch(/never guess one/);
+  });
+  it("knows an Echo Dot has no screen and never sends the listener to one", () => {
+    const dot = systemPrompt(SUNDAY_NIGHT, "dot");
+    expect(dot).toMatch(/Echo Dot, a smart speaker with no screen/);
+    // The "[On screen: …]" history note is a label for the model, not advice to the listener.
+    expect(dot.replace(/"\[On screen:[^\]]*\]"/g, "")).not.toMatch(/\btap\b|on (the )?screen|the card|Echo Show/i);
+    expect(SYSTEM_PROMPT).toMatch(/on an Echo Show/);
+  });
+  it("continues a list with the next page when the listener asks for more", () => {
+    expect(SYSTEM_PROMPT).toMatch(/same tool again with the same arguments and the next page/);
+  });
   it("searches first for any local place, person, business or event, even when it isn't asked as a story", () => {
     expect(SYSTEM_PROMPT).toMatch(/any question about a Milwaukee place, person, business or event/i);
   });

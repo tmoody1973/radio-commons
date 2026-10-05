@@ -78,7 +78,7 @@ export function clock(ms: number): string {
 
 /**
  * The first passage in the episode's own words, with its moment and (only if an editor confirmed it) who said it.
- * One quote keeps the spoken answer short enough to say word for word; the card shows every passage.
+ * One quote keeps the spoken answer short enough to say word for word; the rest are counted, never read.
  */
 export const ARTICLE_SOURCE = { premiere: "Radio Milwaukee's premiere", session: "Radio Milwaukee's session write-up" } as const;
 
@@ -88,8 +88,8 @@ export function spokenPassages(passages: Passage[], contentType: Story["contentT
   // An article has no timeline: say whose words they are, never a moment to play.
   if (contentType !== "episode") return `${ARTICLE_SOURCE[contentType]} says: '${first.text}'`;
   const more = passages.length - 1;
-  const onScreen = more === 0 ? "" : more === 1 ? " One more moment is on the screen." : ` ${more} more moments are on the screen.`;
-  return `At ${clock(first.startMs)}, ${first.speaker ?? "the episode"} says: '${first.text}'${onScreen} Want to hear that part?`;
+  const others = more === 0 ? "" : more === 1 ? " There's one more moment." : ` There are ${more} more moments.`;
+  return `At ${clock(first.startMs)}, ${first.speaker ?? "the episode"} says: '${first.text}'${others} Want to hear that part?`;
 }
 
 export const NO_PLACES_SPEECH = "Radio Milwaukee hasn't mapped places for that story.";
@@ -100,13 +100,13 @@ export function spokenLatest(matches: StoryCardMatch[]): string {
   return `The newest Radio Milwaukee stories: ${matches.map((m, i) => `${i + 1}, ${m.title}, from ${source(m)}`).join("; ")}. Which one?`;
 }
 
-/** The mapped places, first three by name, matching the numbered list on screen. */
+/** The mapped places, first three by name, matching the numbered map. */
 export function spokenPlaces(names: string[], reservable?: string): string {
   if (names.length === 0) return NO_PLACES_SPEECH;
   if (names.length === 1) return `That story mentions one mapped place: ${names[0]}. Want directions?`;
   const first = names.slice(0, 3);
   const list = first.length === 2 ? first.join(" and ") : `${first.slice(0, -1).join(", ")} and ${first.at(-1)}`;
-  const booking = reservable ? ` ${reservable} takes reservations; tap Reserve to book.` : "";
+  const booking = reservable ? ` ${reservable} takes reservations.` : "";
   return `That story mentions ${names.length} mapped places. The first ${first.length === 2 ? "two" : "three"} are ${list}.${booking} Want directions to one?`;
 }
 
@@ -114,7 +114,7 @@ export const NO_PLACES_FOR_EVENTS_SPEECH = "Radio Milwaukee hasn't mapped places
 export const NEWSLETTER_UNAVAILABLE_SPEECH = "I can't reach Radio Milwaukee's newsletter right now.";
 export const NO_NEWSLETTER_SPEECH = "I don't have a recent Radio Milwaukee newsletter.";
 
-/** The weekly briefing: up to four items, numbered like the card, each in the newsletter's own first sentence. */
+/** The weekly briefing: up to four items, numbered like its list, each in the newsletter's own first sentence. */
 export function spokenBriefing(date: string, items: { heading: string; summary: string }[]): string {
   const said = items.slice(0, 4).map((item, i) => `${i + 1}, ${item.heading}: ${item.summary}`).join(" ");
   return `This week at Radio Milwaukee, from the ${date} newsletter: ${said} Which one?`;
@@ -123,6 +123,17 @@ export function spokenBriefing(date: string, items: { heading: string; summary: 
 export const EVENTS_UNAVAILABLE_SPEECH = "I can't reach Radio Milwaukee's event guide right now.";
 const CALENDAR_OFFER = "Want to add one to your calendar?";
 const MAX_SPOKEN_EVENTS = 3;
+const PAGE_SIZE = 3; // Amazon: a voice list offers pagination; three is what a listener keeps in their head
+const NUMBER_WORDS = ["", "one", "two", "three"];
+
+/** One spoken page of a list: up to three items from where the last page stopped, and how many are left after it. */
+function listPage<T>(items: T[], page = 1) {
+  const start = (page - 1) * PAGE_SIZE;
+  return { start, said: items.slice(start, start + PAGE_SIZE), left: Math.max(0, items.length - start - PAGE_SIZE) };
+}
+
+/** "Want the next two?": how a speaker with no screen hears that the list goes on. */
+const nextOffer = (left: number) => (left <= 0 ? "" : ` Want the next ${NUMBER_WORDS[Math.min(left, PAGE_SIZE)]}?`);
 
 const chicago = (ms: number) => {
   const parts = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
@@ -149,15 +160,19 @@ export function eventTime(startAt: string, now: Date): string {
 
 const WHEN_PHRASE: Record<When, string> = { tonight: " tonight", today: " today", tomorrow: " tomorrow", "this-weekend": " this weekend", "this-week": " this week" };
 const where = (e: PublicEvent) => (e.venue ? ` at ${e.venue.name}` : "");
-const numbered = (lines: string[]) => lines.map((line, i) => `${i + 1}, ${line}`).join("; ");
+// A later page keeps counting: its first item is number 4, so "save number 4" names what was said.
+const numbered = (lines: string[], start = 0) => lines.map((line, i) => `${start + i + 1}, ${line}`).join("; ");
 
-/** Up to three events, numbered like the screen, each with its venue and time; honest when it had to look farther or found none. */
-export function spokenEvents(events: PublicEvent[], { now, near, widened, when }: { now: Date; near?: string; widened?: boolean; when?: When }): string {
+/** Three events a page, numbered like the list, each with its venue and time; honest when it had to look farther or found none. */
+export function spokenEvents(events: PublicEvent[], { now, near, widened, when, page = 1 }: { now: Date; near?: string; widened?: boolean; when?: When; page?: number }): string {
   const whenPhrase = when ? WHEN_PHRASE[when] : "";
   if (events.length === 0) return near ? `I don't see anything near ${near}${whenPhrase}.` : `I don't see anything for that${whenPhrase}.`;
-  const lead = near ? (widened ? `Nothing within a mile of ${near}, but within three miles: ` : `Near ${near}: `) : "From Radio Milwaukee's event guide: ";
-  const list = numbered(events.slice(0, MAX_SPOKEN_EVENTS).map((e) => `${e.title}${where(e)}, ${eventTime(e.startAt, now)}`));
-  return `${lead}${list}. ${CALENDAR_OFFER}`;
+  const { start, said, left } = listPage(events, page);
+  if (said.length === 0) return "That's all I found.";
+  const lead = start > 0 ? "More from Radio Milwaukee's event guide: "
+    : near ? (widened ? `Nothing within a mile of ${near}, but within three miles: ` : `Near ${near}: `) : "From Radio Milwaukee's event guide: ";
+  const list = numbered(said.map((e) => `${e.title}${where(e)}, ${eventTime(e.startAt, now)}`), start);
+  return `${lead}${list}.${left ? nextOffer(left) : ` ${CALENDAR_OFFER}`}`;
 }
 
 /** Staff picks in the curator's own words; station events as Radio Milwaukee's. */
@@ -195,21 +210,20 @@ export function spokenTrackFacts(facts: TrackFacts): string {
   return `"${f.title}" by ${f.artist}${details ? `, ${details}` : ""}.`;
 }
 
-const SPOKEN_LIST_MAX = 3; // longer spoken lists lose listeners; the screen carries the rest
-
-/** "The last 5 on 88Nine, newest first: A, B, C, and 2 more on screen." */
-export function spokenRecent(stationName: string, songs: { artist: string; title: string }[]): string {
+/** "The last 5 on 88Nine, newest first: 1, A; 2, B; 3, C. Want the next two?" Page 2: "Next on 88Nine: 4, D; 5, E." */
+export function spokenRecent(stationName: string, songs: { artist: string; title: string }[], page = 1): string {
   if (songs.length === 0) return `I haven't logged any songs on ${stationName} yet.`;
-  const said = songs.slice(0, SPOKEN_LIST_MAX).map((song) => `"${song.title}" by ${song.artist}`);
-  if (songs.length === 1) return `The last song on ${stationName} was ${said[0]}.`;
-  const rest = songs.length - said.length;
-  return `The last ${songs.length} on ${stationName}, newest first: ${said.join(", ")}${rest ? `, and ${rest} more on screen` : ""}.`;
+  if (songs.length === 1) return `The last song on ${stationName} was "${songs[0].title}" by ${songs[0].artist}.`;
+  const { start, said, left } = listPage(songs, page);
+  if (said.length === 0) return `That's all of the last ${songs.length} on ${stationName}.`;
+  const lead = start > 0 ? `Next on ${stationName}: ` : `The last ${songs.length} on ${stationName}, newest first: `;
+  return `${lead}${numbered(said.map((song) => `"${song.title}" by ${song.artist}`), start)}.${nextOffer(left)}`;
 }
 
 const ON_AIR_MAX_WORDS = 45;
 const ON_AIR_EXAMPLE_STATION = "HYFIN";
 interface OnAirStation { station: Station; song: { title: string; artist: string } | null }
-const keepListening = (name: string) => `Tap Listen live, or say 'Alexa, play ${name}' to keep listening.`;
+const keepListening = (name: string) => `Say 'Alexa, play ${name}' to keep listening.`;
 const wordCount = (text: string) => text.split(/\s+/).filter(Boolean).length;
 
 function allOnAir(stations: OnAirStation[], withArtists: boolean): string {
@@ -230,6 +244,16 @@ export function spokenOnAir(stations: OnAirStation[]): string {
   // ponytail: artists are the only thing dropped; four very long titles can still run past the cap.
   const full = allOnAir(stations, true);
   return wordCount(full) <= ON_AIR_MAX_WORDS ? full : allOnAir(stations, false);
+}
+
+/** "Save number 3" on an on-air row that reads "Live now". */
+export const noSongOnAirSpeech = (stationName: string) => `${stationName} doesn't have a song playing right now.`;
+
+/** "Save that song" with several stations on air: ask which, never guess. Null when nothing is on air. */
+export function whichOnAirSpeech(stations: OnAirStation[]): string | null {
+  const choices = stations.flatMap(({ station, song }) => (song ? [`${STATION_NAMES[station]}'s "${song.title}"`] : []));
+  if (choices.length === 0) return null;
+  return `Which station's song: ${choices.length === 1 ? choices[0] : `${choices.slice(0, -1).join(", ")} or ${choices.at(-1)}`}?`;
 }
 
 const milwaukeeDay = (ms: number) => new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", timeZone: "America/Chicago" }).format(ms);
@@ -262,12 +286,13 @@ function savedExtras(saved: Extract<SavedFind, { status: "ok" }>): string {
   return sentence ? ` ${sentence}.` : "";
 }
 
-export function spokenFinds(finds: FindRow[]): string {
+export function spokenFinds(finds: FindRow[], page = 1): string {
   if (finds.length === 0) return "Your Finds are empty. After I name a song, say 'save it'.";
-  const items = finds.slice(0, SPOKEN_LIST_MAX).map((f) => `${f.label}: "${f.title}" by ${f.artist}`).join("; ");
-  const rest = finds.length - SPOKEN_LIST_MAX;
+  const { start, said, left } = listPage(finds, page);
+  if (said.length === 0) return "That's all your Finds.";
+  const items = said.map((f) => `${f.label}: "${f.title}" by ${f.artist}`).join("; ");
   const reconnect = finds.some((f) => f.appleMusic.status === "expired") ? " Apple Music needs reconnecting at radiomilwaukee.org slash connect." : "";
-  return `Your latest Finds — ${items}${rest > 0 ? `; and ${rest} more on screen` : ""}.${reconnect}`;
+  return `${start > 0 ? "More of your Finds" : "Your latest Finds"} — ${items}.${reconnect}${nextOffer(left)}`;
 }
 
 export function spokenDeleted({ deletedFinds, deletedLink }: { deletedFinds: number; deletedLink: boolean }): string {
@@ -317,14 +342,16 @@ const HOME_CITY = "milwaukee";
 export const showCalendarDay = (show: Pick<StationShow, "startsAtMs" | "dateOnly">, options: Intl.DateTimeFormatOptions) =>
   new Intl.DateTimeFormat("en-US", { ...options, timeZone: show.dateOnly ? "UTC" : "America/Chicago" }).format(show.startsAtMs);
 
-/** "Artists 88Nine has been playing with shows coming up: A at V in Madison, Tuesday, October 20; …, and 2 more on screen." */
-export function spokenStationShows(shows: StationShow[], station: Station | undefined): string {
+/** "Artists 88Nine has been playing with shows coming up: A at V in Madison, Tuesday, October 20; …. Want the next two?" */
+export function spokenStationShows(shows: StationShow[], station: Station | undefined, page = 1): string {
   const who = station ? STATION_NAMES[station] : "Radio Milwaukee";
   if (shows.length === 0) return `None of the artists ${who} has been playing have shows listed right now.`;
-  const said = shows.slice(0, SPOKEN_LIST_MAX).map((show) => {
+  const { start, said: shown, left } = listPage(shows, page);
+  if (shown.length === 0) return `That's all the shows for artists ${who} has been playing.`;
+  const said = shown.map((show) => {
     const city = show.city.trim().toLowerCase() === HOME_CITY ? "" : ` in ${show.city}`;
     return `${show.artistName} at ${show.venueName}${city}, ${showCalendarDay(show, { weekday: "long", month: "long", day: "numeric" })}`;
   });
-  const rest = shows.length - said.length;
-  return `Artists ${who} has been playing with shows coming up: ${said.join("; ")}${rest > 0 ? `, and ${rest} more on screen` : ""}.`;
+  const lead = start > 0 ? `More shows from artists ${who} has been playing: ` : `Artists ${who} has been playing with shows coming up: `;
+  return `${lead}${said.join("; ")}.${nextOffer(left)}`;
 }

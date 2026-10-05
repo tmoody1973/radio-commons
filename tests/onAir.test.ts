@@ -6,7 +6,7 @@ import { PlaylistUnavailable, type RecentSong, type Station } from "@/lib/playli
 import { spokenOnAir } from "@/lib/speech";
 import { LIVE_STREAMS, STREAM_HOST } from "@/lib/streams";
 import { fakeBackstory, fakeFieldGuide, fakePlaylist } from "./fixtures";
-import { mcpPost } from "./mcp-wire";
+import { mcpPost, mcpPostAs } from "./mcp-wire";
 
 const NOW = new Date("2026-10-05T20:00:00Z");
 const XSS = "<script>alert(1)</script>";
@@ -38,7 +38,7 @@ describe("spokenOnAir", () => {
 
   it("names each station's song and hands off to Alexa's player", () => {
     const text = spokenOnAir(all({ "88nine": { title: "Lauren", artist: "Men I Trust" }, hyfin: { title: "Oya", artist: "Ibeyi" }, rhythmlab: { title: "Gold", artist: "Kiah" } }));
-    expect(text).toBe("On air now: 88Nine is playing \"Lauren\" by Men I Trust; HYFIN, \"Oya\" by Ibeyi; Rhythm Lab, \"Gold\" by Kiah; 414 Music, live. Tap Listen live, or say 'Alexa, play HYFIN' to keep listening.");
+    expect(text).toBe("On air now: 88Nine is playing \"Lauren\" by Men I Trust; HYFIN, \"Oya\" by Ibeyi; Rhythm Lab, \"Gold\" by Kiah; 414 Music, live. Say 'Alexa, play HYFIN' to keep listening.");
   });
 
   it("drops artist names to stay within about 45 words", () => {
@@ -50,8 +50,8 @@ describe("spokenOnAir", () => {
 
   it("one station: its song and how to keep listening", () => {
     expect(spokenOnAir([{ station: "hyfin", song: { title: "Oya", artist: "Ibeyi" } }]))
-      .toBe("HYFIN is playing \"Oya\" by Ibeyi. Tap Listen live, or say 'Alexa, play HYFIN' to keep listening.");
-    expect(spokenOnAir([{ station: "414music", song: null }])).toBe("414 Music is live now. Tap Listen live, or say 'Alexa, play 414 Music' to keep listening.");
+      .toBe("HYFIN is playing \"Oya\" by Ibeyi. Say 'Alexa, play HYFIN' to keep listening.");
+    expect(spokenOnAir([{ station: "414music", song: null }])).toBe("414 Music is live now. Say 'Alexa, play 414 Music' to keep listening.");
   });
 });
 
@@ -75,7 +75,7 @@ describe("on-air card", () => {
     expect(html).not.toContain("<script>");
     expect(html).toContain("&lt;script&gt;");
     expect(html.match(/class="secondary ask"/g)).toHaveLength(1);
-    expect(html).toContain(`data-ask="Save &quot;Bad &lt;script&gt;alert(1)&lt;/script&gt;&quot; by Men I Trust"`);
+    expect(html).toContain(`data-ask="Save &quot;Bad &lt;script&gt;alert(1)&lt;/script&gt;&quot; by Men I Trust from 88Nine"`);
     expect(html).toContain("600x600");
   });
 
@@ -127,7 +127,7 @@ describe("on_air_now", () => {
   it("a play from long ago is not called on air", async () => {
     const playlist = fakePlaylist({ recentSongs: async () => [song("Old One", "Someone", 90)] });
     const { message } = await mcpPost(handlerWith(playlist), call({ station: "414music" }));
-    expect(message.result.content[0].text).toBe("414 Music is live now. Tap Listen live, or say 'Alexa, play 414 Music' to keep listening.");
+    expect(message.result.content[0].text).toBe("414 Music is live now. Say 'Alexa, play 414 Music' to keep listening.");
   });
 
   it("with a station: only that station, as one large tile", async () => {
@@ -135,8 +135,95 @@ describe("on_air_now", () => {
     const playlist = fakePlaylist({ recentSongs: async (station) => { asked.push(station); return [song("Oya", "Ibeyi")]; } });
     const { message } = await mcpPost(handlerWith(playlist), call({ station: "hyfin" }));
     expect(asked).toEqual(["hyfin"]);
-    expect(message.result.content[0].text).toBe("HYFIN is playing \"Oya\" by Ibeyi. Tap Listen live, or say 'Alexa, play HYFIN' to keep listening.");
+    expect(message.result.content[0].text).toBe("HYFIN is playing \"Oya\" by Ibeyi. Say 'Alexa, play HYFIN' to keep listening.");
     expect(message.result.structuredContent.cardHtml).toContain("3 min ago");
     expect(message.result.structuredContent.cardHtml).toContain(`data-audio="${LIVE_STREAMS.hyfin}"`);
+  });
+});
+
+describe("saving after on_air_now", () => {
+  const OK = { status: "ok" as const, findId: "f", appleMusic: "pending" as const, artist: "A", title: "T", alreadySaved: false, artistId: null, artistName: "A", firstFollow: false, nextShow: null, story: null, recentlySaved: false };
+  const ON_AIR: Record<Station, RecentSong | null> = {
+    "88nine": { ...song("Lauren", "Men I Trust"), playId: "play_88" },
+    hyfin: { ...song("Oya", "Ibeyi"), playId: "play_hyfin" },
+    // Rhythm Lab's last play is from long ago: its row reads "Live now", with no song to save.
+    rhythmlab: { ...song("Old Tune", "Someone", 90), playId: "play_rl_old" },
+    "414music": { ...song("Gold", "Kiah"), playId: "play_414" },
+  };
+  const tracked = (onAir = ON_AIR) => {
+    const seen = { saved: [] as string[], searched: 0, remembered: [] as string[][] };
+    const playlist = fakePlaylist({
+      recentSongs: async (station) => (onAir[station] ? [onAir[station]!] : []),
+      rememberScreen: async (_listener, playIds) => { seen.remembered.push(playIds); },
+      screenPlay: async (_listener, n) => seen.remembered.at(-1)?.[n - 1] ?? null,
+      saveFind: async (_listener, id) => { seen.saved.push(id); return OK; },
+      searchPlaysIndexed: async () => { seen.searched += 1; return []; },
+    });
+    return { seen, handler: handlerWith(playlist) };
+  };
+  const save = (args: Record<string, unknown>) => ({ method: "tools/call", params: { name: "save_find", arguments: args } });
+
+  it("remembers one slot per card row, in row order, so 'save number 4' is the fourth row", async () => {
+    const { seen, handler } = tracked();
+    await mcpPostAs(handler, call({}), "user_1");
+    expect(seen.remembered).toEqual([["play_88", "play_hyfin", "play_rl_old", "play_414"]]);
+    await mcpPostAs(handler, save({ number: 4 }), "user_1");
+    expect(seen.saved).toEqual(["play_414"]);
+  });
+
+  it("'save number 3' on a row with no song says so and saves nothing", async () => {
+    const { seen, handler } = tracked();
+    await mcpPostAs(handler, call({}), "user_1");
+    const { message } = await mcpPostAs(handler, save({ number: 3 }), "user_1");
+    expect(message.result.content[0].text).toBe("Rhythm Lab doesn't have a song playing right now.");
+    expect(seen.saved).toEqual([]);
+  });
+
+  it("a station with no play at all ends the remembered rows there, so later numbers can't shift onto the wrong row", async () => {
+    const { seen, handler } = tracked({ ...ON_AIR, rhythmlab: null });
+    await mcpPostAs(handler, call({}), "user_1");
+    expect(seen.remembered).toEqual([["play_88", "play_hyfin"]]);
+  });
+
+  it("an old song in a longer list (recent_songs) still saves by number", async () => {
+    const { seen, handler } = tracked();
+    seen.remembered.push(["play_x", "play_y", "play_rl_old", "play_z", "play_w"]);
+    await mcpPostAs(handler, save({ number: 3 }), "user_1");
+    expect(seen.saved).toEqual(["play_rl_old"]);
+  });
+
+  it("'save the HYFIN song' saves HYFIN's current song without searching", async () => {
+    const { seen, handler } = tracked();
+    const { message } = await mcpPostAs(handler, save({ station: "hyfin" }), "user_1");
+    expect(seen.saved).toEqual(["play_hyfin"]);
+    expect(seen.searched).toBe(0);
+    expect(message.result.isError).toBeFalsy();
+  });
+
+  it("a title that is on air now is saved from the current songs, without searching", async () => {
+    const { seen, handler } = tracked();
+    await mcpPostAs(handler, save({ title: "Gold", artist: "Kiah" }), "user_1");
+    expect(seen.saved).toEqual(["play_414"]);
+    expect(seen.searched).toBe(0);
+  });
+
+  it("a title not on air still falls back to the search", async () => {
+    const { seen, handler } = tracked();
+    await mcpPostAs(handler, save({ title: "Twisted On A Train", artist: "King Tuff" }), "user_1");
+    expect(seen.searched).toBe(1);
+    expect(seen.saved).toEqual([]);
+  });
+
+  it("'save that song' with several stations on air asks which station and saves nothing", async () => {
+    const { seen, handler } = tracked();
+    const { message } = await mcpPostAs(handler, save({}), "user_1");
+    expect(seen.saved).toEqual([]);
+    expect(seen.searched).toBe(0);
+    expect(message.result.content[0].text).toBe("Which station's song: 88Nine's \"Lauren\", HYFIN's \"Oya\" or 414 Music's \"Gold\"?");
+  });
+
+  it("the on-air Save button names the station, so the save needs no search", () => {
+    const html = renderView({ view: "on-air", tiles: [{ station: "hyfin", song: { ...song("Oya", "Ibeyi"), when: "3 min ago" } }] });
+    expect(html).toContain(`data-ask="Save &quot;Oya&quot; by Ibeyi from HYFIN"`);
   });
 });

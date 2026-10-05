@@ -22,7 +22,7 @@ export function giveFromEnv(): Give | null {
 export const CARD_LINK_TTL_MS = 15 * 60_000;
 export const RETURN_LINK_TTL_MS = 60 * 60_000;
 
-export const GIVE_SPEECH = "Thank you. Radio Milwaukee is listener-supported. This is a demo, so no real money moves. Pick monthly or one time and a level on the card; levels with a t-shirt let you pick a size on the screen. Then I'll open a secure Amazon Pay page.";
+export const GIVE_SPEECH = "Thank you. Radio Milwaukee is listener-supported. This is a demo, so no real money moves. Pick monthly or one time and a level, plus a t-shirt size if it comes with one, and I'll open a secure Amazon Pay page. Or give anytime at radiomilwaukee.org slash give.";
 export const GIVE_UNAVAILABLE_SPEECH = "Donations aren't set up yet. You can support Radio Milwaukee at radiomilwaukee.org.";
 export const NO_MEMBERSHIP_SPEECH = "I don't see a monthly membership on your account. If you gave without linking, you can cancel at pay.amazon.com.";
 export const CANCELLED_SPEECH = "Done. Your monthly membership is cancelled. Thank you for supporting Radio Milwaukee.";
