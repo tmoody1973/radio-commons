@@ -153,3 +153,15 @@ About **18 hours** (range 15–24): tiers, token and Amazon Pay wrapper with tes
 | Storage | Clerk `privateMetadata` on the listener's account; a playlist database table only when real money starts. |
 | Account | Sandbox-only Amazon Pay developer account. No donations prior-approval review. |
 | Tax wording | None on the demo page. |
+
+### Membership levels (from radiomilwaukee.org/donate, read 2026-10-05)
+
+| Level | Monthly | One-time | Perk shown on the card |
+|---|---|---|---|
+| General Admission | $5 | $60 | Green Room monthly newsletter |
+| Main Floor | $10 | $120 | One Main Floor gift |
+| Front Row | $20 | $240 | Front Row merch package |
+| VIP | $42 | $500 | Invitation for you and a guest to all Studio Milwaukee Sessions |
+| Backstage | $84 | $1,000 | Producer's Circle; rooftop party |
+
+The card shows the first four levels; the page lists Backstage and higher (All-Access, Headliner, Visionary, whose amounts load as images that did not render) as "More levels on radiomilwaukee.org". The station's real processor is Funraise; the sandbox demo uses Amazon Pay and never links to Funraise.
