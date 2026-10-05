@@ -35,7 +35,7 @@ Behind it: [Backstory](https://github.com/tmoody1973/backstory), the station's s
 
 ```
 Listener ──voice──▶ Alexa+ ──MCP, Streamable HTTP──▶ radio-commons (Next.js on Vercel)
-                                                      ├─ /api/mcp          16 tools (mcp-handler); 3 need a linked account
+                                                      ├─ /api/mcp          16 tools (mcp-handler); 6 need a linked account
                                                       ├─ cards             MCP App (ui://radio-commons/story-card.html)
                                                       ├─ /api/map          Amazon Location map pictures (key stays server-side)
                                                       ├─ /.well-known/…    OAuth resource metadata (Alexa account linking via Clerk)

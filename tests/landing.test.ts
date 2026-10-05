@@ -70,5 +70,7 @@ describe("judges page (/how-it-works)", () => {
 
   it("every status row is live or in this release", () => {
     for (const row of HOW_IT_WORKS.status) expect(["Live", "In this release"]).toContain(row.state);
+    // The live site still searches about a day per station until this branch ships.
+    expect(HOW_IT_WORKS.status.find((r) => r.feature === "Artist and title search")?.state).toBe("In this release");
   });
 });

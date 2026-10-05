@@ -4,9 +4,9 @@
 
 ## The problem
 
-Radio is immediate and fleeting. You hear a song on the drive home or a local story in the kitchen, and it's gone. Smart speakers are where Radio Milwaukee's most loyal listeners already are (40% of its stream listening hours, Triton, August 2026), but all they can do there is press play.
+Radio is immediate and fleeting. You hear a song on the drive home or a local story in the kitchen, and it's gone. Smart speakers are where Radio Milwaukee's most loyal listeners already are (40% of its stream listening hours; source: `docs/research/2026-10-04-landscape.md`, Triton streaming data, August 2026), but all they can do there is press play.
 
-Alexa+ keeps the current conversation, and Amazon's add-on docs leave memory across sessions to each add-on ("Your tools must be able to return relevant confirmation data so Alexa can answer these recall questions"). Without it, a listener who says "save number 3" a few turns later gets nothing, and the station can't tell them what changed since their last visit.
+Alexa+ keeps the current conversation, and Amazon's add-on docs leave memory across sessions to each add-on ("Your tools must be able to return relevant confirmation data so Alexa can answer these recall questions", [Components and patterns](https://developer.amazon.com/docs/alexaplus/add-ons/mcp-addon-components-and-patterns.html)). Without it, a listener who says "save number 3" a few turns later gets nothing, and the station can't tell them what changed since their last visit.
 
 ## What it does
 
@@ -48,7 +48,7 @@ Listener ──voice──▶ Alexa+ ──MCP 2025-11-25, Streamable HTTP──
 | 4 | Concerts | Follows the artist and finds their next show (AXS and Ticketmaster listings, Milwaukee first) |
 | 5 | Backstory | Finds the station's stories about the artist (background job, daily refresh) |
 
-Background jobs store their results; the reply reads what is already stored, to keep it inside Amazon's 3-second guidance.
+Background jobs store their results; the reply reads what is already stored, to keep it inside Amazon's guidance to "return results within 3 seconds" ([Functional requirements](https://developer.amazon.com/docs/alexaplus/add-ons/functional-requirements.html)).
 
 **What we remember** (in the playlist database, keyed by the listener's account id — not their name or email): the artists they follow (including ones followed by saving a song, and ones they unfollowed, so a later save doesn't re-follow), the last list shown to them (used for 30 minutes), and when they last asked what's new. "Alexa, delete my Finds" erases all of it with their saved songs and Apple Music link. Why our own tables rather than an AI memory service: decision 009 (`docs/decisions/009-listener-memory.md` in the rm-playlist-v2 repo).
 
@@ -59,7 +59,7 @@ Background jobs store their results; the reply reads what is already stored, to 
 | Alexa+ add-on manifest (MCP integration, example phrases, privacy URL) | [`alexa/addon-package/addon.json`](../alexa/addon-package/addon.json); checked by `tests/alexaAddon.test.ts`; deployed with `npm run alexa:deploy` (Amazon's `alexa-ai` CLI) |
 | MCP endpoint, Streamable HTTP, protocol 2025-11-25 | [`src/app/api/mcp/route.ts`](../src/app/api/mcp/route.ts) |
 | The 16 tools and the MCP Apps card resource | [`src/lib/mcp.ts`](../src/lib/mcp.ts) |
-| Account linking per Amazon's spec: OAuth 2.1, PKCE S256, refresh tokens, RFC 8707 resource, RFC 9728 metadata | [`src/app/.well-known/oauth-protected-resource/route.ts`](../src/app/.well-known/oauth-protected-resource/route.ts), token checks in [`src/lib/listenerAuth.ts`](../src/lib/listenerAuth.ts) |
+| Account linking per Amazon's spec: OAuth 2.1, PKCE S256, refresh tokens, the add-on sends the RFC 8707 resource parameter during account linking, RFC 9728 metadata | [`src/app/.well-known/oauth-protected-resource/route.ts`](../src/app/.well-known/oauth-protected-resource/route.ts), token checks in [`src/lib/listenerAuth.ts`](../src/lib/listenerAuth.ts) |
 | Calling the endpoint the way Alexa+ does | [`scripts/smoke.mjs`](../scripts/smoke.mjs) (`npm run alexa:smoke`) |
 | Real listener phrases through the live simulator | [`scripts/eval-turns.ts`](../scripts/eval-turns.ts) (`npm run eval:turns`) |
 
