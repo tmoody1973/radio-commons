@@ -65,6 +65,9 @@ blockquote{margin:0;font-size:40px;line-height:1.1;font-weight:700}blockquote.q-
 .cap-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;flex:1}
 .cap{padding:14px;gap:6px;cursor:default}.cap .tile-title{margin:0;font-size:20px}
 .cap-what{font-size:15px;line-height:1.3;color:var(--muted)}
+.onair-row{cursor:default}.onair-row .what{flex:1}.onair-row .thumb{width:48px;height:48px;flex:none}
+.onair-row b,.onair-row small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.what .station{font-weight:700;color:var(--text)}
+.onair-row .primary,.onair-row .secondary{min-height:48px;padding:0 16px;font-size:15px;white-space:nowrap}
 .secondary.say{margin-top:auto;min-height:48px;padding:8px 14px;border-radius:14px;font-size:15px;line-height:1.25;text-align:left}
 #fullmap{position:fixed;inset:0}
 .overlay{position:fixed;zoom:var(--z)}
@@ -171,14 +174,18 @@ function play(button) {
   }).catch(() => { button.lastChild.textContent = " Can't play here"; });
 }
 
-// List tiles each carry their own preview: one plays at a time, and its button reads "Pause" while it does.
+// List tiles each carry their own preview (or live stream): one plays at a time, and its button reads "Pause" (or its data-playing) while it does.
 function rowLabel(button, playing) {
   if (!button.dataset.label) button.dataset.label = button.lastChild.textContent;
-  button.lastChild.textContent = playing ? " Pause" : button.dataset.label;
+  button.lastChild.textContent = playing ? (button.dataset.playing || " Pause") : button.dataset.label;
 }
 function playRow(button) {
   const same = audio && audio.dataset.row === button.dataset.audio;
-  if (same && !audio.paused) { audio.pause(); return; }
+  if (same && !audio.paused) {
+    audio.pause();
+    if (button.classList.contains("live")) audio = null; // a live stream restarts fresh, never from a stale buffer
+    return;
+  }
   if (audio && !same) audio.pause();
   if (!same) { audio = new Audio(button.dataset.audio); audio.dataset.row = button.dataset.audio; }
   audio.onpause = () => rowLabel(button, false);

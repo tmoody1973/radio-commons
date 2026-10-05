@@ -10,7 +10,7 @@ export interface Capability {
 }
 
 export const CAPABILITIES: readonly Capability[] = [
-  { title: "Songs", description: "What our stations just played, and when.", example: "What were the last five songs on 88Nine" },
+  { title: "On air", description: "What's on now, what just played, and live listening.", example: "What's on Radio Milwaukee right now" },
   { title: "Save", description: "Keep a song in your Finds and Apple Music.", example: "Save that song" },
   { title: "Concerts & events", description: "Shows and things to do around Milwaukee.", example: "What concerts are coming up in Milwaukee this weekend" },
   { title: "Stories", description: "Our podcast stories, even half-remembered.", example: "What was that This Bites episode about frugal dining" },
@@ -20,4 +20,4 @@ export const CAPABILITIES: readonly Capability[] = [
 
 // Amazon: keep first-time guidance brief and offer "tell me more" rather than explaining everything up front.
 export const CAPABILITIES_SPEECH =
-  "I'm Radio Milwaukee. I can tell you what our stations played, save songs to your Finds and Apple Music, find concerts, dig up our stories, and track artists you follow. Tap a tile, or say tell me more.";
+  "I'm Radio Milwaukee. I can tell you what's on our stations, save songs to your Finds and Apple Music, find concerts, dig up our stories, and track artists you follow. Tap a tile, or say tell me more.";

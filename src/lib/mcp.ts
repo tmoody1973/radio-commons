@@ -15,10 +15,11 @@ import { createHash } from "node:crypto";
 import { eventMapPoints, MAP_H, MAP_W, pinnedEvents, pinnedPlaces } from "@/lib/map/staticMap";
 import {
   directAudioUrl, eventTime, EVENTS_UNAVAILABLE_SPEECH, NO_PLACES_FOR_EVENTS_SPEECH, NO_PLACES_SPEECH, spokenEvents, spokenPicks, NOT_ALLOWED_SPEECH, NOT_FOUND_SPEECH, EMPTY_DIGEST_SPEECH, EMPTY_DIGEST_NO_PICKS_SPEECH, LINK_ACCOUNT_SPEECH, PLAYLIST_UNAVAILABLE_SPEECH, spokenDigest, spokenFinds, spokenLatest, spokenMatches, spokenPassages,
-  spokenPlaces, spokenRecall, spokenRecent, spokenSearch, spokenStationShows, spokenDeleted, spokenFollowed, spokenSaved, spokenUnfollowed, WHICH_ARTIST_TO_FOLLOW_SPEECH, WHICH_ARTIST_TO_UNFOLLOW_SPEECH, spokenStory, spokenTrackFacts, UNAVAILABLE_SPEECH,
+  spokenOnAir, spokenPlaces, spokenRecall, spokenRecent, spokenSearch, spokenStationShows, spokenDeleted, spokenFollowed, spokenSaved, spokenUnfollowed, WHICH_ARTIST_TO_FOLLOW_SPEECH, WHICH_ARTIST_TO_UNFOLLOW_SPEECH, spokenStory, spokenTrackFacts, UNAVAILABLE_SPEECH,
 } from "@/lib/speech";
 import { localWindow } from "@/lib/stationTime";
 import { getStation } from "@/lib/stations";
+import { STREAM_HOST } from "@/lib/streams";
 
 export const CARD_URI = "ui://radio-commons/story-card.html";
 const CLOCK_TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -28,6 +29,8 @@ const SEARCH_RESULTS_SHOWN = 5;
 const MUSIC_STATIONS = ["88nine", "hyfin", "rhythmlab", "414music"] as const;
 const STATION_SLUG = z.enum(MUSIC_STATIONS);
 const MAX_RECENT_SONGS = 10;
+// ponytail: a play older than this is not "on air"; songs rarely run past it, and a long DJ break just reads "Live now".
+const ON_AIR_MAX_AGE_MS = 20 * 60_000;
 const PLAY_ID = z.string().regex(/^[a-z0-9_]{6,64}$/, "Use the playId from find_song_played; use the number field for list numbers.");
 const STORY_ID = /^[a-z0-9]{1,64}$/;
 // Show artwork on f.prxu.org, audio on Dovetail, our logo and map pictures, fonts, and the fullscreen map (library + Amazon tiles).
@@ -37,6 +40,10 @@ const CARD_CSP = {
     "https://fonts.googleapis.com", "https://fonts.gstatic.com", "https://unpkg.com",
     // Song cards: Apple album artwork and 30-second previews.
     "https://*.mzstatic.com", "https://audio-ssl.itunes.apple.com",
+    // Station logos the playlist uses when a song has no Apple artwork.
+    "https://rm-playlist-v2-embed.pages.dev",
+    // On air now: the stations' live streams.
+    STREAM_HOST,
     // Finds and digest cards: event photos from Ticketmaster and AXS listings.
     "https://s1.ticketm.net", "https://images.discovery-prod.axs.com",
   ],
@@ -97,6 +104,13 @@ async function releaseEventFor(story: Story, fieldGuide: () => FieldGuideClient)
 }
 
 /** Logs every call's duration (the Alexa+ budget is 500 ms); Backstory failures become a plain apology. */
+const minutesAgo = (playedAt: number, at: number) => {
+  const minutes = Math.max(0, Math.round((at - playedAt) / 60_000));
+  return minutes === 0 ? "Just now" : `${minutes} min ago`;
+};
+const onAirSong = (play: RecentSong | null, at: number) =>
+  play && at - play.playedAt <= ON_AIR_MAX_AGE_MS ? { ...play, when: minutesAgo(play.playedAt, at) } : null;
+
 async function timed(tool: string, run: () => Promise<ToolResult>, fallback: () => ToolResult): Promise<ToolResult> {
   const started = Date.now();
   try {
@@ -182,6 +196,15 @@ export function buildMcpHandler(deps: Deps) {
   const rememberScreen = (context: { http?: Parameters<typeof listenerIdFrom>[0] }, playIds: string[]) => {
     const listenerId = listenerIdFrom(context.http ?? {});
     if (listenerId && playIds.length) defer(() => deps.playlist().rememberScreen(listenerId, playIds));
+  };
+  // One station's newest play; a station the playlist can't reach still gets its "Live now" tile.
+  const latestPlay = async (where: Station): Promise<RecentSong | null> => {
+    try {
+      return (await deps.playlist().recentSongs(where, 1))[0] ?? null;
+    } catch (error) {
+      if (!(error instanceof PlaylistUnavailable)) throw error;
+      return null;
+    }
   };
   // One guess gets the full song card; several become a numbered list so "save number 2" matches the screen.
   const recallCard = (matches: RecallMatch[], slug: Station) =>
@@ -399,7 +422,7 @@ export function buildMcpHandler(deps: Deps) {
         {
           title: "Find a song Radio Milwaukee played",
           description:
-            "Find a song Radio Milwaukee played on one of its stations, by station and time window, optionally with descriptive cues like 'horns'. Returns numbered matches with playIds; pass a playId to save_find or get_track_story. Use for 'what was that song on 88Nine this morning?' and 'the one before that'; for 'what's playing' or 'the last 5 songs', use recent_songs instead (beforePlayId; pass the same window again). Times are Milwaukee local time, 24-hour HH:MM. Map 'this morning' to 06:00-12:00, 'this afternoon' 12:00-17:00, 'tonight'/'this evening' 17:00-23:59, 'around 8:15' to 08:00-08:30. day is 'today' (default) or 'yesterday'. Use afterPlayId for 'the one after that'. If endTime is earlier than startTime, the window crosses midnight.",
+            "Find a song Radio Milwaukee played on one of its stations, by station and time window, optionally with descriptive cues like 'horns'. Returns numbered matches with playIds; pass a playId to save_find or get_track_story. Use for 'what was that song on 88Nine this morning?' and 'the one before that'; for 'what's playing now' use on_air_now; for 'the last 5 songs', use recent_songs instead (beforePlayId; pass the same window again). Times are Milwaukee local time, 24-hour HH:MM. Map 'this morning' to 06:00-12:00, 'this afternoon' 12:00-17:00, 'tonight'/'this evening' 17:00-23:59, 'around 8:15' to 08:00-08:30. day is 'today' (default) or 'yesterday'. Use afterPlayId for 'the one after that'. If endTime is earlier than startTime, the window crosses midnight.",
           inputSchema: z.object({
             station: z.enum(["hyfin", "88nine", "414music", "rhythmlab"]),
             day: z.enum(["today", "yesterday"]).optional(),
@@ -460,7 +483,7 @@ export function buildMcpHandler(deps: Deps) {
         {
           title: "Latest songs Radio Milwaukee played",
           description:
-            "The most recent songs on a Radio Milwaukee station, newest first, numbered. Use for 'what's playing?', 'what just played?', 'the last 5 songs on 88Nine'. save_find takes the `number` field for 'save number 2'; get_track_story takes the playId. For a song at a past time ('around 2 pm'), use find_song_played.",
+            "The most recent songs on a Radio Milwaukee station, newest first, numbered. Use for 'what did you just play?', 'what just played?', 'the last 5 songs on 88Nine'. For what's on or playing right now, or to listen, use on_air_now. save_find takes the `number` field for 'save number 2'; get_track_story takes the playId. For a song at a past time ('around 2 pm'), use find_song_played.",
           inputSchema: z.object({
             station: z.enum(["hyfin", "88nine", "414music", "rhythmlab"]),
             count: z.number().int().min(1).max(MAX_RECENT_SONGS).optional(),
@@ -479,6 +502,24 @@ export function buildMcpHandler(deps: Deps) {
                 stationId: station.stationId, songs: numbered,
               },
             };
+          }, playlistUnavailable),
+      );
+
+      registerAppTool(
+        server,
+        "on_air_now",
+        {
+          title: "On air now on Radio Milwaukee",
+          description: "What's on Radio Milwaukee's stations right now, with a Listen live button that plays each station's live stream on screen. Use for \"what's on now\", \"what's on Radio Milwaukee right now\", \"what's playing right now on HYFIN\", \"listen to 88Nine\", \"play HYFIN\", \"put on Rhythm Lab\". Pass station when the listener names one; omit it for all four stations. No linked account needed. Not for 'the last 5 songs' or 'what did you just play' (recent_songs). Speak the answer as given.",
+          inputSchema: z.object({ station: STATION_SLUG.optional() }),
+          ...CARD,
+        },
+        async ({ station: slug }) =>
+          timed("on_air_now", async () => {
+            const at = now().getTime();
+            const tiles = await Promise.all((slug ? [slug] : MUSIC_STATIONS).map(async (where) => ({ station: where, song: onAirSong(await latestPlay(where), at) })));
+            const stations = tiles.map(({ station: where, song }) => ({ station: where, song: song && { playId: song.playId, title: song.title, artist: song.artist, playedAt: song.playedAt } }));
+            return { content: text(spokenOnAir(tiles)), structuredContent: card({ view: "on-air", tiles }, { stations }) };
           }, playlistUnavailable),
       );
 
