@@ -82,7 +82,7 @@ blockquote{margin:0;font-size:40px;line-height:1.1;font-weight:700}blockquote.q-
 .give-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 #give-monthly:checked~.give-grid.once,#give-once:checked~.give-grid.monthly{display:none}
 .give-tier{min-height:64px;padding:6px 16px;border-radius:16px;flex-direction:column;align-items:flex-start;justify-content:center;gap:0}
-.give-tier b{font-size:22px}.give-tier small{font-size:14px;color:var(--muted)}
+.give-tier b{font-size:22px}.give-tier small{font-size:14px;color:var(--muted)}.give-tier i{font-size:13px;font-style:normal;color:var(--muted);line-height:1.25;text-align:left}
 .give-qr{width:168px;flex:none;display:flex;flex-direction:column;gap:6px;align-self:center}.give-qr svg{width:168px;height:168px;border-radius:8px;display:block}
 #fullmap{position:fixed;inset:0}
 .overlay{position:fixed;zoom:var(--z)}

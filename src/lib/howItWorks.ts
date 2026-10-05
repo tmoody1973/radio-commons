@@ -54,8 +54,9 @@ export const HOW_IT_WORKS = {
     intro: "Say “I want to support Radio Milwaukee”: a monthly membership by voice, paid with Amazon Pay, cancelled by voice. It is Amazon Pay’s sandbox (a practice mode), so no real money moves, ever.",
     steps: [
       "In the simulator, say “I want to support Radio Milwaukee” and tap a level, or open /give?tier=ga-monthly.",
+      "Main Floor and up come with a thank-you gift. Keep it and pick a t-shirt size, or choose “No gift — all of it goes to the station”. With a gift, Amazon Pay asks for the shipping address on its own page. Nothing actually ships in the demo.",
       "On the Amazon Pay page, sign in with the sandbox test buyer from the Devpost testing instructions. Card ending 1111 always works; 3434 shows a decline.",
-      "The thank-you page shows the receipt. Press “Simulate next month” to see the second monthly charge.",
+      "The thank-you page shows the receipt and where the gift would ship (name, city and state). Press “Simulate next month” to see the second monthly charge.",
       "In the linked simulator, say “what’s new for me” and it mentions the membership.",
       "Then say “cancel my Radio Milwaukee membership”, then “yes”.",
     ],

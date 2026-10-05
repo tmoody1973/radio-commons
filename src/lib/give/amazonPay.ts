@@ -1,5 +1,6 @@
 import { SITE } from "@/lib/card/tokens";
 import type { Membership } from "./membership";
+import type { ShipTo } from "./premiums";
 import type { Tier } from "./tiers";
 
 /** Amazon's button docs use V2; the SDK's default is the older one, so it is set explicitly in both places. */
@@ -41,6 +42,8 @@ export interface PayClient {
   completeCheckoutSession(id: string, payload: object): Promise<ApiResponse>;
   createCharge(payload: object, headers: Record<string, string>): Promise<ApiResponse>;
   closeChargePermission(id: string, payload: object): Promise<ApiResponse>;
+  updateCheckoutSession(id: string, payload: object): Promise<ApiResponse>;
+  getChargePermission(id: string): Promise<ApiResponse>;
 }
 
 /** The SDK client. Node runtime only (it signs with node:crypto). */
@@ -51,27 +54,44 @@ export async function payClientFrom(env: GiveEnv): Promise<PayClient> {
 
 const money = (amount: string) => ({ amount, currencyCode: USD });
 
+const recurring = (tier: Tier) =>
+  tier.kind === "monthly" ? { recurringMetadata: { frequency: { unit: "Month", value: "1" }, amount: money(tier.amount) } } : {};
+const chargePermissionType = (tier: Tier) => (tier.kind === "monthly" ? "Recurring" : "OneTime");
+const payment = (tier: Tier) => ({ paymentIntent: "AuthorizeWithCapture", chargeAmount: money(tier.amount), presentmentCurrency: USD });
+const MERCHANT_METADATA = { merchantStoreName: "Radio Milwaukee (demo)", noteToBuyer: "DEMO: Amazon Pay sandbox, no real money." };
+
 /** The APB ("Additional Payment Button") checkout: amount fixed and signed here, one trip to Amazon, wallet only. */
 export function checkoutPayload(tier: Tier, storeId: string, returnUrl: string) {
   return {
     webCheckoutDetails: { checkoutResultReturnUrl: returnUrl, checkoutMode: "ProcessOrder" },
     storeId,
-    chargePermissionType: tier.kind === "monthly" ? "Recurring" : "OneTime",
-    ...(tier.kind === "monthly" ? { recurringMetadata: { frequency: { unit: "Month", value: "1" }, amount: money(tier.amount) } } : {}),
-    paymentDetails: { paymentIntent: "AuthorizeWithCapture", chargeAmount: money(tier.amount), presentmentCurrency: USD },
-    merchantMetadata: { merchantStoreName: "Radio Milwaukee (demo)", noteToBuyer: "DEMO: Amazon Pay sandbox, no real money." },
+    chargePermissionType: chargePermissionType(tier),
+    ...recurring(tier),
+    paymentDetails: payment(tier),
+    merchantMetadata: MERCHANT_METADATA,
   };
 }
 
-/** What Amazon's checkout.js renderButton takes. The signature covers exactly payloadJSON, so the browser can't change the amount. */
-export function buttonConfig(signer: Pick<PayClient, "generateButtonSignature">, env: Pick<GiveEnv, "merchantId" | "publicKeyId" | "storeId">, tier: Tier, returnUrl: string) {
-  const payloadJSON = JSON.stringify(checkoutPayload(tier, env.storeId, returnUrl));
+/**
+ * A shipped gift: standard checkout, because APB makes the merchant supply the address (docs/GIVE-PREMIUMS.md). Amazon
+ * collects it, returns the buyer to our review URL, and continueToAmazon sets the amount there.
+ */
+export function shipPayload(tier: Tier, storeId: string, reviewUrl: string) {
+  return { webCheckoutDetails: { checkoutReviewReturnUrl: reviewUrl }, storeId, chargePermissionType: chargePermissionType(tier), ...recurring(tier) };
+}
+
+/**
+ * What Amazon's checkout.js renderButton takes. The signature covers exactly payloadJSON, so the browser can't change it.
+ * shipped: PayAndShip with the review URL; otherwise PayOnly APB with the result URL.
+ */
+export function buttonConfig(signer: Pick<PayClient, "generateButtonSignature">, env: Pick<GiveEnv, "merchantId" | "publicKeyId" | "storeId">, tier: Tier, url: string, shipped = false) {
+  const payloadJSON = JSON.stringify(shipped ? shipPayload(tier, env.storeId, url) : checkoutPayload(tier, env.storeId, url));
   return {
     merchantId: env.merchantId,
     publicKeyId: env.publicKeyId,
     ledgerCurrency: USD,
     checkoutLanguage: "en_US",
-    productType: "PayOnly",
+    productType: shipped ? "PayAndShip" : "PayOnly",
     placement: "Other",
     buttonColor: "Gold",
     sandbox: SANDBOX,
@@ -113,6 +133,35 @@ export async function complete(pay: PayClient, sessionId: string, tier: Tier): P
   } catch (error) {
     logFailure("complete", error);
     return { status: "failed" };
+  }
+}
+
+/** The review step: the amount comes from our tier list, then Amazon's confirm page URL (null if Amazon wants more). */
+export async function continueToAmazon(pay: PayClient, sessionId: string, tier: Tier, resultUrl: string): Promise<string | null> {
+  try {
+    const { data } = await pay.updateCheckoutSession(sessionId, {
+      webCheckoutDetails: { checkoutResultReturnUrl: resultUrl },
+      paymentDetails: payment(tier),
+      ...recurring(tier),
+      merchantMetadata: MERCHANT_METADATA,
+    });
+    return field(data, "webCheckoutDetails", "amazonPayRedirectUrl") || null;
+  } catch (error) {
+    logFailure("update", error);
+    return null;
+  }
+}
+
+/** Name, city and state from the Charge Permission (where Amazon keeps the address after checkout). Never the street. */
+export async function shipToOf(pay: PayClient, chargePermissionId: string): Promise<ShipTo | null> {
+  if (!chargePermissionId) return null;
+  try {
+    const { data } = await pay.getChargePermission(chargePermissionId);
+    const shipTo = { name: field(data, "shippingAddress", "name"), city: field(data, "shippingAddress", "city"), state: field(data, "shippingAddress", "stateOrRegion") };
+    return shipTo.city && shipTo.state ? shipTo : null;
+  } catch (error) {
+    logFailure("address", error);
+    return null;
   }
 }
 

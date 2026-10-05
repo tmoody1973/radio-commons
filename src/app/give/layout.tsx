@@ -15,7 +15,13 @@ const THEME_CSS = `
 .give-page .levels a{display:block;padding:12px 16px;border-radius:12px;background:var(--secondary);text-decoration:none;font-weight:600}
 .give-page .receipt{padding:16px;border-radius:12px;background:var(--secondary);font-variant-numeric:tabular-nums}
 .give-page button{font:inherit;font-weight:700;min-height:48px;padding:0 24px;border:0;border-radius:9999px;background:${TOKENS.accent};color:${TOKENS.onAccent};cursor:pointer}
-.give-page button:disabled{opacity:.6;cursor:default}`;
+.give-page button:disabled{opacity:.6;cursor:default}
+.give-page fieldset{border:0;padding:0;margin:0 0 16px;display:grid;gap:8px}
+.give-page legend{font-weight:700;margin-bottom:8px}
+.give-page .choice{display:flex;gap:12px;align-items:center;min-height:48px;padding:8px 16px;border-radius:12px;background:var(--secondary);cursor:pointer}
+.give-page .choice input{width:20px;height:20px;accent-color:${TOKENS.accent}}
+.give-page select{font:inherit;min-height:48px;padding:0 12px;border-radius:12px;border:1px solid var(--muted);background:var(--card);color:var(--text)}
+.give-page .error{font-weight:700}`;
 
 /** Every give page: the DEMO banner first, then the page. */
 export default function GiveLayout({ children }: LayoutProps<"/give">) {

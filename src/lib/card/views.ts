@@ -6,6 +6,7 @@ import type { Digest, DigestItem, FindRow, RecentSong, SavedFind, Station, Stati
 import { LIVE_STREAMS } from "@/lib/streams";
 import { CAPABILITIES } from "@/lib/capabilities";
 import { dollars, LEVELS, type GiveKind } from "@/lib/give/tiers";
+import { PREMIUMS } from "@/lib/give/premiums";
 import { pinnedPlaces } from "@/lib/map/staticMap";
 import { directionsUrl, streetAddress } from "@/lib/maps";
 import { ARTICLE_SOURCE, clock, longDate, monthYear, showCalendarDay } from "@/lib/speech";
@@ -391,7 +392,7 @@ const GIVE_DEMO = "DEMO · Amazon Pay sandbox · no real money";
 const giveTiers = (kind: GiveKind, links: Record<string, string>) =>
   `<div class="give-grid ${kind}">${LEVELS.map((level) => {
     const url = links[`${level.slug}-${kind}`];
-    return url ? `<button type="button" class="secondary details give-tier" data-url="${escape(url)}"><b>${escape(dollars(level[kind]))}${kind === "monthly" ? "/mo" : ""}</b><small>${escape(level.name)}</small></button>` : "";
+    return url ? `<button type="button" class="secondary details give-tier" data-url="${escape(url)}"><b>${escape(dollars(level[kind]))}${kind === "monthly" ? "/mo" : ""}</b><small>${escape(level.name)}</small><i>${escape(PREMIUMS[level.slug].line)}</i></button>` : "";
   }).join("")}</div>`;
 
 /** Support Radio Milwaukee: Monthly | One-time (CSS radios, no script), four levels each opening /give, and a QR for screens that can't open a browser. */
