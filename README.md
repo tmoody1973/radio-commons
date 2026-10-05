@@ -97,14 +97,15 @@ The page needs a passcode (ask the station) so strangers can't spend the API cre
 This shows a monthly Radio Milwaukee membership started by voice, paid with Amazon Pay, and cancelled by voice. It runs on Amazon Pay's sandbox (a practice mode), so no real money moves, ever.
 
 1. In the simulator, say "I want to support Radio Milwaukee" and tap a level. Or open https://radio-commons.vercel.app/give?tier=ga-monthly.
-2. Open the Amazon Pay page in a private (incognito) window, or signed out of any real Amazon account. A real Amazon login is refused with "Your order can't be completed with this account."
-3. Sign in with the sandbox test buyer. Its email and password are in the Devpost testing instructions (private to judges), not in this repo.
-4. Choose the card ending 1111, which always succeeds. The card ending 3434 shows a decline.
-5. The thank-you page shows the receipt. Press "Simulate next month" to see the second monthly charge.
-6. In the linked simulator, say "what's new for me". The reply mentions the membership.
-7. Say "cancel my Radio Milwaukee membership", then "yes". It's cancelled at Amazon Pay.
+2. Main Floor and up come with a thank-you gift (a t-shirt, or a merch package). On the give page, keep the gift and pick a t-shirt size, or choose "No gift — all of it goes to the station". With a gift, Amazon Pay asks for the shipping address on its own page; we never see the street. Nothing actually ships in the demo.
+3. Open the Amazon Pay page in a private (incognito) window, or signed out of any real Amazon account. A real Amazon login is refused with "Your order can't be completed with this account."
+4. Sign in with the sandbox test buyer. Its email and password are in the Devpost testing instructions (private to judges), not in this repo.
+5. Choose the card ending 1111, which always succeeds. The card ending 3434 shows a decline.
+6. The thank-you page shows the receipt, with where the gift would ship (name, city and state). Press "Simulate next month" to see the second monthly charge.
+7. In the linked simulator, say "what's new for me". The reply mentions the membership.
+8. Say "cancel my Radio Milwaukee membership", then "yes". It's cancelled at Amazon Pay.
 
-**What's real and what's simulated.** Real: the calls to Amazon Pay's sandbox API (create a checkout session, a charge permission, a charge, and close it). Simulated: the money (none moves), and "next month" is a button, not a wait. Alexa+'s own native checkout isn't available to hackathon entrants, so the simulator opens the Amazon Pay page instead.
+**What's real and what's simulated.** Real: the calls to Amazon Pay's sandbox API (create a checkout session, a charge permission, a charge, and close it), and the shipping address Amazon collects for a gift. Simulated: the money (none moves), the gift (nothing ships), and "next month" is a button, not a wait. Alexa+'s own native checkout isn't available to hackathon entrants, so the simulator opens the Amazon Pay page instead.
 
 To run your own copy, see [docs/GIVE-SETUP.md](docs/GIVE-SETUP.md).
 

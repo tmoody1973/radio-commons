@@ -63,3 +63,13 @@ Yes. The recurring guides (both APB and standard) describe PayAndShip for recurr
 4. Sandbox test buyers' address books: whether they come with a preset address or the tester has to add one on Amazon's page.
 
 **Overall confidence: high** that the standard flow is the right one (APB explicitly needs our own address form); **medium** on the exact payloads until the first sandbox run.
+
+## Decision record
+
+- **Decision:** a shipped gift switches that checkout to Amazon Pay's standard flow (PayAndShip); everything else stays on the one-trip APB flow (PayOnly).
+- **Why this came up:** gifts need an address. Getting it wrong means either holding listeners' street addresses ourselves or a checkout Amazon rejects.
+- **Options:** (1) APB with our own address form: one trip to Amazon, but we collect and hold street addresses. (2) Standard flow for every gift, gift or not: one code path, but a second trip to Amazon for everyone. (3) Standard flow only when a gift ships (chosen): Amazon holds the address, no-gift gifts stay one trip, at the cost of two checkout paths and a review route.
+- **What we chose and why:** option 3 (Claude, within Tarik's "show, choose, ship" decision). It keeps street addresses out of our systems.
+- **What we gave up:** two checkout paths to test, and a review step that has never run against the sandbox.
+- **How we'll know if this was right:** the first sandbox run with a gift shows a receipt with city and state, and Clerk holds no street.
+- **What actually happened:**

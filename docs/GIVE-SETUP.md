@@ -56,11 +56,11 @@ If Integration Central asks for allowed JavaScript origins or return URLs, add `
 
 Do this on a phone, with an Alexa account linked to a Radio Milwaukee listener account (or the simulator's "Link Radio Milwaukee account").
 
-1. **Monthly, linked.** Say "I want to support Radio Milwaukee". The card shows DEMO, Monthly / One-time and four levels. Tap **Main Floor $10/mo** (or scan the QR code on a phone). On `/give`, tap the Amazon Pay button, sign in as the **sandbox test buyer**, confirm. You land on the thanks page: "You're a monthly member (demo)", a receipt with an Amazon Pay reference. In Seller Central (Sandbox View) the charge appears.
+1. **Monthly, linked.** Say "I want to support Radio Milwaukee". The card shows DEMO, Monthly / One-time and four levels. Tap **Main Floor $10/mo** (or scan the QR code on a phone). On `/give`, keep the t-shirt, pick size **L**, Continue. Tap the Amazon Pay button, sign in as the **sandbox test buyer**, choose a shipping address (add one if the test buyer has none), continue; Amazon goes through our `/give/review` step and back to its confirm page; confirm. You land on the thanks page: "You're a monthly member (demo)", a receipt with an Amazon Pay reference, and "Main Floor gift: RadioMKE t-shirt (L) ships to <name>, <city>, <state>". *First thing to watch:* this is the first run of the PayAndShip path (see `docs/GIVE-PREMIUMS.md`, "Untested"). In Seller Central (Sandbox View) the charge appears.
 2. **Simulate next month.** Tap **Simulate next month (November 2026)**: "Charged $10.00 for November 2026 (simulated)". Tap it twice quickly: still one charge for that month in Seller Central. *First thing to watch:* Amazon's docs suggest a second charge right away is allowed, but nobody has tried it yet. If it's refused, the button shows "declined" and nothing is recorded.
 3. **What's new.** Say "what's new for me": the reply ends "And thanks for being a monthly member since October 5."
 4. **Cancel.** Say "cancel my Radio Milwaukee membership". Alexa asks "Cancel your $10 monthly membership? You won't be charged again." Say yes. Seller Central shows the Charge Permission as **Closed**; Simulate next month now says there's no active membership.
-5. **One-time.** Choose One-time → **Main Floor $120**. Receipt, nothing stored.
+5. **One-time, no gift.** Choose One-time → **Main Floor $120** → "No gift — all of it goes to the station". Amazon asks for no address (PayOnly). Receipt says "No gift — thank you, it all goes to the station."; nothing stored.
 6. **Declines.** Pay with the card ending **3434**: "That didn't go through. Nothing was charged."
 7. **Unlinked.** In the simulator without linking: giving works; "cancel my membership" asks you to link your account.
 
