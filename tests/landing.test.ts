@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { HOW_IT_WORKS } from "@/lib/howItWorks";
 import { LANDING } from "@/lib/landing";
+import { spokenDigest, spokenSaved } from "@/lib/speech";
 
 describe("landing page content", () => {
   it("three things to ask, each with a real card image that exists", () => {
@@ -24,6 +25,9 @@ describe("landing page content", () => {
     expect(LANDING.demoVideoUrl).toBeNull();
   });
 });
+
+// Majestic Theatre, Madison: 8 p.m. Tuesday, October 20 in Chicago time (the UTC date is the 21st).
+const MAJESTIC = { venue: "Majestic Theatre", city: "Madison", startsAtMs: Date.parse("2026-10-21T01:00:00Z") };
 
 describe("judges page (/how-it-works)", () => {
   const read = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
@@ -49,8 +53,19 @@ describe("judges page (/how-it-works)", () => {
     expect(HOW_IT_WORKS.services.map((s) => s.name)).toEqual(["Playlist", "Finds", "Apple Music", "Concerts", "Backstory"]);
   });
 
-  it("example replies don't invent shows or counts: the live parts stay bracketed", () => {
-    for (const s of HOW_IT_WORKS.sessions) expect(s.reply).toMatch(/\[venue\].*\[day\]/);
+  it("example replies are the real Oct 4 snapshot in the real spoken wording", () => {
+    const [save, digest] = HOW_IT_WORKS.sessions;
+    expect(HOW_IT_WORKS.sessionsData).toBe("Real data from the playlist, as of October 4, 2026");
+    expect(save.reply).toBe(spokenSaved({
+      status: "ok", findId: "f", appleMusic: "pending", artist: "Tank & The Bangas", title: "No ID", alreadySaved: false,
+      artistId: "a", artistName: "Tank & The Bangas", firstFollow: true, nextShow: MAJESTIC, recentlySaved: false,
+      story: { storyId: "s", title: "Studio Milwaukee Session: Tank & The Bangas", show: "Studio Milwaukee" },
+    }));
+    expect(digest.reply).toBe(spokenDigest([
+      { kind: "spins", artistId: "a", artist: "Tank & The Bangas", total: 15, byStation: [{ station: "rhythmlab", count: 10 }, { station: "88nine", count: 3 }, { station: "hyfin", count: 2 }] },
+      { kind: "show", artistId: "a", artist: "Tank & The Bangas", ...MAJESTIC },
+    ]));
+    expect(digest.reply).not.toMatch(/new .* story/);
   });
 
   it("every status row is live or in this release", () => {

@@ -1,6 +1,6 @@
 // The judges page's words (/how-it-works). Facts come from the listener-memory spec and decision 009
 // (rm-playlist-v2), docs/HACKATHON.md, and the reply templates in src/lib/speech.ts. Keep them in step.
-// Bracketed words in example replies are filled in live; we don't invent shows or play counts for real artists.
+// Example replies are real playlist data (Oct 4, 2026), spoken with spokenSaved / spokenDigest wording; never invent shows or counts.
 
 export const HOW_IT_WORKS = {
   eyebrow: "For hackathon judges",
@@ -13,22 +13,23 @@ export const HOW_IT_WORKS = {
     alexa: "Built on Alexa+",
     status: "Status",
   },
+  sessionsData: "Real data from the playlist, as of October 4, 2026",
   sessions: [
     {
       label: "Session 1 · Tuesday",
       title: "“Save this.”",
-      setup: "A listener hears a song on 88Nine and asks Alexa+ to save it. One reply covers the save, Apple Music, the follow, the next local show and the station’s own story.",
+      setup: "A listener hears a song on HYFIN and asks Alexa+ to save it. One reply covers the save, Apple Music, the follow, the next local show and the station’s own story.",
       says: "Alexa, save this.",
-      reply: "Saved “[song]” by Tank & The Bangas to your 88Nine Finds, and I’m adding it to Apple Music. I’ll keep an eye out for Tank & The Bangas — they play [venue] in Milwaukee on [day], and we have their Studio Milwaukee story.",
-      note: "That story is real: “Studio Milwaukee Session: Tank & The Bangas.” The song, venue and day are filled in live from the playlist and the concert listings. “Save number 3” works too: we remember the numbered list on screen for 30 minutes, on any device.",
+      reply: "Saved \"No ID\" by Tank & The Bangas to your 88Nine Finds, and I'm adding it to Apple Music. I'll keep an eye out for Tank & The Bangas — they play Majestic Theatre in Madison on Tuesday, October 20, and we have their Studio Milwaukee story.",
+      note: "The song played on HYFIN. Shows are looked for in Milwaukee first; with no Milwaukee date, the next one is in Madison. The story is the station’s “Studio Milwaukee Session: Tank & The Bangas.” “Save number 3” works too: we remember the numbered list on screen for 30 minutes, on any device.",
     },
     {
       label: "Session 2 · days later",
       title: "“What’s new for me?”",
       setup: "A new conversation. Alexa+ has forgotten the first one; Radio Commons hasn’t. The digest is built from what the station’s DJs actually played, who is playing in town, and the station’s own stories.",
       says: "Alexa, what’s new for me?",
-      reply: "Since your last visit: Tank & The Bangas plays [venue] in Milwaukee on [day]. [Station] played Tank & The Bangas [n] times.",
-      note: "A show in the next week comes first, then the artists the station played most, then new station stories, then Apple Music news. Alexa speaks the top three items; an Echo Show also shows a card with a tile per artist. A brand-new listener with nothing followed hears the station’s current picks instead.",
+      reply: "Since your last visit: Rhythm Lab played Tank & The Bangas 10 times, 88Nine 3 times and HYFIN twice. Tank & The Bangas plays Majestic Theatre in Madison on Tuesday, October 20.",
+      note: "A show in the next week comes first, then the artists the station played most, then new station stories, then Apple Music news. Alexa speaks the top three items; an Echo Show also shows a card with a tile per artist, with the Studio Milwaukee session one tap away. A brand-new listener with nothing followed hears the station’s current picks instead.",
     },
   ],
   services: [

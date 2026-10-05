@@ -15,11 +15,13 @@ Radio Commons is an MCP server a public radio station built itself, so Alexa+ ca
 The agentic part is one sentence that runs across five services, and a memory that carries into the next session:
 
 1. **Session 1 — "Alexa, save this."** One reply saves the song to the listener's 88Nine Finds, adds it to Apple Music, follows the artist, names their next local show, and points to the station's own story about them:
-   > Saved "[song]" by Tank & The Bangas to your 88Nine Finds, and I'm adding it to Apple Music. I'll keep an eye out for Tank & The Bangas — they play [venue] in Milwaukee on [day], and we have their Studio Milwaukee story.
+   > Saved "No ID" by Tank & The Bangas to your 88Nine Finds, and I'm adding it to Apple Music. I'll keep an eye out for Tank & The Bangas — they play Majestic Theatre in Madison on Tuesday, October 20, and we have their Studio Milwaukee story.
 
-   (The story is real: "Studio Milwaukee Session: Tank & The Bangas". Bracketed parts are filled in live.)
+   (Real data from the playlist, as of October 4, 2026: the song played on HYFIN; shows are looked for in Milwaukee first, and with no Milwaukee date the next is in Madison; the story is the station's "Studio Milwaukee Session: Tank & The Bangas".)
 2. **Session 2, days later — "Alexa, what's new for me?"** A digest built from what the station's DJs actually played, who is playing in town, and the station's own stories, since the listener's last visit:
-   > Since your last visit: Tank & The Bangas plays [venue] in Milwaukee on [day]. [Station] played Tank & The Bangas [n] times.
+   > Since your last visit: Rhythm Lab played Tank & The Bangas 10 times, 88Nine 3 times and HYFIN twice. Tank & The Bangas plays Majestic Theatre in Madison on Tuesday, October 20.
+
+   (Real spins from the last 7 days, as of October 4, 2026.)
 
 "Save number 3" works on any device: the server remembers the numbered list it showed for 30 minutes.
 

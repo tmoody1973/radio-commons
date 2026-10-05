@@ -26,6 +26,7 @@ function Demo() {
             <p className={styles.body}>{s.setup}</p>
             <p className={styles.says}>{s.says}</p>
             <blockquote className={styles.reply}>{s.reply}</blockquote>
+            <p className={styles.label}>{H.sessionsData}</p>
             <p className={styles.body}>{s.note}</p>
           </article>
         ))}

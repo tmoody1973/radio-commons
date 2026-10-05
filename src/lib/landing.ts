@@ -41,7 +41,7 @@ export const LANDING = {
     { title: "The station publishes", text: "Podcasts, music premieres and session write-ups, as it already does, in NPR’s content system." },
     { title: "Backstory reads it", text: "Transcribes every episode and pulls out people, places and songs, each checked against the exact words." },
     { title: "An editor approves", text: "Nothing reaches Alexa until a Radio Milwaukee editor has checked it. Events come from the station’s event guide." },
-    { title: "Alexa+ answers", text: "Through the Radio Commons MCP server: 13 tools for stories, songs and events, with Echo Show cards built to Amazon’s design guide." },
+    { title: "Alexa+ answers", text: "Through the Radio Commons MCP server: 16 tools for stories, songs and events, with Echo Show cards built to Amazon’s design guide." },
   ],
   rules: [
     "Every answer names its show and month.",
