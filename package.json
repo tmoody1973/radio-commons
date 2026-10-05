@@ -15,6 +15,7 @@
     "eval:turns": "tsx scripts/eval-turns.ts"
   },
   "dependencies": {
+    "@amazonpay/amazon-pay-api-sdk-nodejs": "^2.3.6",
     "@aws-sdk/client-bedrock-runtime": "^3.1145.0",
     "@aws-sdk/client-polly": "^3.1145.0",
     "@clerk/nextjs": "^7.9.10",
