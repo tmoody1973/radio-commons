@@ -101,8 +101,8 @@ This shows a monthly Radio Milwaukee membership started by voice, paid with Amaz
 3. Sign in with the sandbox test buyer. Its email and password are in the Devpost testing instructions (private to judges), not in this repo.
 4. Choose the card ending 1111, which always succeeds. The card ending 3434 shows a decline.
 5. The thank-you page shows the receipt. Press "Simulate next month" to see the second monthly charge.
-6. In the linked simulator, say "cancel my Radio Milwaukee membership", then "yes".
-7. Say "what's new for me". The reply mentions the membership.
+6. In the linked simulator, say "what's new for me". The reply mentions the membership.
+7. Say "cancel my Radio Milwaukee membership", then "yes". It's cancelled at Amazon Pay.
 
 **What's real and what's simulated.** Real: the calls to Amazon Pay's sandbox API (create a checkout session, a charge permission, a charge, and close it). Simulated: the money (none moves), and "next month" is a button, not a wait. Alexa+'s own native checkout isn't available to hackathon entrants, so the simulator opens the Amazon Pay page instead.
 
