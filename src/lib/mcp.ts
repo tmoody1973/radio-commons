@@ -18,6 +18,7 @@ import {
   NEWSLETTER_UNAVAILABLE_SPEECH, NO_NEWSLETTER_SPEECH, spokenBriefing, spokenOnAir, spokenPlaces, spokenRecall, spokenRecent, spokenSearch, spokenStationShows, spokenDeleted, spokenFollowed, spokenSaved, spokenUnfollowed, noSongOnAirSpeech, whichOnAirSpeech, WHICH_ARTIST_TO_FOLLOW_SPEECH, WHICH_ARTIST_TO_UNFOLLOW_SPEECH, spokenStory, spokenTrackFacts, UNAVAILABLE_SPEECH,
 } from "@/lib/speech";
 import { localWindow } from "@/lib/stationTime";
+import { noScheduleSpeech, programsFrom, SCHEDULE_UNAVAILABLE_SPEECH, spokenOnNow, spokenPrograms, withFreshLatest } from "@/lib/schedule";
 import { getStation } from "@/lib/stations";
 import { linkItems } from "@/lib/briefing";
 import { NewsletterUnavailable, newsletterFromEnv, type NewsletterClient } from "@/lib/newsletter";
@@ -55,6 +56,8 @@ const CARD_CSP = {
     STREAM_HOST,
     // Finds and digest cards: event photos from Ticketmaster and AXS listings.
     "https://s1.ticketm.net", "https://images.discovery-prod.axs.com",
+    // Station schedule: host and show photos from radiomilwaukee.org's image CDN.
+    "https://npr.brightspotcdn.com",
   ],
   connectDomains: ["https://maps.geo.us-east-1.amazonaws.com", "https://unpkg.com"],
 };
@@ -226,6 +229,16 @@ export function buildMcpHandler(deps: Deps) {
       return null;
     }
   };
+  // Extras that never fail or slow their tool beyond the playlist timeout: a failure is logged and reads as "unknown".
+  const orNull = async <T>(event: string, read: () => Promise<T>): Promise<T | null> => {
+    try {
+      return await read();
+    } catch {
+      console.error(JSON.stringify({ event }));
+      return null;
+    }
+  };
+  const scheduleNow = () => orNull("schedule_read_failed", () => deps.playlist().stationSchedule({ station: "88nine", at: now().getTime() }));
   // What each station is playing now, in MUSIC_STATIONS order: on_air_now's tiles, and save_find's cheap first look.
   const onAirTiles = async (stations: readonly Station[]) => (await onAirRows(stations)).map(({ station: where, song }) => ({ station: where, song }));
   // `latest` is the station's newest play even when it is too old to be "on air"; screen memory needs it for that row.
@@ -608,22 +621,56 @@ export function buildMcpHandler(deps: Deps) {
         "on_air_now",
         {
           title: "On air now on Radio Milwaukee",
-          description: "What's on Radio Milwaukee's stations right now, with a Listen live button (on devices with a screen) that plays each station's live stream. Use for \"what's on now\", \"what's on Radio Milwaukee right now\", \"what's playing right now on HYFIN\", \"listen to 88Nine\", \"play HYFIN\", \"put on Rhythm Lab\". Pass station when the listener names one; omit it for all four stations. No linked account needed. Not for 'the last 5 songs' or 'what did you just play' (recent_songs). Speak the answer as given.",
+          description: "What's on Radio Milwaukee's stations right now, with a Listen live button (on devices with a screen) that plays each station's live stream. Use for \"what's on now\", \"what's on Radio Milwaukee right now\", \"what's playing right now on HYFIN\", \"listen to 88Nine\", \"play HYFIN\", \"put on Rhythm Lab\". Pass station when the listener names one; omit it for all four stations. No linked account needed. Not for 'the last 5 songs' or 'what did you just play' (recent_songs), or who's hosting or when a show is on (station_schedule). Speak the answer as given.",
           inputSchema: z.object({ station: STATION_SLUG.optional() }),
           ...CARD,
         },
         async ({ station: slug }, context) =>
           timed("on_air_now", async () => {
-            const rows = await onAirRows(slug ? [slug] : MUSIC_STATIONS);
-            const tiles = rows.map(({ station: where, song }) => ({ station: where, song }));
+            const [rows, schedule] = await Promise.all([onAirRows(slug ? [slug] : MUSIC_STATIONS), !slug || slug === "88nine" ? scheduleNow() : null]);
+            // Only 88Nine has a schedule: its row also names who's hosting.
+            const show = schedule?.onNow ? { name: schedule.onNow.name, hosts: schedule.onNow.hosts } : null;
+            const tiles = rows.map(({ station: where, song }) => ({ station: where, song, ...(where === "88nine" && show ? { show } : {}) }));
             // One slot per card row, so "number 3" is the third row. A station with no play at all ends the list: later
             // numbers then find nothing and ask, instead of shifting onto the wrong row. One station alone isn't numbered.
             const gap = rows.findIndex(({ latest }) => !latest);
             const slots = (gap === -1 ? rows : rows.slice(0, gap)).map(({ latest }) => latest!.playId);
             if (!slug) rememberScreen(context, slots);
-            const stations = tiles.map(({ station: where, song }) => ({ station: where, song: song && { playId: song.playId, title: song.title, artist: song.artist, playedAt: song.playedAt } }));
+            const stations = tiles.map(({ station: where, song, ...rest }) => ({ station: where, ...rest, song: song && { playId: song.playId, title: song.title, artist: song.artist, playedAt: song.playedAt } }));
             return { content: text(spokenOnAir(tiles)), structuredContent: card({ view: "on-air", tiles }, { stations }) };
           }, playlistUnavailable),
+      );
+
+      registerAppTool(
+        server,
+        "station_schedule",
+        {
+          title: "Who's on 88Nine, and when",
+          description: "88Nine's on-air schedule: who's on now (host and show) and who's next, when a show or host is on, and whether a show already aired this week. Use for \"who's on 88Nine\", \"who's on right now\", \"who's the DJ\", \"who's hosting\", \"when is Rhythm Lab on\", \"when is Erin Wolf on\", \"did I miss Audio Taste Test\", \"what's on tonight on 88Nine\". Pass query with the show or host the listener names; omit it for who's on now. Rhythm Lab Radio is an 88Nine show: for it pass query \"rhythm lab\". Only 88Nine has a schedule. Not for what song is playing (on_air_now). No linked account needed. Speak the answer as given." + PAGING,
+          inputSchema: z.object({ station: STATION_SLUG.optional(), query: z.string().trim().min(2).max(100).optional(), page: PAGE }),
+          ...CARD,
+        },
+        async ({ station: slug, query, page }) =>
+          timed("station_schedule", async () => {
+            // A named show or host on the Rhythm Lab stream is looked up on 88Nine, where Rhythm Lab Radio airs.
+            if (slug && slug !== "88nine" && !(slug === "rhythmlab" && query)) return { content: text(noScheduleSpeech(slug)) };
+            const at = now();
+            const [rawSchedule, rawProfile] = await Promise.all([
+              deps.playlist().stationSchedule({ station: "88nine", ...(query ? { query } : {}), at: at.getTime() }),
+              // ponytail: alexa:hostProfile ships in a later playlist deploy; until then this is null and the schedule answers alone.
+              query ? orNull("host_profile_failed", () => deps.playlist().hostProfile(query)) : null,
+            ]);
+            const { schedule, profile } = withFreshLatest(rawSchedule, rawProfile ?? null, at);
+            if (!query) {
+              const { onNow, next } = schedule;
+              return { content: text(spokenOnNow(schedule)), ...(onNow || next ? { structuredContent: card({ view: "schedule", onNow, next, matches: [] }, { onNow, next }) } : {}) };
+            }
+            const matches = programsFrom(schedule, profile);
+            return {
+              content: text(spokenPrograms(query, matches, at, page)),
+              ...(matches.length ? { structuredContent: card({ view: "schedule", onNow: null, next: null, matches }, { matches }) } : {}),
+            };
+          }, () => ({ content: text(SCHEDULE_UNAVAILABLE_SPEECH), isError: true })),
       );
 
       registerAppTool(

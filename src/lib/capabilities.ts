@@ -10,7 +10,7 @@ export interface Capability {
 }
 
 export const CAPABILITIES: readonly Capability[] = [
-  { title: "On air", description: "What's on now, what just played, and live listening.", example: "What's on Radio Milwaukee right now" },
+  { title: "On air", description: "What's on now, who's hosting, what just played, and live listening.", example: "What's on Radio Milwaukee right now" },
   { title: "Save", description: "Keep a song in your Finds and Apple Music.", example: "Save that song" },
   { title: "Concerts & events", description: "Shows and things to do around Milwaukee.", example: "What concerts are coming up in Milwaukee this weekend" },
   { title: "Stories", description: "Our podcast stories, even half-remembered.", example: "What was that This Bites episode about frugal dining" },

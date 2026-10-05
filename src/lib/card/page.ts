@@ -71,6 +71,7 @@ blockquote{margin:0;font-size:40px;line-height:1.1;font-weight:700}blockquote.q-
 .onair-row{cursor:default}.onair-row .what{flex:1}.onair-row .thumb{width:48px;height:48px;flex:none}
 .onair-row b,.onair-row small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.what .station{font-weight:700;color:var(--text)}
 .onair-row .primary,.onair-row .secondary{min-height:48px;padding:0 16px;font-size:15px;white-space:nowrap}
+.secondary.latest{display:block;max-width:100%;line-height:48px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left}.sched-row{cursor:default}.sched-row .thumb{flex:none}
 .secondary.say{margin-top:auto;min-height:48px;padding:8px 14px;border-radius:14px;font-size:15px;line-height:1.25;text-align:left}
 .give .top{justify-content:flex-start}.demo{padding:4px 12px;border-radius:9999px;background:var(--text);color:var(--card);font-size:13px;font-weight:700}
 .give h2{margin:0}.give-body{display:flex;gap:20px;flex:1}.give-main{flex:1;display:flex;flex-direction:column;gap:10px;min-width:0}

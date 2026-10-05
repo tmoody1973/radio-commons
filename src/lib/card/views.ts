@@ -2,15 +2,16 @@ import type { Passage, Story, StoryCardMatch } from "@/lib/backstory";
 import type { BriefingItem } from "@/lib/briefing";
 import type { PublicEvent } from "@/lib/fieldGuide";
 import type { Badge } from "@/lib/map/geo";
-import type { Digest, DigestItem, FindRow, RecentSong, SavedFind, Station, StationShow } from "@/lib/playlist";
+import type { Digest, DigestItem, FindRow, HostCard, RecentSong, SavedFind, ScheduleProgram, ScheduleSlot, Station, StationShow } from "@/lib/playlist";
 import { LIVE_STREAMS } from "@/lib/streams";
 import { CAPABILITIES } from "@/lib/capabilities";
 import { dollars, LEVELS, type GiveKind } from "@/lib/give/tiers";
 import { PREMIUMS } from "@/lib/give/premiums";
 import { pinnedPlaces } from "@/lib/map/staticMap";
 import { directionsUrl, streetAddress } from "@/lib/maps";
-import { ARTICLE_SOURCE, clock, longDate, monthYear, showCalendarDay } from "@/lib/speech";
+import { ARTICLE_SOURCE, clock, longDate, monthYear, showCalendarDay, withoutStationName } from "@/lib/speech";
 import { localClock } from "@/lib/stationTime";
+import { clockWords, weeklyTimes } from "@/lib/schedule";
 import { sizedArtwork, STATION_NAMES, type SongCard } from "./song";
 import { showCalendarUrl, type CalendarShow } from "./calendar";
 import { cleanTicketUrl } from "./tickets";
@@ -21,7 +22,7 @@ export interface MapData { url: string; w: number; h: number; badges: Badge[]; a
 export interface EventItem { event: PublicEvent; when: string }
 export type SavedOk = Extract<SavedFind, { status: "ok" }>;
 /** One station on the "On air now" card: its latest song (with "3 min ago" already in words), or null when there is no recent play. */
-export interface OnAirTile { station: Station; song: (RecentSong & { when: string }) | null }
+export interface OnAirTile { station: Station; song: (RecentSong & { when: string }) | null; show?: { name: string; hosts: string[] } | null }
 export type CardView =
   | { view: "story"; story: Story; releaseEvent?: PublicEvent | null }
   | { view: "quote"; story: Story; passages: Passage[] }
@@ -36,6 +37,8 @@ export type CardView =
   | { view: "station-shows"; shows: StationShow[] }
   | { view: "capabilities" }
   | { view: "on-air"; tiles: OnAirTile[] }
+  /** 88Nine's schedule: matches when the listener named a show or host, else who's on now and next. */
+  | { view: "schedule"; onNow: ScheduleSlot | null; next: ScheduleSlot | null; matches: ScheduleProgram[] }
   /** Artwork and preview are known only when the save went through a search hit; otherwise a plain tile. */
   | { view: "saved"; saved: SavedOk; artworkUrl: string | null; previewUrl: string | null }
   | { view: "briefing"; date: string; items: BriefingItem[] }
@@ -344,6 +347,9 @@ function capabilitiesView(): string {
   return `<article class="card caps">${LOGO}<div class="cap-grid">${tiles}</div></article>`;
 }
 
+/** "Midday Show with Erin Wolf": the host line under a station's name. */
+const showLine = (show: { name: string; hosts: string[] }) => `${withoutStationName(show.name)}${show.hosts.length ? ` with ${show.hosts.join(" & ")}` : ""}`;
+
 /** Plays the stream in the card with the same one-at-a-time player as previews; reads "❚❚ Stop" while it plays. */
 const listenLive = (station: Station, cls: string) =>
   `<button type="button" class="${cls} row-play live" data-audio="${escape(LIVE_STREAMS[station])}" data-playing="❚❚ Stop">▶ Listen live</button>`;
@@ -352,22 +358,22 @@ const saveSong = (song: RecentSong, station: Station) =>
   `<button type="button" class="secondary ask" data-ask="${escape(`Save "${song.title}" by ${song.artist} from ${STATION_NAMES[station]}`)}">Save this song</button>`;
 
 /** One station, large: the song on air (or just "Live now"), Listen live and Save. */
-function onAirStationView({ station, song }: OnAirTile): string {
+function onAirStationView({ station, song, show }: OnAirTile): string {
   const name = STATION_NAMES[station];
   const what = song
     ? `<h2>${escape(song.title)}</h2><p class="line">${escape(song.artist)}</p><p class="line small">${escape(song.when)}</p>`
     : `<h2>${escape(name)}</h2><p class="line">Live now</p>`;
   return `<article class="card story music">${LOGO}<div class="body">${art(sizedArtwork(song?.artworkUrl ?? null), song?.artist ?? name, "art")}<div class="info">`
-    + `<p class="meta">On air now · ${escape(name)}</p>${what}`
+    + `<p class="meta">On air now · ${escape(name)}${show ? ` · ${escape(showLine(show))}` : ""}</p>${what}`
     + `<div class="actions">${listenLive(station, "primary")}${song ? saveSong(song, station) : ""}</div></div></div></article>`;
 }
 
 /** Every station as a row (four tiles with two buttons each don't fit the screen); no recent play is a plain "Live now" row. */
 function onAirView(tiles: OnAirTile[]): string {
   if (tiles.length === 1) return onAirStationView(tiles[0]);
-  const rows = tiles.map(({ station, song }) => {
+  const rows = tiles.map(({ station, song, show }) => {
     const name = STATION_NAMES[station];
-    const badge = `<span class="station">${escape(name)}</span>`;
+    const badge = `<span class="station">${escape(name)}</span>${show ? ` · ${escape(showLine(show))}` : ""}`;
     const what = song
       ? `<b>${escape(song.title)}</b><small>${badge} · ${escape(song.artist)} · ${escape(song.when)}</small>`
       : `<b>${escape(name)}</b><small>${badge} · Live now</small>`;
@@ -375,6 +381,51 @@ function onAirView(tiles: OnAirTile[]): string {
       + `${listenLive(station, "primary")}${song ? saveSong(song, station) : ""}</div>`;
   }).join("");
   return `<article class="card">${LOGO}<div class="list">${rows}</div></article>`;
+}
+
+// Schedule links come from the playlist's data; only https pages may open.
+const httpsUrl = (url: string | null | undefined) => (url && url.startsWith("https://") ? url : null);
+const scheduleImage = (item: { imageUrl?: string | null; hostProfiles?: HostCard[] }) =>
+  httpsUrl(item.hostProfiles?.find((host) => host.imageUrl)?.imageUrl ?? item.imageUrl);
+
+/** The host's newest pieces as link buttons (headline as the label); opened with openLink like Details. */
+function latestButtons(hosts: HostCard[] = [], limit: number): string {
+  return hosts.flatMap((host) => host.latest.flatMap((piece) => {
+    const url = httpsUrl(piece.url);
+    return url ? [`<button type="button" class="secondary details latest" data-url="${escape(url)}" aria-label="${escape(`Latest from ${host.name}: ${piece.title}`)}">${escape(piece.title)}</button>`] : [];
+  })).slice(0, limit).join("");
+}
+
+/** On now, large: the host's photo (or the show's, or a plain tile), show, hosts, until when, Listen live, the latest piece, and up next. */
+function onNowView(onNow: ScheduleSlot | null, next: ScheduleSlot | null): string {
+  const main = onNow ?? next!;
+  const hosts = main.hosts.length ? `<p class="line">${escape(main.hosts.join(" & "))}</p>` : "";
+  const when = onNow ? `until ${clockWords(onNow.endsAt)}` : `at ${clockWords(main.startsAt)}`;
+  const latest = latestButtons(main.hostProfiles, 1);
+  const upNext = onNow && next
+    ? `<div class="next"><p class="meta">Up next</p><div class="row sched-row">${art(scheduleImage(next), next.name, "thumb")}`
+      + `<span class="what"><b>${escape(next.name)}</b><small>${escape([next.hosts.join(" & "), clockWords(next.startsAt)].filter(Boolean).join(" · "))}</small></span></div></div>`
+    : "";
+  return `<article class="card story music schedule">${LOGO}<div class="body">${art(scheduleImage(main), main.name, "art")}<div class="info">`
+    + `<p class="meta">${onNow ? "On now" : "Up next"} · 88Nine</p><h2>${escape(main.name)}</h2>${hosts}<p class="line small">${escape(when)}</p>`
+    + `<div class="actions">${listenLive("88nine", "primary")}${latest}</div></div></div>${upNext}</article>`;
+}
+
+/** Shows that match a show or host name: photo (or plain tile), name, hosts, weekly times, "On now", and the host's latest piece. */
+function programsView(matches: ScheduleProgram[]): string {
+  const tiles = matches.slice(0, 5).map((program) => {
+    const latest = latestButtons(program.hostProfiles, 1);
+    const times = weeklyTimes(program.airtimes);
+    return `<article class="tile digest sched">${art(scheduleImage(program), program.name, "tile-art")}${program.airingNow ? '<span class="chip">On now</span>' : ""}`
+      + `<span class="tile-title">${escape(program.name)}</span>`
+      + `<span class="tile-date">${program.hosts.length ? `${escape(program.hosts.join(" & "))}<br>` : ""}${escape(times ? times[0].toUpperCase() + times.slice(1) : "")}</span>`
+      + (latest ? `<span class="tile-actions">${latest}</span>` : "") + `</article>`;
+  }).join("");
+  return `<article class="card stories">${LOGO}<div class="carousel">${tiles}</div></article>`;
+}
+
+function scheduleView(onNow: ScheduleSlot | null, next: ScheduleSlot | null, matches: ScheduleProgram[]): string {
+  return matches.length || !(onNow || next) ? programsView(matches) : onNowView(onNow, next);
 }
 
 function briefingView(date: string, items: BriefingItem[]): string {
@@ -425,6 +476,7 @@ export function renderView(card: CardView): string {
     case "station-shows": return stationShowsView(card.shows);
     case "capabilities": return capabilitiesView();
     case "on-air": return onAirView(card.tiles);
+    case "schedule": return scheduleView(card.onNow, card.next, card.matches);
     case "give": return giveView(card.links, card.qrSvg, card.shortUrl);
   }
 }

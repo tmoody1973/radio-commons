@@ -3,7 +3,7 @@ import { LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH, LINK_ACCOUNT_SPEECH } from "@/lib/s
 import { GIVE_UNAVAILABLE_SPEECH } from "@/lib/give";
 import type { TrailEntry } from "@/lib/sim/trail";
 import {
-  checkCancelNeedsLink, checkFollowThao, checkOnAirNow, checkSupport, checkRecentSongs, checkAsksWhichStation, checkRecentSongsPage, checkSaveNumber, screenWords, checkSaveStation, checkSearchPlaylist, checkStationArtistShows, checkTrackStory, checkWhatCanYouDo, checkWhatsNew,
+  checkCancelNeedsLink, checkFollowThao, checkOnAirNow, checkSupport, checkRecentSongs, checkAsksWhichStation, checkRecentSongsPage, checkSaveNumber, screenWords, checkSaveStation, checkSearchPlaylist, checkStationArtistShows, checkStationSchedule, checkTrackStory, checkWhatCanYouDo, checkWhatsNew,
 } from "@/lib/sim/evalChecks";
 
 const tool = (name: string, input: Record<string, unknown> = {}, isError = false, summary = "ok"): TrailEntry =>
@@ -112,6 +112,18 @@ describe("checkWhatsNew", () => {
     expect(checkWhatsNew([unlinked("whats_new_for_me")]).pass).toBe(true);
     expect(checkWhatsNew([tool("whats_new_for_me", {}, true, "boom")]).pass).toBe(false);
     expect(checkWhatsNew([]).pass).toBe(false);
+  });
+});
+
+describe("checkStationSchedule", () => {
+  it("passes on station_schedule without an error, naming the show or host when asked", () => {
+    expect(checkStationSchedule()([tool("station_schedule", { station: "88nine" })]).pass).toBe(true);
+    expect(checkStationSchedule()([tool("station_schedule")]).pass).toBe(true);
+    expect(checkStationSchedule()([tool("on_air_now", { station: "88nine" })]).pass).toBe(false);
+    expect(checkStationSchedule()([tool("station_schedule", {}, true, "boom")]).pass).toBe(false);
+    expect(checkStationSchedule(/rhythm lab/i)([tool("station_schedule", { query: "Rhythm Lab" })]).pass).toBe(true);
+    expect(checkStationSchedule(/rhythm lab/i)([tool("station_schedule", { query: "erin wolf" })]).pass).toBe(false);
+    expect(checkStationSchedule(/rhythm lab/i)([tool("station_schedule")]).pass).toBe(false);
   });
 });
 

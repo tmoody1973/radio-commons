@@ -12,7 +12,7 @@ const inProcessFetch = ((input: RequestInfo | URL, init?: RequestInit) => handle
 describe("simulator MCP client", () => {
   it("lists our tools, calls them, and reads the card, like Alexa+ would", async () => {
     const mcp = await connectMcp("http://localhost/api/mcp", { fetch: inProcessFetch });
-    expect(mcp.tools.map((t) => t.name).sort()).toEqual(["ask_station_story", "cancel_membership", "delete_my_finds", "find_events", "find_song_played", "find_station_story", "follow_artist", "get_station_story", "get_track_story", "latest_station_stories", "list_finds", "on_air_now", "recent_songs", "save_find", "search_playlist", "station_artist_shows", "station_briefing", "station_picks", "support_radio_milwaukee", "unfollow_artist", "what_can_you_do", "whats_new_for_me"]);
+    expect(mcp.tools.map((t) => t.name).sort()).toEqual(["ask_station_story", "cancel_membership", "delete_my_finds", "find_events", "find_song_played", "find_station_story", "follow_artist", "get_station_story", "get_track_story", "latest_station_stories", "list_finds", "on_air_now", "recent_songs", "save_find", "search_playlist", "station_artist_shows", "station_briefing", "station_picks", "station_schedule", "support_radio_milwaukee", "unfollow_artist", "what_can_you_do", "whats_new_for_me"]);
     expect(mcp.tools[0].inputSchema).toMatchObject({ type: "object" });
     const found = await mcp.callTool("find_station_story", { description: "art shop" });
     expect(found.text).toMatch(/^I found one Radio Milwaukee story/);

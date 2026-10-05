@@ -68,5 +68,7 @@ export const fakePlaylist = (overrides: Partial<PlaylistClient> = {}): PlaylistC
   markDigestSeen: async () => undefined,
   searchPlaysIndexed: async () => [],
   stationArtistShows: async () => ({ refreshedAt: null, shows: [] }),
+  stationSchedule: async () => ({ refreshedAt: null, station: "88nine", onNow: null, next: null, match: null, matches: [] }),
+  hostProfile: async () => null,
   ...overrides,
 });

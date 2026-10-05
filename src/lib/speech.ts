@@ -39,7 +39,7 @@ export function spokenMatches(matches: StoryCardMatch[]): string {
 
 /** Summary labeled as the station's, its source, and one next step: directions to a pinned place, else the episode. */
 export const longDate = (iso: string) => new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", timeZone: "UTC" }).format(new Date(`${iso}T12:00:00Z`));
-const listOf = (items: string[]) => (items.length <= 1 ? items.join("") : `${items.slice(0, -1).join(", ")} and ${items.at(-1)}`);
+export const listOf = (items: string[]) => (items.length <= 1 ? items.join("") : `${items.slice(0, -1).join(", ")} and ${items.at(-1)}`);
 
 /** A premiere: the song, its album and date when known; offers it when it can play. */
 function spokenPremiere(story: Story): string {
@@ -127,13 +127,13 @@ const PAGE_SIZE = 3; // Amazon: a voice list offers pagination; three is what a 
 const NUMBER_WORDS = ["", "one", "two", "three"];
 
 /** One spoken page of a list: up to three items from where the last page stopped, and how many are left after it. */
-function listPage<T>(items: T[], page = 1) {
+export function listPage<T>(items: T[], page = 1) {
   const start = (page - 1) * PAGE_SIZE;
   return { start, said: items.slice(start, start + PAGE_SIZE), left: Math.max(0, items.length - start - PAGE_SIZE) };
 }
 
 /** "Want the next two?": how a speaker with no screen hears that the list goes on. */
-const nextOffer = (left: number) => (left <= 0 ? "" : ` Want the next ${NUMBER_WORDS[Math.min(left, PAGE_SIZE)]}?`);
+export const nextOffer = (left: number) => (left <= 0 ? "" : ` Want the next ${NUMBER_WORDS[Math.min(left, PAGE_SIZE)]}?`);
 
 const chicago = (ms: number) => {
   const parts = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
@@ -222,15 +222,21 @@ export function spokenRecent(stationName: string, songs: { artist: string; title
 
 const ON_AIR_MAX_WORDS = 45;
 const ON_AIR_EXAMPLE_STATION = "HYFIN";
-interface OnAirStation { station: Station; song: { title: string; artist: string } | null }
+/** "88Nine Midday Show" → "Midday Show": Cadence names start with the station, which is redundant right after "88Nine". */
+export const withoutStationName = (name: string) => name.replace(/^88Nine\s+/i, "") || name;
+/** `show` is who's hosting (88Nine only, from its schedule). */
+interface OnAirStation { station: Station; song: { title: string; artist: string } | null; show?: { name: string; hosts: string[] } | null }
+/** "88Nine (Erin Wolf, Midday Show)", or just the station's name when its schedule says nothing. */
+const onAirName = ({ station, show }: OnAirStation) =>
+  show ? `${STATION_NAMES[station]} (${[listOf(show.hosts), withoutStationName(show.name)].filter(Boolean).join(", ")})` : STATION_NAMES[station];
 const keepListening = (name: string) => `Say 'Alexa, play ${name}' to keep listening.`;
 const wordCount = (text: string) => text.split(/\s+/).filter(Boolean).length;
 
 function allOnAir(stations: OnAirStation[], withArtists: boolean): string {
   const said = (song: OnAirStation["song"]) => (song ? `"${song.title}"${withArtists ? ` by ${song.artist}` : ""}` : "live");
   const [first, ...rest] = stations;
-  const lead = `${STATION_NAMES[first.station]} ${first.song ? `is playing ${said(first.song)}` : "is live"}`;
-  const others = rest.map(({ station, song }) => `; ${STATION_NAMES[station]}, ${said(song)}`).join("");
+  const lead = `${onAirName(first)} ${first.song ? `is playing ${said(first.song)}` : "is live"}`;
+  const others = rest.map((row) => `; ${onAirName(row)}, ${said(row.song)}`).join("");
   return `On air now: ${lead}${others}. ${keepListening(ON_AIR_EXAMPLE_STATION)}`;
 }
 
@@ -239,7 +245,7 @@ export function spokenOnAir(stations: OnAirStation[]): string {
   if (stations.length === 1) {
     const [{ station, song }] = stations;
     const name = STATION_NAMES[station];
-    return `${name} ${song ? `is playing "${song.title}" by ${song.artist}` : "is live now"}. ${keepListening(name)}`;
+    return `${onAirName(stations[0])} ${song ? `is playing "${song.title}" by ${song.artist}` : "is live now"}. ${keepListening(name)}`;
   }
   // ponytail: artists are the only thing dropped; four very long titles can still run past the cap.
   const full = allOnAir(stations, true);

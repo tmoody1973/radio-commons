@@ -22,6 +22,7 @@ const PHRASE_TOOLS: Record<string, string> = {
   "What can Radio Milwaukee do": "what_can_you_do",
   "What's on Radio Milwaukee right now": "on_air_now",
   "I want to support Radio Milwaukee": "support_radio_milwaukee",
+  "Who's on 88Nine right now": "station_schedule",
 };
 
 describe("Alexa+ add-on manifest", () => {

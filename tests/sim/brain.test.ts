@@ -161,6 +161,12 @@ describe("brain", () => {
     expect(SYSTEM_PROMPT).toMatch(/cancel_membership without confirmed/);
     expect(SYSTEM_PROMPT).toMatch(/only after the listener says yes/i);
   });
+  it("sends who's on and when a show is on to station_schedule, and the song playing to on_air_now", () => {
+    expect(SYSTEM_PROMPT).toMatch(/who's on[^.]*station_schedule/i);
+    expect(SYSTEM_PROMPT).toMatch(/when is Rhythm Lab on[^.]*station_schedule/i);
+    expect(SYSTEM_PROMPT).toMatch(/did I miss/i);
+    expect(SYSTEM_PROMPT).toMatch(/what song is playing[^.]*on_air_now/i);
+  });
   it("knows the event tools and points to the screen for the calendar", () => {
     expect(SYSTEM_PROMPT).toContain("find_events");
     expect(SYSTEM_PROMPT).toMatch(/nearStoryId/);
