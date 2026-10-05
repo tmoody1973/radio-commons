@@ -5,9 +5,12 @@ const secret = Buffer.alloc(32, 3).toString("base64");
 
 describe("session cookie", () => {
   it("round-trips and hides the contents", () => {
-    const sealed = sealSession({ accessToken: "at", refreshToken: "rt", expiresAt: 5 }, secret);
-    expect(sealed).not.toContain("at");
-    expect(openSession(sealed, secret)).toEqual({ accessToken: "at", refreshToken: "rt", expiresAt: 5 });
+    // Long, distinctive values: random ciphertext can't contain them by chance (a 2-letter "at" sometimes did).
+    const tokens = { accessToken: "access-token-plaintext-1", refreshToken: "refresh-token-plaintext-2", expiresAt: 5 };
+    const sealed = sealSession(tokens, secret);
+    expect(sealed).not.toContain(tokens.accessToken);
+    expect(sealed).not.toContain(tokens.refreshToken);
+    expect(openSession(sealed, secret)).toEqual(tokens);
   });
   it("returns null for tampered, garbage, or wrong-secret cookies", () => {
     const sealed = sealSession({ accessToken: "at", refreshToken: "rt", expiresAt: 5 }, secret);

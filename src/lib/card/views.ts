@@ -1,10 +1,11 @@
 import type { Passage, Story, StoryCardMatch } from "@/lib/backstory";
 import type { PublicEvent } from "@/lib/fieldGuide";
 import type { Badge } from "@/lib/map/geo";
+import type { Digest, DigestItem } from "@/lib/playlist";
 import { pinnedPlaces } from "@/lib/map/staticMap";
 import { directionsUrl, streetAddress } from "@/lib/maps";
 import { ARTICLE_SOURCE, clock, longDate, monthYear } from "@/lib/speech";
-import type { SongCard } from "./song";
+import { STATION_NAMES, type SongCard } from "./song";
 import { SITE } from "./tokens";
 
 export interface MapData { url: string; w: number; h: number; badges: Badge[]; anchor?: { x: number; y: number; name: string } }
@@ -18,7 +19,8 @@ export type CardView =
   | { view: "events"; items: EventItem[] }
   | { view: "events-map"; items: EventItem[]; map: MapData }
   | { view: "song"; song: SongCard }
-  | { view: "songs"; songs: SongCard[] };
+  | { view: "songs"; songs: SongCard[] }
+  | { view: "digest"; artists: Digest["artists"]; items: DigestItem[] };
 
 const escape = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
@@ -222,6 +224,36 @@ function songsView(songs: SongCard[]): string {
   return `<article class="card stories">${LOGO}<div class="carousel">${tiles}</div></article>`;
 }
 
+const shortDay = (ms: number) => new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "America/Chicago" }).format(ms).replace(",", "");
+const stationLabel = (slug: string) => STATION_NAMES[slug as keyof typeof STATION_NAMES] ?? slug;
+
+function digestLine(item: DigestItem): string {
+  switch (item.kind) {
+    case "spins": return `Played ${item.total}× on ${item.byStation.map((s) => stationLabel(s.station)).join(", ")}`;
+    case "show": return `${item.venue} · ${shortDay(item.startsAtMs)}`;
+    case "story": return `New: ${item.show} story`;
+    case "apple": return "";
+  }
+}
+
+/** One tile per followed artist that has news, plus Apple Music status as a closing text line. */
+function digestView(artists: Digest["artists"], items: DigestItem[]): string {
+  const tiles = artists.flatMap((artist) => {
+    const mine = items.filter((item) => "artistId" in item && item.artistId === artist.artistId);
+    if (mine.length === 0) return [];
+    const story = mine.find((item): item is Extract<DigestItem, { kind: "story" }> => item.kind === "story");
+    const ask = story ? `<button type="button" class="secondary ask" data-ask="${escape(`Play the ${story.show} story about ${artist.name}`)}">Play story</button>` : "";
+    return [`<article class="tile digest">${art(artist.artworkUrl, artist.name, "tile-art")}<span class="tile-title">${escape(artist.name)}</span>`
+      + `<span class="tile-date">${mine.map((item) => escape(digestLine(item))).join("<br>")}</span>${ask ? `<span class="tile-actions">${ask}</span>` : ""}</article>`];
+  }).join("");
+  const apple = items.flatMap((item) => (item.kind === "apple" ? [
+    ...(item.added > 0 ? [`${item.added} of your saved songs ${item.added === 1 ? "is" : "are"} in Apple Music.`] : []),
+    ...(item.expired > 0 ? ["Apple Music needs reconnecting at radiomilwaukee.org/connect."] : []),
+  ] : []));
+  const note = apple.length ? `<p class="line small">${escape(apple.join(" "))}</p>` : "";
+  return `<article class="card stories">${LOGO}<div class="carousel">${tiles}</div>${note}</article>`;
+}
+
 export function renderView(card: CardView): string {
   switch (card.view) {
     case "story": return storyView(card.story, card.releaseEvent ?? null);
@@ -232,5 +264,6 @@ export function renderView(card: CardView): string {
     case "events-map": return eventsMapView(card.items, card.map);
     case "song": return songView(card.song);
     case "songs": return songsView(card.songs);
+    case "digest": return digestView(card.artists, card.items);
   }
 }

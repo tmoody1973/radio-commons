@@ -1,13 +1,13 @@
-import { creditLines } from "@/lib/card/song";
+import { creditLines, STATION_NAMES } from "@/lib/card/song";
 import type { Passage, Story, StoryCardMatch } from "@/lib/backstory";
 import type { PublicEvent, When } from "@/lib/fieldGuide";
-import type { FindRow, RecallResult, SavedFind, TrackFacts } from "@/lib/playlist";
+import type { DigestItem, FindRow, FollowResult, RecallResult, SavedFind, Station, TrackFacts, UnfollowResult } from "@/lib/playlist";
 import { localClock } from "@/lib/stationTime";
 import { streetAddress } from "@/lib/maps";
 
 export const UNAVAILABLE_SPEECH = "I can't reach Radio Milwaukee's stories right now. Please try again in a minute.";
 export const PLAYLIST_UNAVAILABLE_SPEECH = "I can't reach Radio Milwaukee's playlist right now. Please try again in a moment.";
-export const LINK_ACCOUNT_SPEECH = "Link your Radio Milwaukee account to save songs.";
+export const LINK_ACCOUNT_SPEECH = "Link your Radio Milwaukee account to save songs and follow artists.";
 export const NOT_FOUND_SPEECH = "I couldn't find that Radio Milwaukee story.";
 export const NOT_ALLOWED_SPEECH = "Detailed answers aren't available for this episode.";
 export const NO_PASSAGE_SPEECH = "I couldn't find that in the episode.";
@@ -206,7 +206,22 @@ export function spokenSearch(query: string, top: { artist: string; title: string
 export function spokenSaved(saved: SavedFind): string {
   if (saved.status === "not_found") return "I couldn't find that play anymore — which song did you mean?";
   const already = saved.alreadySaved ? "It was already in your Finds, so I moved it to the top" : `Saved "${saved.title}" by ${saved.artist} to your 88Nine Finds`;
-  return saved.appleMusic === "pending" ? `${already}, and I'm adding it to Apple Music.` : `${already}.`;
+  const base = saved.appleMusic === "pending" ? `${already}, and I'm adding it to Apple Music.` : `${already}.`;
+  const hint = saved.appleMusic === "not_linked" && !saved.recentlySaved ? ` ${APPLE_HINT}` : "";
+  return `${base}${savedExtras(saved)}${hint}`;
+}
+
+const APPLE_HINT = "To add these to your Apple Music library too, connect it at radiomilwaukee.org slash connect.";
+const showDay = (ms: number) => new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "America/Chicago" }).format(ms);
+
+/** " I'll keep an eye out for Thao — they play Turner Hall in Milwaukee on Friday, October 9, and we have their Studio Milwaukee story." Each part is optional. */
+function savedExtras(saved: Extract<SavedFind, { status: "ok" }>): string {
+  const follow = saved.firstFollow ? `I'll keep an eye out for ${saved.artistName}` : "";
+  const show = saved.nextShow ? `they play ${saved.nextShow.venue} in ${saved.nextShow.city} on ${showDay(saved.nextShow.startsAtMs)}` : "";
+  const story = saved.story ? `we have their ${saved.story.show} story` : "";
+  const lead = follow ? (show ? `${follow} — ${show}` : follow) : show ? `${saved.artistName} ${show.replace(/^they play /, "plays ")}` : "";
+  const sentence = story ? (lead ? `${lead}, and ${story}` : `We have a ${saved.story?.show} story about ${saved.artistName}`) : lead;
+  return sentence ? ` ${sentence}.` : "";
 }
 
 export function spokenFinds(finds: FindRow[]): string {
@@ -219,4 +234,41 @@ export function spokenFinds(finds: FindRow[]): string {
 export function spokenDeleted({ deletedFinds, deletedLink }: { deletedFinds: number; deletedLink: boolean }): string {
   const finds = `${deletedFinds} ${deletedFinds === 1 ? "find" : "finds"}`;
   return `Done. I deleted ${finds}${deletedLink ? " and disconnected Apple Music" : ""}.`;
+}
+
+export const WHICH_ARTIST_TO_FOLLOW_SPEECH = "Which artist should I follow?";
+export const WHICH_ARTIST_TO_UNFOLLOW_SPEECH = "Which artist should I stop following?";
+const unknownArtist = (name: string) => `I don't have ${name} in our playlist yet.`;
+
+/** `said` is the name the listener used; absent when they only gave a playId. */
+export function spokenFollowed(result: FollowResult, said: string | undefined): string {
+  if (result.status === "unknown_artist") return unknownArtist(said ?? "that artist");
+  return result.firstFollow ? `I'll follow ${result.artistName}. Ask me what's new for you anytime.` : `You're already following ${result.artistName}.`;
+}
+
+export function spokenUnfollowed(result: UnfollowResult, said: string): string {
+  if (result.status === "unknown_artist") return unknownArtist(said);
+  if (result.status === "not_following") return `You're not following ${said}.`;
+  return `Done — I won't keep an eye out for ${result.artistName} anymore.`;
+}
+
+export const EMPTY_DIGEST_NO_PICKS_SPEECH = "Nothing new from your artists yet.";
+export const EMPTY_DIGEST_SPEECH = "Nothing new from your artists yet — here's what the station's excited about.";
+const DIGEST_SPOKEN_ITEMS = 3;
+const timesSaid = (count: number) => (count === 1 ? "once" : count === 2 ? "twice" : `${count} times`);
+const stationName = (slug: string) => STATION_NAMES[slug as Station] ?? slug;
+
+function spokenDigestItem(item: DigestItem, isFirst: boolean): string {
+  switch (item.kind) {
+    case "show": return `${item.artist} plays ${item.venue} in ${item.city} on ${showDay(item.startsAtMs)}.`;
+    case "spins": return `${listOf(item.byStation.map((s, i) => `${stationName(s.station)}${i === 0 ? ` played ${item.artist}` : ""} ${timesSaid(s.count)}`))}.`;
+    case "story": return `${isFirst ? "" : "And "}there's a new ${item.show} story about ${item.artist}.`;
+    case "apple": return [item.added > 0 ? `${item.added} of your saved songs ${item.added === 1 ? "is" : "are"} in Apple Music.` : "", item.expired > 0 ? "Apple Music needs reconnecting at radiomilwaukee.org slash connect." : ""].filter(Boolean).join(" ");
+  }
+}
+
+/** The top few things that happened since the listener last asked, as one spoken run. */
+export function spokenDigest(items: DigestItem[]): string {
+  const spoken = items.slice(0, DIGEST_SPOKEN_ITEMS).map((item, i) => spokenDigestItem(item, i === 0)).filter(Boolean);
+  return `Since your last visit: ${spoken.join(" ")}`;
 }

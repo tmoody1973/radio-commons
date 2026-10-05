@@ -35,7 +35,7 @@ Behind it: [Backstory](https://github.com/tmoody1973/backstory), the station's s
 
 ```
 Listener ──voice──▶ Alexa+ ──MCP, Streamable HTTP──▶ radio-commons (Next.js on Vercel)
-                                                      ├─ /api/mcp          13 tools (mcp-handler); 3 need a linked account
+                                                      ├─ /api/mcp          16 tools (mcp-handler); 6 need a linked account
                                                       ├─ cards             MCP App (ui://radio-commons/story-card.html)
                                                       ├─ /api/map          Amazon Location map pictures (key stays server-side)
                                                       ├─ /.well-known/…    OAuth resource metadata (Alexa account linking via Clerk)
@@ -46,7 +46,7 @@ Listener ──voice──▶ Alexa+ ──MCP, Streamable HTTP──▶ radio-c
                      MKE Field Guide: /api/public/events, /api/public/picks (read-only)
 ```
 
-### The tools Alexa+ can call (13)
+### The tools Alexa+ can call (16)
 
 **Stories** (from Backstory; only editor-published)
 - **`find_station_story`** turns a listener's description into up to three published stories, read back as a numbered list. It also finds a story by something said in it ("the episode where they talked about stromboli"), but only in episodes whose detailed answers are on. If nothing matches well enough, it says so; it never guesses.
@@ -60,7 +60,7 @@ Listener ──voice──▶ Alexa+ ──MCP, Streamable HTTP──▶ radio-c
 
 **Songs** (from the station playlists: 88Nine, HYFIN, Rhythm Lab, 414 Music)
 - **`recent_songs`** — "What's playing?", "the last five songs on 88Nine": a numbered list with artwork and 30-second previews.
-- **`search_playlist`** — "When did you last play Nas?", "Have you played the new Thao song?": searches about the last day of plays on every station.
+- **`search_playlist`** — "When did you last play Nas?", "Have you played the new Thao song?": searches about two weeks of plays on every station.
 - **`find_song_played`** — "What was that song with horns around 8:15?": by station and time window, with descriptive cues.
 - **`get_track_story`** — "Tell me about this song": credits, album, year and the artist's upcoming local shows.
 
