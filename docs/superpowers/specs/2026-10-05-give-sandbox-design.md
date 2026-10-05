@@ -144,3 +144,12 @@ About **18 hours** (range 15–24): tiers, token and Amazon Pay wrapper with tes
 2. **Storage:** Clerk metadata for the demo (recommended), or a Convex `memberships` table now so the production path is ready?
 3. **Account:** sandbox-only developer account in your name, or start Radio Milwaukee's real merchant registration (which triggers the donations prior-approval review)?
 4. **Is Radio Milwaukee's 501(c)(3) status fine to state on the page** ("Radio Milwaukee is a 501(c)(3) nonprofit"), or leave tax language off the demo?
+
+## Decisions (Tarik, 2026-10-05)
+
+| Question | Decision |
+|---|---|
+| Amounts | The station's real membership levels. They live in one tier list in code; until Tarik supplies them, placeholder tiers are used. The station's donate page says one-time gifts under $60 go through a separate link, so membership appears to start at $60 a year. |
+| Storage | Clerk `privateMetadata` on the listener's account; a playlist database table only when real money starts. |
+| Account | Sandbox-only Amazon Pay developer account. No donations prior-approval review. |
+| Tax wording | None on the demo page. |
