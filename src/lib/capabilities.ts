@@ -1,7 +1,7 @@
 /**
- * What the add-on can do, for "what can you do?" and the simulator's start screen. Each example is word for word one of
- * the add-on's examplePhrases in alexa/addon-package/addon.json (a test holds them together), so a tap asks exactly what
- * Amazon tells listeners to say.
+ * What the add-on can do, for "what can you do?" and the simulator's start screen. Every one of the add-on's
+ * examplePhrases in alexa/addon-package/addon.json (Amazon allows only 3-4) is word for word a tile's example, so a tap
+ * asks exactly what Amazon tells listeners to say; the other tiles use phrases the turn evals already cover.
  */
 export interface Capability {
   title: string;
