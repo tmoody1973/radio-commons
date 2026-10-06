@@ -1,4 +1,4 @@
-# 008 — Artist interviews become a Backstory show, found by their web address, and they play
+# 009 — Artist interviews become a Backstory show, found by their web address, and they play
 
 **Decision** — Radio Milwaukee's artist interviews (88Nine conversations at `radiomilwaukee.org/discover-music/artist-interviews/…`) are a sixth Backstory show: transcribed, people and places pulled out, approved by an editor, then playable, searchable and quotable through Alexa. Because the station files them in its general "MPX Local Stories" feed rather than a collection of their own, Backstory picks them out by the start of their web address. Alexa plays the interview audio even though the station's content system (CDS, the NPR system the station publishes to) marks it "not streamable".
 

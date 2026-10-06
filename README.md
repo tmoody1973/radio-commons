@@ -181,7 +181,7 @@ Account linking uses the listener Clerk app (OAuth 2.1, PKCE S256, refresh token
 
 - Specs, one per slice: `docs/superpowers/specs/` (story tools, simulator, ask the episode, events, music coverage, station briefing)
 - Plans: `docs/superpowers/plans/`
-- Decisions, in plain English: `docs/decisions/` (001 foundation · 002 simulator · 003 transcript answers · 004 Amazon's design guide · 005 events from the Field Guide · 006 music coverage · 007 station briefing · 008 artist interviews)
+- Decisions, in plain English: `docs/decisions/` (001 foundation · 002 simulator · 003 transcript answers · 004 Amazon's design guide · 005 events from the Field Guide · 006 music coverage · 007 station briefing · 008 Amazon Pay sandbox donations (on its branch) · 009 artist interviews)
 - Donations: `docs/GIVE-SETUP.md` (Amazon Pay sandbox setup) and `docs/GIVE-PREMIUMS.md`
 - What we learned, slice by slice: `docs/LEARNING-LOG.md`
 - Who else is doing this, and the smart-speaker numbers: `docs/research/2026-10-04-landscape.md`
