@@ -84,6 +84,8 @@ interface Deps {
   cardHtml: () => string;
   /** Sandbox giving (support_radio_milwaukee, cancel_membership); null when Amazon Pay isn't configured. Defaults to the env. */
   give?: () => Give | null;
+  /** Which door: "voice" is Alexa+ at /api/mcp (default, unchanged); "chat" is ChatGPT at /api/chatgpt/mcp. */
+  surface?: "voice" | "chat";
 }
 
 interface ToolResult {
@@ -174,6 +176,7 @@ function placesCard(story: Story) {
 export function buildMcpHandler(deps: Deps) {
   const now = deps.now ?? (() => new Date());
   const give = deps.give ?? giveFromEnv;
+  const chat = deps.surface === "chat";
   const station = getStation();
   const shows = station.shows.map((s) => s.slug) as [string, ...string[]];
   const card = (view: CardView, extra: Record<string, unknown> = {}) => ({ stationId: station.stationId, view: view.view, cardHtml: renderView(view), ...extra });
@@ -850,6 +853,8 @@ export function buildMcpHandler(deps: Deps) {
           }, playlistUnavailable),
       );
 
+      // OpenAI's plugin rules forbid showing membership levels, starting subscriptions or linking to checkout.
+      if (!chat) {
       registerAppTool(
         server,
         "support_radio_milwaukee",
@@ -920,6 +925,7 @@ export function buildMcpHandler(deps: Deps) {
           }
         },
       );
+      }
 
       registerAppResource(server, "Story card", CARD_URI, { description: "A Radio Milwaukee story, quote, list or map, in Alexa+ style." }, async () => ({
         contents: [{ uri: CARD_URI, mimeType: RESOURCE_MIME_TYPE, text: deps.cardHtml(), _meta: { ui: { csp: CARD_CSP } } }],
