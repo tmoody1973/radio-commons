@@ -1,7 +1,7 @@
 import { createHmac, createSign, generateKeyPairSync } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { withMcpAuth } from "mcp-handler";
-import { gateAuthTools, listenerIdFrom, verifyListenerToken } from "@/lib/listenerAuth";
+import { gateAuthTools, listenerIdFrom, verifyChatGptToken, verifyListenerToken } from "@/lib/listenerAuth";
 
 const ok = async () => new Response("ok", { status: 200 });
 const rpc = (name: string, auth?: unknown) => {
@@ -73,6 +73,7 @@ describe("verifyListenerToken", () => {
   beforeEach(() => {
     vi.stubEnv("CLERK_LISTENER_ISSUER", ISSUER);
     vi.stubEnv("CLERK_LISTENER_OAUTH_CLIENT_ID", CLIENT_ID);
+    vi.stubEnv("CLERK_CHATGPT_OAUTH_CLIENT_ID", "chatgpt-client");
     vi.stubEnv("CLERK_LISTENER_JWT_KEY", publicKey.export({ type: "spki", format: "pem" }).toString());
   });
   afterEach(() => vi.unstubAllEnvs());
@@ -127,6 +128,25 @@ describe("verifyListenerToken", () => {
     });
     it("lets a valid listener token through to a Finds tool", async () => {
       expect((await route()(withBearer(rpc("save_find"), signJwt(claims())))).status).toBe(200);
+    });
+  });
+
+  describe("one client per door", () => {
+    const chatToken = () => signJwt(claims({ client_id: "chatgpt-client", azp: "chatgpt-client" }));
+    const verifyChat = (token?: string) => verifyChatGptToken(new Request("https://rc.example/api/chatgpt/mcp", { method: "POST" }), token);
+
+    it("the ChatGPT door accepts a token issued to the ChatGPT client", async () => {
+      expect((await verifyChat(chatToken()))?.extra.userId).toBe("user_1");
+    });
+    it("the ChatGPT door treats an Alexa+ token as signed out", async () => {
+      expect(await verifyChat(signJwt(claims()))).toBeUndefined();
+    });
+    it("the Alexa+ door treats a ChatGPT token as signed out", async () => {
+      expect(await verify(chatToken())).toBeUndefined();
+    });
+    it("the ChatGPT door is signed out for everyone when its client id isn't configured", async () => {
+      vi.stubEnv("CLERK_CHATGPT_OAUTH_CLIENT_ID", "");
+      expect(await verifyChat(chatToken())).toBeUndefined();
     });
   });
 

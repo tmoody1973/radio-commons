@@ -43,20 +43,28 @@ function verifiedClaims(token: string, key: KeyObject): AccessTokenClaims | unde
  * Clerk doesn't set `aud`, so the token is bound to us by issuer + our Alexa+ OAuth client id instead.
  * Undefined = anonymous: a bad token never errors, the listener just can't use the Finds tools.
  */
-export async function verifyListenerToken(_req: Request, bearer?: string): Promise<ListenerAuthInfo | undefined> {
-  const { CLERK_LISTENER_ISSUER: issuer, CLERK_LISTENER_JWT_KEY: pem, CLERK_LISTENER_OAUTH_CLIENT_ID: clientId } = process.env;
-  if (!bearer || !issuer || !pem || !clientId) return undefined;
-  try {
-    const claims = verifiedClaims(bearer, publicKeyFrom(pem));
-    if (!claims || claims.iss !== issuer || typeof claims.sub !== "string" || !claims.sub) return undefined;
-    if (typeof claims.exp !== "number" || claims.exp <= Date.now() / 1000) return undefined;
-    if ((claims.client_id ?? claims.azp) !== clientId) return undefined;
-    const scopes = typeof claims.scope === "string" ? claims.scope.split(" ").filter(Boolean) : [];
-    return { token: bearer, clientId, scopes, expiresAt: claims.exp, extra: { userId: claims.sub } };
-  } catch {
-    return undefined; // malformed token or key; never log the token
-  }
+function tokenVerifier(clientIdVar: "CLERK_LISTENER_OAUTH_CLIENT_ID" | "CLERK_CHATGPT_OAUTH_CLIENT_ID") {
+  return async (_req: Request, bearer?: string): Promise<ListenerAuthInfo | undefined> => {
+    const { CLERK_LISTENER_ISSUER: issuer, CLERK_LISTENER_JWT_KEY: pem } = process.env;
+    const clientId = process.env[clientIdVar];
+    if (!bearer || !issuer || !pem || !clientId) return undefined;
+    try {
+      const claims = verifiedClaims(bearer, publicKeyFrom(pem));
+      if (!claims || claims.iss !== issuer || typeof claims.sub !== "string" || !claims.sub) return undefined;
+      if (typeof claims.exp !== "number" || claims.exp <= Date.now() / 1000) return undefined;
+      if ((claims.client_id ?? claims.azp) !== clientId) return undefined;
+      const scopes = typeof claims.scope === "string" ? claims.scope.split(" ").filter(Boolean) : [];
+      return { token: bearer, clientId, scopes, expiresAt: claims.exp, extra: { userId: claims.sub } };
+    } catch {
+      return undefined; // malformed token or key; never log the token
+    }
+  };
 }
+
+/** Alexa+ door: tokens issued to the Alexa+ account-linking client. */
+export const verifyListenerToken = tokenVerifier("CLERK_LISTENER_OAUTH_CLIENT_ID");
+/** ChatGPT door: tokens issued to the ChatGPT client (same Clerk app and listeners, a second OAuth client). */
+export const verifyChatGptToken = tokenVerifier("CLERK_CHATGPT_OAUTH_CLIENT_ID");
 
 /** Amazon wants HTTP 401 for an auth-needing tool without a token; MCP tools can't set status, so the route does it. */
 export function gateAuthTools(handler: (req: Request) => Promise<Response>) {
