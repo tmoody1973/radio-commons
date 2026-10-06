@@ -3,7 +3,7 @@
 //      npm run eval:turns -- --speaker   (Echo Dot mode: also fails any reply that says "on screen", "tap" or "the card")
 import { loadEnvConfig } from "@next/env";
 import {
-  checkCancelNeedsLink, checkFollowThao, checkOnAirNow, checkSupport, checkRecentSongs, checkAsksWhichStation, checkRecentSongsPage, checkSaveNumber, screenWords, checkSaveStation, checkSearchPlaylist, checkStationArtistShows, checkStationSchedule, checkTrackStory, checkWhatCanYouDo, checkWhatsNew,
+  checkCancelNeedsLink, checkMembershipNeedsLink, checkSupportLevel, checkFollowThao, checkOnAirNow, checkSupport, checkRecentSongs, checkAsksWhichStation, checkRecentSongsPage, checkSaveNumber, screenWords, checkSaveStation, checkSearchPlaylist, checkStationArtistShows, checkStationSchedule, checkTrackStory, checkWhatCanYouDo, checkWhatsNew,
   type CheckResult, type ShownSong,
 } from "../src/lib/sim/evalChecks";
 import type { ChatMessage, TrailEntry } from "../src/lib/sim/trail";
@@ -52,6 +52,9 @@ const SCENARIOS: Scenario[] = [
   // Needs the Amazon Pay env on the target; without it the tool says donations aren't set up and this fails.
   { name: "support the station", steps: [{ text: "I want to support Radio Milwaukee", judge: checkSupport }] },
   { name: "cancel needs a linked account", steps: [{ text: "cancel my Radio Milwaukee membership", judge: checkCancelNeedsLink }] },
+  // The eval runs unlinked; the linked answers are covered by tests/giveTools.test.ts.
+  { name: "membership needs a linked account", steps: [{ text: "am I a Radio Milwaukee member", judge: checkMembershipNeedsLink }] },
+  { name: "upgrade opens one level", steps: [{ text: "upgrade me to Front Row", judge: checkSupportLevel("front-row") }] },
 ];
 
 function parseArgs(env: NodeJS.ProcessEnv): { baseUrl: string; passcode: string } {

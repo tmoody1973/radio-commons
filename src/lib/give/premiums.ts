@@ -14,6 +14,8 @@ export interface Premium {
   /** On the card, under the level. */
   line: string;
   items: readonly string[];
+  /** Said aloud after "includes" or "with": "a merch package: a t-shirt and a sticker". */
+  spoken: string;
   /** Has a t-shirt, so the listener picks a size. Hats are one size. */
   sized: boolean;
   /** Something goes in the mail, so Amazon Pay collects an address (PayAndShip). */
@@ -21,12 +23,13 @@ export interface Premium {
 }
 
 export const PREMIUMS: Readonly<Record<string, Premium>> = {
-  ga: { name: "Green Room newsletter", line: "Green Room newsletter", items: ["Green Room newsletter"], sized: false, shipped: false },
-  "main-floor": { name: "Main Floor gift: RadioMKE t-shirt", line: "RadioMKE t-shirt", items: ["RadioMKE t-shirt"], sized: true, shipped: true },
-  "front-row": { name: "Front Row merch package", line: "Merch package: t-shirt + sticker", items: ["RadioMKE t-shirt", "Sticker"], sized: true, shipped: true },
+  ga: { name: "Green Room newsletter", line: "Green Room newsletter", items: ["Green Room newsletter"], spoken: "the Green Room newsletter", sized: false, shipped: false },
+  "main-floor": { name: "Main Floor gift: RadioMKE t-shirt", line: "RadioMKE t-shirt", items: ["RadioMKE t-shirt"], spoken: "a RadioMKE t-shirt", sized: true, shipped: true },
+  "front-row": { name: "Front Row merch package", line: "Merch package: t-shirt + sticker", items: ["RadioMKE t-shirt", "Sticker"], spoken: "a merch package: a t-shirt and a sticker", sized: true, shipped: true },
   vip: {
     name: "VIP package", line: "VIP: hat, t-shirt, sticker + Studio Milwaukee Sessions for two",
-    items: ["Hat", "RadioMKE t-shirt", "Sticker", "Studio Milwaukee Sessions for two"], sized: true, shipped: true,
+    items: ["Hat", "RadioMKE t-shirt", "Sticker", "Studio Milwaukee Sessions for two"],
+    spoken: "a hat, a t-shirt and a sticker, plus an invitation for you and a guest to Studio Milwaukee Sessions", sized: true, shipped: true,
   },
 };
 

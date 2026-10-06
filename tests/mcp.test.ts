@@ -23,7 +23,7 @@ describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
     const init = await mcpPost(handler, INITIALIZE);
     expect(init.message.result?.protocolVersion).toBe("2025-11-25");
     const tools = await mcpPost(handler, { method: "tools/list" }, 2);
-    expect(tools.message.result.tools.map((t: { name: string }) => t.name).sort()).toEqual(["ask_station_story", "cancel_membership", "delete_my_finds", "find_events", "find_song_played", "find_station_story", "follow_artist", "get_station_story", "get_track_story", "latest_station_stories", "list_finds", "on_air_now", "recent_songs", "save_find", "search_playlist", "station_artist_shows", "station_briefing", "station_picks", "station_schedule", "support_radio_milwaukee", "unfollow_artist", "what_can_you_do", "whats_new_for_me"]);
+    expect(tools.message.result.tools.map((t: { name: string }) => t.name).sort()).toEqual(["ask_station_story", "cancel_membership", "delete_my_finds", "find_events", "find_song_played", "find_station_story", "follow_artist", "get_station_story", "get_track_story", "latest_station_stories", "list_finds", "my_membership", "on_air_now", "recent_songs", "save_find", "search_playlist", "station_artist_shows", "station_briefing", "station_picks", "station_schedule", "support_radio_milwaukee", "unfollow_artist", "what_can_you_do", "whats_new_for_me"]);
   });
 
   it("linked-account tools tell the host to always call them so Alexa+ can start account linking", async () => {

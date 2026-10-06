@@ -10,7 +10,8 @@ export const PLAYLIST_UNAVAILABLE_SPEECH = "I can't reach Radio Milwaukee's play
 export const LINK_ACCOUNT_SPEECH = "Link your Radio Milwaukee account to save songs and follow artists.";
 export const LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH = "Link your Radio Milwaukee account to manage your membership.";
 /** The account-linking prompt for one tool: membership tools say so; every other tool keeps the shared prompt. */
-export const linkAccountSpeech = (tool: string) => (tool === "cancel_membership" ? LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH : LINK_ACCOUNT_SPEECH);
+const MEMBERSHIP_TOOLS = new Set(["cancel_membership", "my_membership"]);
+export const linkAccountSpeech = (tool: string) => (MEMBERSHIP_TOOLS.has(tool) ? LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH : LINK_ACCOUNT_SPEECH);
 export const NOT_FOUND_SPEECH = "I couldn't find that Radio Milwaukee story.";
 export const NOT_ALLOWED_SPEECH = "Detailed answers aren't available for this episode.";
 export const NO_PASSAGE_SPEECH = "I couldn't find that in the episode.";

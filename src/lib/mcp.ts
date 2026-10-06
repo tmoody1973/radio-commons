@@ -25,11 +25,12 @@ import { NewsletterUnavailable, newsletterFromEnv, type NewsletterClient } from 
 import { STREAM_HOST } from "@/lib/streams";
 import QRCode from "qrcode";
 import {
-  CANCEL_FAILED_SPEECH, CANCELLED_SPEECH, CARD_LINK_TTL_MS, confirmCancelSpeech, GIVE_SPEECH, GIVE_UNAVAILABLE_SPEECH, giveFromEnv, memberLine, NO_MEMBERSHIP_SPEECH, type Give,
+  CANCEL_FAILED_SPEECH, CANCELLED_SPEECH, CARD_LINK_TTL_MS, confirmCancelSpeech, GIVE_SPEECH, GIVE_UNAVAILABLE_SPEECH, giveFromEnv, levelSpeech, memberLine, MEMBERSHIP_CANCELLED_SPEECH,
+  MEMBERSHIP_READ_FAILED_SPEECH, membershipFacts, membershipSpeech, NO_MEMBERSHIP_SPEECH, NOT_A_MEMBER_SPEECH, type Give,
 } from "@/lib/give";
 import { cancelMembership } from "@/lib/give/amazonPay";
 import { sealListener } from "@/lib/give/token";
-import { TIERS } from "@/lib/give/tiers";
+import { LEVELS, tierById, TIERS } from "@/lib/give/tiers";
 
 export const CARD_URI = "ui://radio-commons/story-card.html";
 const CLOCK_TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -69,6 +70,7 @@ const PAGING = " Speaks three at a time; when the reply offers the next ones and
 const CARD = { _meta: { ui: { resourceUri: CARD_URI } } };
 // "Thanks for being a member" is a nicety: past this, the digest goes out without it.
 const MEMBER_LINE_BUDGET_MS = 300;
+const LEVEL_SLUG = z.enum(LEVELS.map((level) => level.slug) as [string, ...string[]]);
 
 interface Deps {
   backstory: () => BackstoryClient;
@@ -268,7 +270,7 @@ export function buildMcpHandler(deps: Deps) {
       : matches.length === 1 ? card({ view: "song", song: songCardFromMatch(matches[0], slug) })
         : card({ view: "songs", songs: matches.map((match) => songCardFromMatch(match, slug)) });
   // The give card: every tier's /give link (sealed listener token when linked) and a QR of the short page for screens without a browser.
-  const giveCard = async (setup: Give, listenerId: string | undefined) => {
+  const giveCard = async (setup: Give, listenerId: string | undefined, selected?: string) => {
     const token = listenerId ? sealListener(listenerId, setup.tokenSecret, CARD_LINK_TTL_MS, now().getTime()) : null;
     const giveUrl = (tier?: string) => {
       const url = new URL("/give", SITE);
@@ -277,8 +279,9 @@ export function buildMcpHandler(deps: Deps) {
       return url.toString();
     };
     const links = Object.fromEntries(TIERS.map((tier) => [tier.id, giveUrl(tier.id)]));
-    const qrSvg = await QRCode.toString(giveUrl(), { type: "svg", margin: 1, errorCorrectionLevel: "M" });
-    return card({ view: "give", links, qrSvg, shortUrl: `${new URL(SITE).host}/give` }, { links });
+    // A chosen level's QR opens that level's page, so a phone continues where the listener left off.
+    const qrSvg = await QRCode.toString(giveUrl(selected), { type: "svg", margin: 1, errorCorrectionLevel: "M" });
+    return card({ view: "give", links, qrSvg, shortUrl: `${new URL(SITE).host}/give`, selected }, { links, ...(selected ? { selected } : {}) });
   };
   // Null on any failure or after the budget: a membership lookup must never slow or break the digest.
   const activeMembership = async (listenerId: string) => {
@@ -852,14 +855,41 @@ export function buildMcpHandler(deps: Deps) {
         "support_radio_milwaukee",
         {
           title: "Support Radio Milwaukee",
-          description: "Become a Radio Milwaukee member (monthly) or make a one-time gift, with Amazon Pay. This is a sandbox demo: no real money moves, and the reply says so. Shows a card with the station's membership levels; each opens a secure Amazon Pay page. Use for \"I want to support Radio Milwaukee\", \"donate\", \"become a member\", \"give to the station\". No linked account needed. Speak the reply as given.",
+          description: "Become a Radio Milwaukee member (monthly) or make a one-time gift, with Amazon Pay. This is a sandbox demo: no real money moves, and the reply says so. Shows a card with the station's membership levels; each opens a secure Amazon Pay page. Use for \"I want to support Radio Milwaukee\", \"donate\", \"become a member\", \"give to the station\". For one level (\"upgrade me to Front Row\", \"I want the VIP membership\", \"what do VIP members get\"), pass level (ga, main-floor, front-row or vip) and kind \"once\" only for a one-time gift: the card opens on that level. Not for checking the listener's own membership (my_membership). No linked account needed. Speak the reply as given.",
+          inputSchema: z.object({ level: LEVEL_SLUG.optional(), kind: z.enum(["monthly", "once"]).optional() }),
+          ...CARD,
+        },
+        async ({ level, kind }, context) => {
+          const setup = give();
+          if (!setup) return { content: text(GIVE_UNAVAILABLE_SPEECH) };
+          const tier = level ? tierById(`${level}-${kind ?? "monthly"}`) : undefined;
+          return { content: text(tier ? levelSpeech(tier) : GIVE_SPEECH), structuredContent: await giveCard(setup, listenerIdFrom(context.http ?? {}), tier?.id) };
+        },
+      );
+
+      registerAppTool(
+        server,
+        "my_membership",
+        {
+          title: "My Radio Milwaukee membership",
+          description: "The listener's own Radio Milwaukee membership (an Amazon Pay sandbox demo), read only: level, amount, member since, the month of the next charge, their gift and what the level includes. Always call this tool when the listener asks, even if they may not have linked their account — the tool starts account linking itself. Use for \"am I a member\", \"what's my membership\", \"when does my membership renew\", \"what do I get as a member\". Not for joining, giving or upgrading (support_radio_milwaukee) or cancelling (cancel_membership). Speak the reply as given.",
           inputSchema: z.object({}),
+          annotations: { readOnlyHint: true },
           ...CARD,
         },
         async (_args, context) => {
+          const listenerId = listenerIdFrom(context.http ?? {});
+          if (!listenerId) return accountLinkingRequired(LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH);
           const setup = give();
-          if (!setup) return { content: text(GIVE_UNAVAILABLE_SPEECH) };
-          return { content: text(GIVE_SPEECH), structuredContent: await giveCard(setup, listenerIdFrom(context.http ?? {})) };
+          if (!setup?.memberships) return { content: text(GIVE_UNAVAILABLE_SPEECH) };
+          try {
+            const membership = await setup.memberships.get(listenerId);
+            if (membership?.status !== "active") return { content: text(membership ? MEMBERSHIP_CANCELLED_SPEECH : NOT_A_MEMBER_SPEECH), structuredContent: { member: false } };
+            return { content: text(membershipSpeech(membership)), structuredContent: card({ view: "membership", ...membershipFacts(membership) }, { member: true }) };
+          } catch {
+            console.error(JSON.stringify({ event: "membership_read_failed" }));
+            return { content: text(MEMBERSHIP_READ_FAILED_SPEECH), isError: true };
+          }
         },
       );
 
