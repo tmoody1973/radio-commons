@@ -97,6 +97,17 @@ Listener ──voice──▶ Alexa+ ──MCP, Streamable HTTP──▶ radio-c
 
 **Trust rules:** only editor-published stories; every answer names its show and month; summaries are described as the station's, never as the assistant's; no invented stories; the database is never exposed to Alexa directly.
 
+### Built on AWS
+
+| AWS service | What it does | Where |
+|---|---|---|
+| **Amazon Bedrock** (Claude Haiku 4.5, Converse API) | Backstory: pulls people, places and actions out of every transcript, each with a word-for-word quote checked before an editor sees it. Simulator: plays Alexa+, calling this MCP server with tool use | [backstory `convex/aws/extract.ts`](https://github.com/tmoody1973/backstory/blob/main/convex/aws/extract.ts); `src/lib/sim/brain.ts` |
+| **Amazon Polly** | The simulator's voice, streamed through a short-lived signed link | `src/lib/sim/tts.ts` |
+| **Amazon Location Service** | Map pictures on Echo Show cards and the pan-and-zoom map (key server-side); geocoding and place details (phone, website, hours) for story places; 154 of 155 event-guide venues pinned for about $1.25 | `src/app/api/map/route.ts`, `src/lib/map/staticMap.ts`; [backstory `convex/aws/geocode.ts`](https://github.com/tmoody1973/backstory/blob/main/convex/aws/geocode.ts), `placeDetails.ts` |
+| **Amazon Transcribe + S3** | Backstory's fallback transcriber; a 19-episode bake-off chose Deepgram as default for local names (`TRANSCRIBER=transcribe` switches back) | [backstory `convex/aws/transcribe.ts`](https://github.com/tmoody1973/backstory/blob/main/convex/aws/transcribe.ts) |
+
+Least privilege: the simulator's IAM user can only invoke the Haiku inference profile and Polly. Also from Amazon, not AWS: **Amazon Pay** (sandbox memberships) and the **Alexa+** add-on itself.
+
 ## Try the Alexa+ simulator
 
 Amazon isn't giving hackathon participants the Alexa+ developer tools or simulator (Amazon, on the hackathon forum: "Access to the Alexa+ developer tools will not be granted to hackathon participants"), and the rules allow a simulated Alexa+. So **https://radio-commons.vercel.app/simulator** plays the part of Alexa+ around the same MCP server:
