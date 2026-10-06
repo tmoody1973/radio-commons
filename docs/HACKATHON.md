@@ -124,4 +124,4 @@ What we used and what we'd tell each vendor: `FEEDBACK.md`. Every decision, in p
 
 ## Team
 
-Tarik Moody, Radio Milwaukee (88Nine Radio Milwaukee), with Claude Code.
+Tarik Moody, Director of Strategy and Innovation at Radio Milwaukee (88Nine), where he has worked for nearly 20 years, with Claude Code. Built from inside the station, for stations.
