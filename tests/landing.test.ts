@@ -37,17 +37,19 @@ describe("judges page (/how-it-works)", () => {
     expect(read("src/app/page.tsx")).toContain("<a href={L.links.judges}>For judges</a>");
   });
 
-  it("renders the six sections, in order, as h2 headings", () => {
+  it("renders the seven sections, in order, as h2 headings", () => {
     expect(Object.values(HOW_IT_WORKS.sections)).toEqual([
-      "The two-session demo", "One sentence, five services", "What we remember, and how to erase it", "Try a donation (sandbox)", "Built on Alexa+", "Status",
+      "The two-session demo", "One sentence, five services", "What we remember, and how to erase it", "Try a donation (sandbox)", "Built on Alexa+", "Built on AWS", "Status",
     ]);
     const page = read("src/app/how-it-works/page.tsx");
-    const order = ["demo", "flow", "memory", "give", "alexa", "status"].map((k) => page.indexOf(`{H.sections.${k}}</h2>`));
+    const order = ["demo", "flow", "memory", "give", "alexa", "aws", "status"].map((k) => page.indexOf(`{H.sections.${k}}</h2>`));
     expect(order.every((i) => i > 0)).toBe(true);
     expect(page.indexOf("<Demo />")).toBeLessThan(page.indexOf("<Flow />"));
     expect(page.indexOf("<Memory />")).toBeLessThan(page.indexOf("<Give />"));
     expect(page.indexOf("<Give />")).toBeLessThan(page.indexOf("<Alexa />"));
-    expect(page.indexOf("<Alexa />")).toBeLessThan(page.indexOf("<Status />"));
+    expect(page.indexOf("<Alexa />")).toBeLessThan(page.indexOf("<Aws />"));
+    expect(page.indexOf("<Aws />")).toBeLessThan(page.indexOf("<Status />"));
+    expect(HOW_IT_WORKS.aws.map((a) => a.title)).toEqual(["Amazon Bedrock", "Amazon Polly", "Amazon Location Service", "Amazon Transcribe and S3"]);
   });
 
   it("the save runs across five services, in order", () => {

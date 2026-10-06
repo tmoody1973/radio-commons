@@ -13,6 +13,7 @@ export const HOW_IT_WORKS = {
     memory: "What we remember, and how to erase it",
     give: "Try a donation (sandbox)",
     alexa: "Built on Alexa+",
+    aws: "Built on AWS",
     status: "Status",
   },
   sessionsData: "Real data from the playlist, as of October 4, 2026",
@@ -70,6 +71,12 @@ export const HOW_IT_WORKS = {
     { title: "MCP 2025-11-25, Streamable HTTP", text: "One endpoint, /api/mcp, with tools for stories, the weekly briefing, events, songs, the 88Nine schedule, Finds, listener memory and membership. Tools that touch a listener’s own data need a linked account." },
     { title: "Account linking, per Amazon’s spec", text: "Clerk as the sign-in server: OAuth 2.1 with PKCE (S256), refresh tokens, the add-on sends the RFC 8707 resource parameter during account linking, and RFC 9728 protected-resource metadata at /.well-known/oauth-protected-resource." },
     { title: "MCP Apps cards", text: "Every answer works by voice alone, and on an Echo Show it also returns a card built to Amazon’s MCP design guide: song lists with artwork and 30-second previews, and the digest." },
+  ],
+  aws: [
+    { title: "Amazon Bedrock", text: "Claude Haiku 4.5 through the Converse API does two jobs. In Backstory it pulls people, places and actions out of every transcript, each with a word-for-word quote that is checked before an editor sees it (backstory convex/aws/extract.ts). In the simulator it plays Alexa+, calling the real MCP server with tool use (src/lib/sim/brain.ts)." },
+    { title: "Amazon Polly", text: "The simulator’s voice. Replies stream through a short-lived signed link, so the first words play about half a second after the reply is ready (src/lib/sim/tts.ts)." },
+    { title: "Amazon Location Service", text: "Map pictures on the Echo Show cards and the pan-and-zoom map (the key stays on the server: src/app/api/map/route.ts, src/lib/map/staticMap.ts); geocoding and place details (phone, website, hours) for every place in a story (backstory convex/aws/geocode.ts, placeDetails.ts); 154 of 155 event-guide venues pinned for about $1.25." },
+    { title: "Amazon Transcribe and S3", text: "Backstory’s fallback transcriber (backstory convex/aws/transcribe.ts). A 19-episode bake-off chose Deepgram as the default for local names; the AWS path stays one setting away (TRANSCRIBER=transcribe)." },
   ],
   limits: [
     "Station stories appear only for artists Radio Milwaukee has covered, such as its premieres and Studio Milwaukee sessions.",

@@ -108,6 +108,22 @@ function Give() {
   );
 }
 
+function Aws() {
+  return (
+    <section id="aws" aria-labelledby="aws-h" className={`${styles.wrap} ${styles.section}`}>
+      <h2 id="aws-h" className={styles.h2}>{H.sections.aws}</h2>
+      <div className={styles.cols2}>
+        {H.aws.map((a) => (
+          <div key={a.title} className={styles.stack}>
+            <h3 className={styles.stepTitle}>{a.title}</h3>
+            <p className={styles.body}>{a.text}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function Alexa() {
   return (
     <section id="alexa" aria-labelledby="alexa-h" className={styles.white}>
@@ -188,6 +204,7 @@ export default function HowItWorks() {
         <Memory />
         <Give />
         <Alexa />
+        <Aws />
         <Status />
       </main>
       <footer className={styles.dark}>
