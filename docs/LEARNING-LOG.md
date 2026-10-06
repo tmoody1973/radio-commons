@@ -93,3 +93,15 @@
 
 **What we now believe:** test matching rules on the real links, not the ones you'd write yourself; the live data had a case the tests didn't. And when unsure, a weaker answer (a Read link) beats a confident wrong one.
 
+## 2026-10-05: artist interviews (Backstory show 6)
+
+**What we expected:** interviews would have their own collection in CDS, like Ladies First, so adding them would be one new show profile.
+
+**What happened:**
+- They don't. Interviews live in the station's general local-stories feed beside concert listings and event guides. The only reliable marker was the web address, so the show is defined as "this feed, but only pages under /discover-music/artist-interviews/". One searched window hit its 100-story limit and had to be re-searched to find a 16th interview.
+- The import created all 16 and every one went through transcription and extraction without an error. The extraction instructions said guests aren't always musicians, and Jeff Levering and the 28 players and broadcasters he named all came out as people, not artists.
+- The transcript misspelled two players the station's article spelled correctly. The summary Alexa reads was clean; the quotable transcript wasn't.
+- Within an hour of the import, the Levering interview was approved and the briefing's first item changed from Read to Play with no change to the briefing.
+
+**What we now believe:** look at how the station actually files things before designing around its labels; "artist interviews" was a web section, not a collection. Build features so they connect through shared addresses (here, a page's URL), and new content lights up old features for free.
+
