@@ -6,6 +6,7 @@ export const HOW_IT_WORKS = {
   eyebrow: "For hackathon judges",
   headline: "One sentence, five services, and a station that remembers you.",
   lead: "Alexa+ keeps the current conversation. Amazon leaves memory across sessions to each add-on, so Radio Commons keeps it: the artists you follow, the list you were just shown, and what changed since you last asked.",
+  builtBy: "Built by Tarik Moody, Director of Strategy and Innovation at Radio Milwaukee for nearly 20 years: a station building for stations.",
   sections: {
     demo: "The two-session demo",
     flow: "One sentence, five services",

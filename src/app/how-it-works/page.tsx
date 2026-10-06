@@ -176,6 +176,7 @@ export default function HowItWorks() {
             <p className={styles.eyebrow}>{H.eyebrow}</p>
             <h1 className={styles.h1}>{H.headline}</h1>
             <p className={styles.lead}>{H.lead}</p>
+            <p className={styles.note}>{H.builtBy}</p>
           </div>
         </div>
       </header>

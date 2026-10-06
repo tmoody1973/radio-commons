@@ -54,7 +54,7 @@ export const LANDING = {
     { title: "One profile per show", text: "Adding a show means adding a short profile: what to look for, who reviews it." },
     { title: "Open source", text: "The MCP server, the story engine and the review tools are on GitHub." },
   ],
-  footer: "Built by Tarik Moody for 88Nine Radio Milwaukee · Alexa+ hackathon 2026",
+  footer: "Built by Tarik Moody, Director of Strategy and Innovation at Radio Milwaukee, where he’s worked for nearly 20 years · Alexa+ hackathon 2026",
   links: {
     simulator: "/simulator",
     judges: "/how-it-works",
