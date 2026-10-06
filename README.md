@@ -4,28 +4,31 @@
 
 Pilot station: [88Nine Radio Milwaukee](https://radiomilwaukee.org). Built for the Amazon Developer Hackathon 2026 (Alexa+ track). **Site:** https://radio-commons.vercel.app · **Simulator:** https://radio-commons.vercel.app/simulator
 
-## Status (October 4, 2026)
+## Status (October 6, 2026)
 
 **Built and live**
 
 | Area | What a listener can do | Since |
 | --- | --- | --- |
-| Stories | Find a This Bites, Uniquely Milwaukee or Ladies First episode by what they remember (even words said in it), hear the summary, play it, see its places on a map, get directions, ask a detail question answered in the episode's own words at the exact moment | Oct 2–3 |
+| Stories | Find a This Bites, Uniquely Milwaukee, Ladies First or Radio Milwaukee Artist Interviews episode by what they remember (even words said in it), hear the summary, play it, see its places on a map, get directions, ask a detail question answered in the episode's own words at the exact moment | Oct 2–3 |
 | Events | "What's on near there tonight?" from Radio Milwaukee's event guide (the MKE Field Guide): map near a story's places, carousel by day or type, free shows, Add to calendar, restaurant Reserve links | Oct 3–4 |
 | Picks | "What is Radio Milwaukee recommending?": staff picks plus the station's weekly MKE Concert Picks (imported automatically each week) | Oct 4 |
 | Music | Milwaukee Music Premieres (30, with Play song, credits, release show) and Studio Milwaukee Sessions (24, set lists, link to the session) | Oct 4 |
+| Briefing | "What's new at Radio Milwaukee this week?": up to four items from the newest 88Nine weekly newsletter in the station's own words, each opening its story (Play), Concert Picks or the page | Oct 5 |
 | Songs | "What's playing?", "When did you last play…?", "What was that song around 8:15?", "Tell me about this song" across 88Nine, HYFIN, Rhythm Lab and 414 Music | Oct 4 |
+| On air and schedule | "What's on right now?" across all four streams with Listen live; "Who's on 88Nine?", "When is Rhythm Lab on?", "Did I miss Audio Taste Test?" from 88Nine's schedule | Oct 5 |
+| Your artists | Follow an artist by voice; "What's new for me?" since the last visit (new plays, local shows, station stories); "Any 88Nine artists touring?" | Oct 4–5 |
 | Finds | "Save that song" to the listener's 88Nine Finds and Apple Music, with a linked Radio Milwaukee account; privacy page at /privacy | Oct 4 |
-| Simulator | The full Alexa+ experience in a browser: voice in and out, Echo Show cards light and dark, "What Alexa did" trail for judges | Oct 2–4 |
+| Donations (sandbox) | "I want to support Radio Milwaukee": a monthly membership by voice, paid with Amazon Pay's sandbox (no real money), cancelled by voice. How to try it: see "Try a donation" below | Oct 5 |
+| Simulator | The full Alexa+ experience in a browser: voice in and out, Echo Show cards light and dark, a screen-free Echo Dot mode, "What Alexa did" trail for judges | Oct 2–5 |
 | Landing page | What it does, the smart-speaker case, how it works, how another station could use it | Oct 4 |
 
-Behind it: [Backstory](https://github.com/tmoody1973/backstory), the station's story engine (transcripts, checked facts, editor review; 102 stories across five shows), the station's playlist database, and the [MKE Field Guide](https://mke-field-guide.vercel.app) (events, venues, staff picks, the review admin).
+Behind it: [Backstory](https://github.com/tmoody1973/backstory), the station's story engine (transcripts, checked facts, editor review; 118 stories across six shows, each reaching Alexa only after an editor approves it), the station's playlist database, and the [MKE Field Guide](https://mke-field-guide.vercel.app) (events, venues, staff picks, the review admin).
 
 **Planned before the October 23 deadline**
 
 | What | Status |
 | --- | --- |
-| **Weekly station briefing** — "What's new at Radio Milwaukee this week?" read from the station's newsletter, each item opening the real episode, song or picks | Spec written (`docs/superpowers/specs/2026-10-04-station-briefing-design.md`), awaiting approval |
 | **Local song stories** — link Backstory's premiere and session facts to the playlist's songs, so "tell me about this song" includes Radio Milwaukee's own coverage of Milwaukee artists | Next, now that the playlist tools exist |
 | Demo video and Devpost write-up | Next |
 
@@ -35,7 +38,7 @@ Behind it: [Backstory](https://github.com/tmoody1973/backstory), the station's s
 
 ```
 Listener ──voice──▶ Alexa+ ──MCP, Streamable HTTP──▶ radio-commons (Next.js on Vercel)
-                                                      ├─ /api/mcp          16 tools (mcp-handler); 6 need a linked account
+                                                      ├─ /api/mcp          23 tools (mcp-handler); 7 need a linked account
                                                       ├─ cards             MCP App (ui://radio-commons/story-card.html)
                                                       ├─ /api/map          Amazon Location map pictures (key stays server-side)
                                                       ├─ /.well-known/…    OAuth resource metadata (Alexa account linking via Clerk)
@@ -44,9 +47,10 @@ Listener ──voice──▶ Alexa+ ──MCP, Streamable HTTP──▶ radio-c
                      Backstory (Convex): editor-published stories, premieres, sessions
                      Playlist (Convex, rm-playlist): what 88Nine, HYFIN, Rhythm Lab and 414 Music played; song facts; Finds
                      MKE Field Guide: /api/public/events, /api/public/picks (read-only)
+                     Mailchimp: the newest weekly newsletter (campaign content only) · Amazon Pay: sandbox donations
 ```
 
-### The tools Alexa+ can call (16)
+### The tools Alexa+ can call (23)
 
 **Stories** (from Backstory; only editor-published)
 - **`find_station_story`** turns a listener's description into up to three published stories, read back as a numbered list. It also finds a story by something said in it ("the episode where they talked about stromboli"), but only in episodes whose detailed answers are on. If nothing matches well enough, it says so; it never guesses.
@@ -57,8 +61,14 @@ Listener ──voice──▶ Alexa+ ──MCP, Streamable HTTP──▶ radio-c
 **Events and picks** (from the MKE Field Guide)
 - **`find_events`** finds upcoming events by words, time (tonight, this weekend), free only, or **near a place from a story on screen** (1 mile, widening once to 3): a map with the place starred, or a carousel. Every event has **Add to calendar**.
 - **`station_picks`** reads this week's Radio Milwaukee picks in the curator's own words, including the station's weekly **MKE Concert Picks** (imported automatically), topped up with station events.
+- **`station_artist_shows`** — "Any 88Nine artists have concerts coming up?", "Who's touring?": upcoming shows by artists the station's DJs actually play, Milwaukee-area first, three at a time. No linked account needed.
 
-**Songs** (from the station playlists: 88Nine, HYFIN, Rhythm Lab, 414 Music)
+**Briefing** (from the station's weekly newsletter in Mailchimp)
+- **`station_briefing`** — "What's new at Radio Milwaukee this week?": up to four items from the newest weekly newsletter, in the station's own first sentences and credited to its date ("from the Oct. 1 newsletter"). On screen, each item opens its published story (Play), this week's Concert Picks, or the page on radiomilwaukee.org (Read). Sponsor content is dropped; no AI writes or retells anything. Reads only campaign titles and content, never subscriber data.
+
+**Songs and on air** (from the station playlists: 88Nine, HYFIN, Rhythm Lab, 414 Music)
+- **`on_air_now`** — "What's on right now?", "Play HYFIN": what's playing on each stream, with **Listen live**.
+- **`station_schedule`** — "Who's on 88Nine?", "When is Erin Wolf on?", "Did I miss Audio Taste Test?": host and show now and next, when a show airs, and whether it already aired this week (88Nine only).
 - **`recent_songs`** — "What's playing?", "the last five songs on 88Nine": a numbered list with artwork and 30-second previews.
 - **`search_playlist`** — "When did you last play Nas?", "Have you played the new Thao song?": searches about two weeks of plays on every station.
 - **`find_song_played`** — "What was that song with horns around 8:15?": by station and time window, with descriptive cues.
@@ -68,6 +78,17 @@ Listener ──voice──▶ Alexa+ ──MCP, Streamable HTTP──▶ radio-c
 - **`save_find`** — "Save that song": adds it to the listener's 88Nine Finds, and to Apple Music if connected.
 - **`list_finds`** — "What's in my Finds?"
 - **`delete_my_finds`** — deletes all of a listener's Finds and disconnects Apple Music, only after they confirm.
+
+**Your artists** (needs a linked account; remembered in the playlist database)
+- **`follow_artist`** / **`unfollow_artist`** — "Follow Thao", "follow this artist" (the song that just played), "stop following Thao".
+- **`whats_new_for_me`** — "What's new for me?": since the listener last asked, new plays of the artists they follow, their upcoming shows and the station's stories about them.
+
+**Support the station** (Amazon Pay **sandbox**: no real money moves, and Alexa says so)
+- **`support_radio_milwaukee`** — "I want to support Radio Milwaukee": the station's membership levels on a card, each opening a secure Amazon Pay page; monthly or one-time.
+- **`cancel_membership`** — "Cancel my membership": asks first, cancels only after a clear yes (linked account).
+
+**Help**
+- **`what_can_you_do`** — "What can you do?": a short summary with an example phrase for each area; "tell me more" for two at a time.
 
 - **On screens**, every tool returns one card in Amazon's [MCP Design Guide for Alexa+](https://developer.amazon.com/docs/alexaplus/add-ons/mcp-addon-design-guide-overview.html) patterns: a **story card** (artwork, title, ▶ Play episode, Places), a **premiere card** (Play song, credits, release show), a **session card** (set list), a **quote card** (▶ Play from 10:45), a **song list** (artwork, preview, Save), a **carousel** (numbered, tap to pick) or a **map** (Amazon Location, numbered pins matching a list; "See all" opens a pan-and-zoom fullscreen map). Cards are authored at Amazon's 768×480 base and scale to the screen, in light and dark.
 - **Music:** the **Milwaukee Music Premiere** (a local song the station debuts each week) and **Studio Milwaukee Sessions** come through the same story tools. A premiere card shows the song, album, release date, credits and release show, with **▶ Play song** (and **Add to calendar** when the release show is in the event guide that week). A session card shows the set list and links to the session on radiomilwaukee.org; session audio is never played. Both are read from the station's articles, with quoted lyrics removed. **MKE Concert Picks**, the station's weekly list of recommended shows, become Field Guide staff picks, so `station_picks` reads them ("…from Radio Milwaukee's MKE Concert Picks"). Set `PLAY_PREMIERE_AUDIO=off` to link to premieres instead of playing them.
@@ -86,6 +107,27 @@ Amazon isn't giving hackathon participants the Alexa+ developer tools or simulat
 
 The page needs a passcode (ask the station) so strangers can't spend the API credit. A turn takes about 4 seconds from releasing the button to hearing the answer.
 
+**Echo Show or Echo Dot.** The toggle under the device switches to an Echo Dot, a speaker with no screen: no card renders, only the spoken answer and the trail, and Alexa is told it has no screen (Alexa+ knows its own device). Every spoken answer is written to work there: lists are read three at a time with "Want the next two?", and "yes" or "the next three" continues the numbering, so "save number 5" still works.
+
+**Checking it by script.** `npm run eval:turns` sends real listener sentences through the live simulator and judges which tools Alexa called. `npm run eval:turns -- --speaker` runs the same sentences on the Echo Dot and also fails any reply that says "on screen", "tap" or "the card". `EVAL_URL` points either one at another deployment; the passcode comes from `.env.local`.
+
+### Try a donation (Amazon Pay sandbox, no real money)
+
+This shows a monthly Radio Milwaukee membership started by voice, paid with Amazon Pay, and cancelled by voice. It runs on Amazon Pay's sandbox (a practice mode), so no real money moves, ever.
+
+1. In the simulator, say "I want to support Radio Milwaukee" and tap a level. Or open https://radio-commons.vercel.app/give?tier=ga-monthly.
+2. Main Floor and up come with a thank-you gift (a t-shirt, or a merch package). On the give page, keep the gift and pick a t-shirt size, or choose "No gift — all of it goes to the station". With a gift, Amazon Pay asks for the shipping address on its own page; we never see the street. Nothing actually ships in the demo.
+3. Open the Amazon Pay page in a private (incognito) window, or signed out of any real Amazon account. A real Amazon login is refused with "Your order can't be completed with this account."
+4. Sign in with the sandbox test buyer. Its email and password are in the Devpost testing instructions (private to judges), not in this repo.
+5. Choose the card ending 1111, which always succeeds. The card ending 3434 shows a decline.
+6. The thank-you page shows the receipt, with where the gift would ship (name, city and state). Press "Simulate next month" to see the second monthly charge.
+7. In the linked simulator, say "what's new for me". The reply mentions the membership.
+8. Say "cancel my Radio Milwaukee membership", then "yes". It's cancelled at Amazon Pay.
+
+**What's real and what's simulated.** Real: the calls to Amazon Pay's sandbox API (create a checkout session, a charge permission, a charge, and close it), and the shipping address Amazon collects for a gift. Simulated: the money (none moves), the gift (nothing ships), and "next month" is a button, not a wait. Alexa+'s own native checkout isn't available to hackathon entrants, so the simulator opens the Amazon Pay page instead.
+
+To run your own copy, see [docs/GIVE-SETUP.md](docs/GIVE-SETUP.md).
+
 ## Run it
 
 Requirements: Node.js 20+ (Alexa's CLI needs 24+), npm.
@@ -96,7 +138,8 @@ cp .env.example .env.local  # set BACKSTORY_CONVEX_URL; for maps AMAZON_LOCATION
                             # AMAZON_LOCATION_BROWSER_KEY (tiles only); for the simulator DEEPGRAM_API_KEY,
                             # SIM_AWS_ACCESS_KEY_ID / SIM_AWS_SECRET_ACCESS_KEY (Bedrock Haiku + Polly only), SIM_PASSCODE.
                             # Songs: PLAYLIST_CONVEX_URL, RADIO_COMMONS_SERVER_KEY. Linked accounts: the CLERK_* values,
-                            # MCP_RESOURCE_URL. Optional: FIELD_GUIDE_URL, PLAY_PREMIERE_AUDIO=off. See .env.example.
+                            # MCP_RESOURCE_URL. Optional: FIELD_GUIDE_URL, PLAY_PREMIERE_AUDIO=off, MAILCHIMP_API_KEY (briefing),
+                            # AMAZON_PAY_* and GIVE_TOKEN_SECRET (donations; docs/GIVE-SETUP.md). See .env.example.
 npm run dev                 # MCP endpoint: http://localhost:3000/api/mcp
 ```
 
@@ -138,7 +181,8 @@ Account linking uses the listener Clerk app (OAuth 2.1, PKCE S256, refresh token
 
 - Specs, one per slice: `docs/superpowers/specs/` (story tools, simulator, ask the episode, events, music coverage, station briefing)
 - Plans: `docs/superpowers/plans/`
-- Decisions, in plain English: `docs/decisions/` (001 foundation · 002 simulator · 003 transcript answers · 004 Amazon's design guide · 005 events from the Field Guide · 006 music coverage)
+- Decisions, in plain English: `docs/decisions/` (001 foundation · 002 simulator · 003 transcript answers · 004 Amazon's design guide · 005 events from the Field Guide · 006 music coverage · 007 station briefing · 008 Amazon Pay sandbox donations (on its branch) · 009 artist interviews)
+- Donations: `docs/GIVE-SETUP.md` (Amazon Pay sandbox setup) and `docs/GIVE-PREMIUMS.md`
 - What we learned, slice by slice: `docs/LEARNING-LOG.md`
 - Who else is doing this, and the smart-speaker numbers: `docs/research/2026-10-04-landscape.md`
 

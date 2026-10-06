@@ -80,3 +80,28 @@
 - The first live import matched 12 of 20 shows; Alexa then read the stock blurb as if the writer had said it, until the wording was fixed.
 
 **What we now believe:** read the actual source documents before designing — the structure decides what needs AI and what doesn't. Test against the production driver's limits, not just the test database's. And a fresh reviewer earns its cost: two of its findings would have broken the feature on day one.
+
+## 2026-10-05: weekly station briefing (slice 6)
+
+**What we expected:** newsletter links would match Backstory stories by the words in the page address — "/my-way-out-milwaukee" and a title with "My Way Out".
+
+**What happened:**
+- One of the two podcast links matched that way. The other, "/art-resale-shop-milwaukee", belongs to a story titled "…at 414 Art Revival": the address and the headline were written separately and share no distinctive word.
+- The fix was a second, narrower rule: if the show published exactly one episode on that Milwaukee date, that's the page. Two episodes that day still means "not sure", so the item becomes a Read link instead of a wrong episode.
+- The newsletter's plain-text version turned out to be clean enough to read without AI: headings start with `**`, each item has one station link, sponsors have none.
+- Run against the real Oct. 1 issue: six items; two open published stories, one opens Concert Picks, three are Read links.
+
+**What we now believe:** test matching rules on the real links, not the ones you'd write yourself; the live data had a case the tests didn't. And when unsure, a weaker answer (a Read link) beats a confident wrong one.
+
+## 2026-10-05: artist interviews (Backstory show 6)
+
+**What we expected:** interviews would have their own collection in CDS, like Ladies First, so adding them would be one new show profile.
+
+**What happened:**
+- They don't. Interviews live in the station's general local-stories feed beside concert listings and event guides. The only reliable marker was the web address, so the show is defined as "this feed, but only pages under /discover-music/artist-interviews/". One searched window hit its 100-story limit and had to be re-searched to find a 16th interview.
+- The import created all 16 and every one went through transcription and extraction without an error. The extraction instructions said guests aren't always musicians, and Jeff Levering and the 28 players and broadcasters he named all came out as people, not artists.
+- The transcript misspelled two players the station's article spelled correctly. The summary Alexa reads was clean; the quotable transcript wasn't.
+- Within an hour of the import, the Levering interview was approved and the briefing's first item changed from Read to Play with no change to the briefing.
+
+**What we now believe:** look at how the station actually files things before designing around its labels; "artist interviews" was a web section, not a collection. Build features so they connect through shared addresses (here, a page's URL), and new content lights up old features for free.
+

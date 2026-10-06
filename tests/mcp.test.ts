@@ -18,12 +18,12 @@ const PLAYLIST_TOOLS = ["find_song_played", "get_track_story", "save_find", "lis
 const call = (name: string, args: Record<string, unknown>) => ({ method: "tools/call", params: { name, arguments: args } });
 
 describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
-  it("initializes on protocol 2025-11-25 and lists the seventeen tools", async () => {
+  it("initializes on protocol 2025-11-25 and lists the twenty-three tools", async () => {
     const handler = handlerWith();
     const init = await mcpPost(handler, INITIALIZE);
     expect(init.message.result?.protocolVersion).toBe("2025-11-25");
     const tools = await mcpPost(handler, { method: "tools/list" }, 2);
-    expect(tools.message.result.tools.map((t: { name: string }) => t.name).sort()).toEqual(["ask_station_story", "delete_my_finds", "find_events", "find_song_played", "find_station_story", "follow_artist", "get_station_story", "get_track_story", "latest_station_stories", "list_finds", "recent_songs", "save_find", "search_playlist", "station_artist_shows", "station_picks", "unfollow_artist", "whats_new_for_me"]);
+    expect(tools.message.result.tools.map((t: { name: string }) => t.name).sort()).toEqual(["ask_station_story", "cancel_membership", "delete_my_finds", "find_events", "find_song_played", "find_station_story", "follow_artist", "get_station_story", "get_track_story", "latest_station_stories", "list_finds", "on_air_now", "recent_songs", "save_find", "search_playlist", "station_artist_shows", "station_briefing", "station_picks", "station_schedule", "support_radio_milwaukee", "unfollow_artist", "what_can_you_do", "whats_new_for_me"]);
   });
 
   it("linked-account tools tell the host to always call them so Alexa+ can start account linking", async () => {
@@ -154,7 +154,8 @@ describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
 
   it("every story and events tool shows the one Radio Milwaukee card", async () => {
     const tools = (await mcpPost(handlerWith(), { method: "tools/list" })).message.result.tools;
-    for (const tool of tools.filter((t: { name: string }) => !PLAYLIST_TOOLS.includes(t.name))) expect(tool._meta?.ui?.resourceUri).toBe("ui://radio-commons/story-card.html");
+    // cancel_membership answers by voice only, like delete_my_finds.
+    for (const tool of tools.filter((t: { name: string }) => !PLAYLIST_TOOLS.includes(t.name) && t.name !== "cancel_membership")) expect(tool._meta?.ui?.resourceUri).toBe("ui://radio-commons/story-card.html");
   });
 
   it("find_station_story shows the matches as a numbered carousel", async () => {
@@ -299,9 +300,27 @@ describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
     const playlist = fakePlaylist({ recentSongs: async (station, count) => { asked.push([station, count]); return songs.slice(0, count); } });
     const { message } = await mcpPost(handlerWith(undefined, undefined, playlist), call("recent_songs", { station: "88nine", count: 5 }));
     expect(asked).toEqual([["88nine", 5]]);
-    expect(message.result.content[0].text).toBe('The last 5 on 88Nine, newest first: "Lauren" by Artist 0, "Eddie My Love" by Artist 1, "Birdhouse In Your Soul" by Artist 2, and 2 more on screen.');
+    expect(message.result.content[0].text).toBe('The last 5 on 88Nine, newest first: 1, "Lauren" by Artist 0; 2, "Eddie My Love" by Artist 1; 3, "Birdhouse In Your Soul" by Artist 2. Want the next two?');
     expect(message.result.structuredContent.view).toBe("songs");
     expect(message.result.structuredContent.songs.map((s: { number: number; playId: string }) => [s.number, s.playId])).toEqual([[1, "play_0"], [2, "play_1"], [3, "play_2"], [4, "play_3"], [5, "play_4"]]);
+  });
+  it("recent_songs page 2 speaks 4 and 5 and still remembers the whole list, so 'save number 5' works", async () => {
+    const remembered: string[][] = [];
+    const songs = ["Lauren", "Eddie My Love", "Birdhouse In Your Soul", "Valerie", "Heavy Foot"].map((title, i) => ({
+      playId: `play_${i}`, artist: `Artist ${i}`, title, playedAt: Date.UTC(2026, 9, 4, 21, 40 - i * 4), artworkUrl: null, previewUrl: null,
+    }));
+    const playlist = fakePlaylist({ recentSongs: async (_station, count) => songs.slice(0, count), rememberScreen: async (_l, ids) => { remembered.push(ids); } });
+    const { message } = await mcpPostAs(handlerWith(undefined, undefined, playlist), call("recent_songs", { station: "88nine", count: 5, page: 2 }), "user_1");
+    expect(message.result.content[0].text).toBe('Next on 88Nine: 4, "Valerie" by Artist 3; 5, "Heavy Foot" by Artist 4.');
+    expect(remembered).toEqual([songs.map((song) => song.playId)]);
+  });
+  it("list tools take a page and say how to use it", async () => {
+    const tools = (await mcpPost(handlerWith(), { method: "tools/list" })).message.result.tools as { name: string; description: string; inputSchema: { properties: Record<string, unknown> } }[];
+    for (const name of ["recent_songs", "list_finds", "station_artist_shows", "find_events"]) {
+      const tool = tools.find((t) => t.name === name)!;
+      expect(tool.inputSchema.properties).toHaveProperty("page");
+      expect(tool.description).toMatch(/page 2/);
+    }
   });
   it("recent_songs defaults to five", async () => {
     const asked: number[] = [];

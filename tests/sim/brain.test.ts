@@ -120,6 +120,20 @@ describe("brain", () => {
     });
     expect(result.reply).toBe("From This Bites. Want directions?");
   });
+  it("after on_air_now, saves by station or number and asks which station instead of guessing", () => {
+    expect(SYSTEM_PROMPT).toMatch(/save the HYFIN song" call save_find with that station/);
+    expect(SYSTEM_PROMPT).toMatch(/never guess one/);
+  });
+  it("knows an Echo Dot has no screen and never sends the listener to one", () => {
+    const dot = systemPrompt(SUNDAY_NIGHT, "dot");
+    expect(dot).toMatch(/Echo Dot, a smart speaker with no screen/);
+    // The "[On screen: …]" history note is a label for the model, not advice to the listener.
+    expect(dot.replace(/"\[On screen:[^\]]*\]"/g, "")).not.toMatch(/\btap\b|on (the )?screen|the card|Echo Show/i);
+    expect(SYSTEM_PROMPT).toMatch(/on an Echo Show/);
+  });
+  it("continues a list with the next page when the listener asks for more", () => {
+    expect(SYSTEM_PROMPT).toMatch(/same tool again with the same arguments and the next page/);
+  });
   it("searches first for any local place, person, business or event, even when it isn't asked as a story", () => {
     expect(SYSTEM_PROMPT).toMatch(/any question about a Milwaukee place, person, business or event/i);
   });
@@ -142,11 +156,29 @@ describe("brain", () => {
     expect(SYSTEM_PROMPT).toMatch(/keep the tool's order and numbers/i);
     expect(SYSTEM_PROMPT).toMatch(/never call one newer or older/i);
   });
+  it("routes giving and asks before cancelling a membership", () => {
+    expect(SYSTEM_PROMPT).toContain("support_radio_milwaukee");
+    expect(SYSTEM_PROMPT).toMatch(/cancel_membership without confirmed/);
+    expect(SYSTEM_PROMPT).toMatch(/only after the listener says yes/i);
+  });
+  it("sends who's on and when a show is on to station_schedule, and the song playing to on_air_now", () => {
+    expect(SYSTEM_PROMPT).toMatch(/who's on[^.]*station_schedule/i);
+    expect(SYSTEM_PROMPT).toMatch(/when is Rhythm Lab on[^.]*station_schedule/i);
+    expect(SYSTEM_PROMPT).toMatch(/did I miss/i);
+    expect(SYSTEM_PROMPT).toMatch(/what song is playing[^.]*on_air_now/i);
+  });
   it("knows the event tools and points to the screen for the calendar", () => {
     expect(SYSTEM_PROMPT).toContain("find_events");
     expect(SYSTEM_PROMPT).toMatch(/nearStoryId/);
     expect(SYSTEM_PROMPT).toContain("station_picks");
     expect(SYSTEM_PROMPT).toMatch(/tap Add to calendar/i);
+  });
+
+  it("sends 'what's new this week' to the newsletter briefing and goes deeper only through the linked story or picks", () => {
+    expect(SYSTEM_PROMPT).toMatch(/what's new at Radio Milwaukee[^.]*station_briefing/i);
+    expect(SYSTEM_PROMPT).toMatch(/never add to the newsletter's own sentences/i);
+    expect(SYSTEM_PROMPT).not.toMatch(/what's new from Radio Milwaukee[^.]*latest_station_stories/i);
+    expect(SYSTEM_PROMPT).toMatch(/Read item[^.]*radiomilwaukee\.org/i);
   });
   it("music: premieres play with Play song, sessions are watched on the station's page, lyrics are never quoted", () => {
     expect(SYSTEM_PROMPT).toMatch(/tap Play song/);
@@ -170,7 +202,7 @@ describe("spokenReply", () => {
   it("tells the model the Milwaukee date and time, and how to route what's new and events", () => {
     expect(SYSTEM_PROMPT.startsWith("Right now in Milwaukee it is Sunday, October 4, 2026, 9:15 p.m. (America/Chicago).")).toBe(true);
     expect(SYSTEM_PROMPT).toMatch(/"what's new for me"[^.]*call whats_new_for_me/i);
-    expect(SYSTEM_PROMPT).toMatch(/"what's new from Radio Milwaukee"[^.]*call latest_station_stories/i);
+    expect(SYSTEM_PROMPT).toMatch(/"any new episodes of \[show\]"[^.]*call latest_station_stories/i);
     expect(SYSTEM_PROMPT).toMatch(/tonight \/ today \/ tomorrow \/ this weekend \/ this week[^.]*call find_events with that when/);
     expect(SYSTEM_PROMPT).toMatch(/never ask the listener for today's date/i);
   });

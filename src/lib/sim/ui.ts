@@ -8,7 +8,7 @@ const MAX_MESSAGE_CHARS = 2000; // the turn route rejects longer history message
  * The conversation the page carries between turns (the server keeps none). Alexa+ keeps tool results in its context;
  * the page keeps only words, so it notes the story on screen to let a follow-up use its id instead of guessing one.
  */
-interface ShownSong { playId: string; title: string; artist: string }
+interface ShownSong { playId: string; title: string; artist: string; station?: string }
 type OnScreen = { storyId: string; title: string } | { songs: ShownSong[] };
 
 const isShownSong = (item: unknown): item is ShownSong => {
@@ -22,16 +22,21 @@ const plain = (text: string | undefined) => (text ?? "").replace(/["[\]]/g, "");
 export function onScreenFrom(structured: Record<string, unknown> | undefined): OnScreen | undefined {
   const story = structured?.story as { storyId: string; title: string } | undefined;
   if (story?.storyId) return { storyId: story.storyId, title: story.title };
-  const items = structured?.songs ?? structured?.matches;
+  // on_air_now: every row in card order, as save_find's screen memory numbers them; a row with no song keeps its number.
+  const onAir = Array.isArray(structured?.stations)
+    ? (structured.stations as { station?: unknown; song?: unknown }[]).flatMap(({ station, song }) =>
+      typeof station !== "string" ? [] : [isShownSong(song) ? { ...song, station } : { playId: "", title: "", artist: "", station }])
+    : undefined;
+  const items = onAir ?? structured?.songs ?? structured?.matches;
   // Story lists share the `matches` key; only items shaped like songs belong in the song note.
   const songs = Array.isArray(items) ? items.filter(isShownSong) : [];
-  if (songs.length) return { songs: songs.map(({ playId, title, artist }) => ({ playId, title, artist })) };
+  if (songs.length) return { songs: songs.map(({ playId, title, artist, station }) => ({ playId, title, artist, ...(station ? { station } : {}) })) };
   return undefined;
 }
 
 function screenNote(onScreen: OnScreen): string {
   if ("storyId" in onScreen) return `"${plain(onScreen.title)}", storyId ${onScreen.storyId}`;
-  return onScreen.songs.map((song, i) => `${i + 1}. "${plain(song.title)}" by ${plain(song.artist)}, playId ${song.playId}`).join("; ");
+  return onScreen.songs.map((song, i) => !song.playId ? `${i + 1}. no song on ${plain(song.station)}` : `${i + 1}. "${plain(song.title)}" by ${plain(song.artist)}${song.station ? ` on ${plain(song.station)}` : ""}, playId ${song.playId}`).join("; ");
 }
 
 /** Alexa+ keeps tool results in the conversation; the simulator keeps what was on screen, ids included. */

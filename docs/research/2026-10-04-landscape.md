@@ -1,6 +1,6 @@
 # Who else is doing this? Landscape research, October 2026
 
-**Question:** Has any media outlet built something like Radio Commons: an MCP server (a standard way for an AI assistant to call a company's own tools) that brings a station's journalism and audio into Alexa+ or another assistant, for listeners?
+**Question:** Has any media outlet built something like Radio Commons: an MCP server (a standard way for an AI assistant to call a company's own tools) that brings a station's storytelling and audio into Alexa+ or another assistant, for listeners?
 
 **Short answer:** Not that we could find, in the US or abroad. The pieces exist separately — news agencies with MCP servers for business customers, an Amazon feature that turns newspaper articles into AI-voiced podcasts, podcast-search tools for investors, archive chatbots on newspaper websites, and hobbyist MCP servers that wrap a few broadcasters' public data feeds — but no broadcaster has built its own MCP server, and none connects its reporting, voices and community to listeners inside an assistant.
 
@@ -8,7 +8,9 @@
 
 ## The claim we can make
 
-> Radio Commons is, as far as we can find, the first MCP server built by a radio station itself for its listeners — bringing a station's own journalism, voices and community into Alexa+.
+> As far as we can find, Radio Commons is the first time a public radio station has brought itself into Alexa+: its own editor-approved stories, music, events and membership, built by the station and open source.
+
+**Correction, October 6, 2026.** This section first claimed "the first MCP server built by a radio station itself for its listeners". That is not true: **KAZM "Mellow Mountain Radio" (106.5 FM / 780 AM, Sedona, Arizona), a commercial station, published its own MCP server in July 2026** (about 45 tools: now playing, song history, schedule, local events, listener profiles; for Claude, ChatGPT and other AI apps, not Alexa) and calls itself "the first radio station with an MCP server" ([mellowmountainradio.com/mcp.html](https://mellowmountainradio.com/mcp.html), [GitHub](https://github.com/chelstein/mellowmountainradio)). What we found no one else doing: a *public* radio station, inside *Alexa+*, with an *editor-approved* archive alongside its playlist, events and membership. Other near-misses found on October 6: Spotify's in-episode podcast Q&A (May 2026), Sveriges Radio's text chatbot over its own news articles (2025), NPR and KUOW's 2018 Alexa donation test. Each does one piece; none combines them.
 
 Not "the first MCP for broadcasters": Bloomberg (which broadcasts on TV and radio) and Reuters run MCP servers for paying business customers, and independent developers have wrapped a few broadcasters' public data feeds (ZDF, Radio France, Sveriges Radio, Catalan radio, BBC headlines) in MCP servers. None of those was built by the broadcaster, and none is for listeners on Alexa+.
 
@@ -27,7 +29,7 @@ Not "the first MCP for broadcasters": Bloomberg (which broadcasts on TV and radi
 | **Public broadcasters abroad** (BBC, CBC/Radio-Canada, ABC Australia, RNZ, RTÉ, ARD, NRK, SVT, Yle, DR, NPO) | No official MCP server or Alexa+ experience found. The BBC uses generative AI to write text for BBC Sounds from live football commentary. | — |
 | **Major US radio companies** (iHeartMedia, Audacy, SiriusXM, Cumulus, Townsquare) | No AI-assistant or MCP announcements found; 2026 news is about consolidation (SiriusXM–iHeart talks, Audacy stations on SiriusXM) | — |
 | **US public radio networks** (NPR, PRX, American Public Media, WNYC) | No official MCP server, Alexa+ or ChatGPT app found | — |
-| **Radio utility MCP servers** (internet-radio directory, Casthost) | Find stream links; run a station's automation | Tools for operators and hobbyists, not a station's journalism for listeners. |
+| **Radio utility MCP servers** (internet-radio directory, Casthost) | Find stream links; run a station's automation | Tools for operators and hobbyists, not a station's storytelling for listeners. |
 
 ## The music side
 
@@ -93,7 +95,7 @@ Smart speakers are the largest device for Radio Milwaukee's streams by listening
 **What it means for Radio Commons**
 
 1. **The habit is real; don't overclaim the size.** About two in five Americans own a smart speaker, and public radio listeners were early users (16% of NPR streaming in 2018, 38% at one station). But smart speakers are about 4% of radio listening time for radio's most loyal listeners. Avoid "smart speakers are where radio listeners are."
-2. **The argument is what listeners can do there.** Today a public radio listener can only say "Alexa, play the station," and those old skills don't carry over to Alexa+. News is a main reason people use smart speakers. Radio Commons turns the play button into a conversation with the station's journalism and music.
+2. **The argument is what listeners can do there.** Today a public radio listener can only say "Alexa, play the station," and those old skills don't carry over to Alexa+. News is a main reason people use smart speakers. Radio Commons turns the play button into a conversation with the station's storytelling and music.
 3. **The best number is Radio Milwaukee's own.** Smart speakers carry 40% of the station's stream listening hours, more than mobile (29%) or desktop (27%), from listeners who each stay about 9 times as long as mobile listeners. The station's most loyal stream listeners are already on smart speakers, and all they can do there today is press play.
 
 **Gaps:** no public-radio-specific smart speaker figure newer than 2020 is published (NPR likely has one internally); the full Infinite Dial 2026 report was not available, so the "listened to radio" figure is from 2025.
@@ -112,7 +114,7 @@ Starting points only. They describe the full product as planned for Oct 23 — s
 
 **Devpost, "Inspiration" (about 120 words)**
 
-> Alexa+ can already turn newspaper articles into AI-voiced podcasts, and Spotify and Amazon Music answer song requests from their catalogs. But no radio station — in the US or abroad — had brought itself into the assistant, and public radio's old Alexa skills don't carry over to Alexa+. Radio Commons is, as far as we can find, the first MCP server built by a radio station itself for its listeners. Ask about a story you half-remember and Alexa plays the moment the host said it. Ask what's playing on 88Nine and hear the story behind the song, including Milwaukee artists the streaming catalogs barely know, from the station's own premieres and artist interviews. Then find the place, the show or tonight's event. Every fact is approved by a station editor.
+> Alexa+ can already turn newspaper articles into AI-voiced podcasts, and Spotify and Amazon Music answer song requests from their catalogs. But no public radio station had brought itself into the new Alexa, where add-ons now plug in through MCP servers. As far as we can find, Radio Commons is the first time a public radio station has done it, built by the station and open source. Ask about a story you half-remember and Alexa plays the moment the host said it. Ask what's playing on 88Nine and hear the story behind the song, including Milwaukee artists the streaming catalogs barely know, from the station's own premieres and artist interviews. Then find the place, the show or tonight's event. Every fact is approved by a station editor.
 
 **Demo voiceover (about 15 seconds)**
 
@@ -120,7 +122,7 @@ Starting points only. They describe the full product as planned for Oct 23 — s
 
 **Portfolio case study, "The opportunity"**
 
-> Before building, I mapped what already existed. News agencies (Reuters, Bloomberg) had MCP servers for enterprise customers. Amazon had launched AI-generated podcasts from newspaper content and opened Alexa+ to outside MCP servers, but only to travel, ticketing and smart-home brands. Music was the same story: Spotify, Apple Music and Amazon Music answered requests from catalogs that barely know Milwaukee's artists, while the station knows them through its premieres, sessions and interviews. Public radio's voice-assistant presence was still a "play the stream" skill that doesn't work on Alexa+. That gap — local, trusted, audio-first journalism and music inside the assistant — set the product bet: keep the station's real voices and editorial control, and make every answer lead somewhere in the community: a place, a show, a song.
+> Before building, I mapped what already existed. News agencies (Reuters, Bloomberg) had MCP servers for enterprise customers. Amazon had launched AI-generated podcasts from newspaper content and opened Alexa+ to outside MCP servers, but only to travel, ticketing and smart-home brands. Music was the same story: Spotify, Apple Music and Amazon Music answered requests from catalogs that barely know Milwaukee's artists, while the station knows them through its premieres, sessions and interviews. Public radio's voice-assistant presence was still a "play the stream" skill that doesn't work on Alexa+. That gap — local, trusted, audio-first storytelling and music inside the assistant — set the product bet: keep the station's real voices and editorial control, and make every answer lead somewhere in the community: a place, a show, a song.
 
 **LinkedIn post**
 
@@ -144,7 +146,7 @@ Starting points only. They describe the full product as planned for Oct 23 — s
 >
 > 48 episodes so far, across three shows. The transcript is why Alexa can play the exact moment: it knows the second the host said "stromboli."
 >
-> I checked the US and public broadcasters abroad: as far as I can find, it's the first MCP server a radio station has built itself for its listeners. Here's what I learned building it.
+> I checked the US and public broadcasters abroad: as far as I can find, it's the first time a public radio station has brought itself into Alexa+. Here's what I learned building it.
 
 **Short post (Bluesky / Threads; 295 characters, over X's 280)**
 

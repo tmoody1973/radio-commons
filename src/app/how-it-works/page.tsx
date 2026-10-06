@@ -82,6 +82,30 @@ function Memory() {
   );
 }
 
+function Give() {
+  return (
+    <section id="give" aria-labelledby="give-h" className={`${styles.wrap} ${styles.section}`}>
+      <div className={styles.intro}>
+        <h2 id="give-h" className={styles.h2}>{H.sections.give}</h2>
+        <p className={styles.sub}>{H.give.intro}</p>
+      </div>
+      <ol className={styles.cols5}>
+        {H.give.steps.map((step, i) => (
+          <li key={step} className={styles.step}>
+            <span className={styles.num} aria-hidden="true">{i + 1}</span>
+            <p className={styles.body}>{step}</p>
+          </li>
+        ))}
+      </ol>
+      <p className={`${styles.body} ${styles.narrow}`}>{H.give.tip}</p>
+      <p className={`${styles.body} ${styles.narrow}`}>{H.give.credentials}</p>
+      <div className={styles.buttons}>
+        <a href={H.give.link.href} className={styles.primary}>{H.give.link.label}</a>
+      </div>
+    </section>
+  );
+}
+
 function Alexa() {
   return (
     <section id="alexa" aria-labelledby="alexa-h" className={styles.white}>
@@ -142,6 +166,7 @@ export default function HowItWorks() {
             <a href="#demo">The demo</a>
             <a href="#flow">Five services</a>
             <a href="#memory">Memory</a>
+            <a href="#give">Donate</a>
             <a href="#alexa">Alexa+</a>
             <a href="#status">Status</a>
           </nav>
@@ -158,6 +183,7 @@ export default function HowItWorks() {
         <Demo />
         <Flow />
         <Memory />
+        <Give />
         <Alexa />
         <Status />
       </main>

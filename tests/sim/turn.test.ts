@@ -27,6 +27,14 @@ describe("a spoken turn", () => {
     // Never signed with the passcode: a leaked link must not help anyone guess it.
     expect(verifySpeech((body as { speech: string }).speech, "milwaukee")).toBeNull();
   });
+  it("tells the model which device it is on: an Echo Dot has no screen", async () => {
+    const systems: string[] = [];
+    const converse = async ({ system }: { system: string }) => { systems.push(system); return { stopReason: "end_turn", content: [{ text: "Hi." }] }; };
+    await handleTurn({ passcode: "milwaukee", history: [], text: "hi", device: "dot" }, deps({ converse }));
+    await handleTurn({ passcode: "milwaukee", history: [], text: "hi" }, deps({ converse }));
+    expect(systems[0]).toMatch(/Echo Dot/);
+    expect(systems[1]).toMatch(/Echo Show/);
+  });
   it("refuses without the passcode, before any paid call", async () => {
     const d = deps();
     expect((await handleTurn({ passcode: "nope", history: [], audio: clip }, d)).status).toBe(401);

@@ -50,6 +50,9 @@ blockquote{margin:0;font-size:40px;line-height:1.1;font-weight:700}blockquote.q-
 .row{min-height:52px;padding:6px 10px;border-radius:12px;background:var(--inner);color:var(--text);display:flex;align-items:center;gap:12px;text-align:left}
 .what{display:flex;flex-direction:column;min-width:0}.what b{font-size:18px}.what small{font-size:14px;color:var(--muted)}
 .list .fullscreen{margin-top:auto;justify-content:center}
+.briefing .list{gap:6px}.briefing .row{min-height:48px;padding:4px 10px;flex:1;min-width:0}.briefing .num{width:28px;height:28px}.briefing .what b{font-size:17px}
+.briefing .what small{display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+.briefing .row-wrap .primary,.briefing .row-wrap .secondary{min-height:48px;min-width:96px;padding:0 16px;font-size:15px;justify-content:center}
 .row-wrap{display:flex;gap:8px;align-items:stretch}.row-wrap .row{flex:1;min-width:0}.row-wrap .reserve,.row-wrap .tickets{min-height:52px;padding:0 16px}
 .find,.digest{flex-basis:264px}
 .chip{position:absolute;top:10px;right:10px;padding:4px 10px;border-radius:9999px;background:var(--card);color:var(--text);font-size:13px;font-weight:700}.chip.warn{background:var(--text);color:var(--card)}
@@ -58,9 +61,30 @@ blockquote{margin:0;font-size:40px;line-height:1.1;font-weight:700}blockquote.q-
 .ev-head{display:flex;align-items:center;gap:8px;margin:12px 12px 0}.event .badge{position:static}
 .ev-cat{font-size:14px;font-weight:600;color:var(--muted);text-transform:capitalize}
 .tag{margin-left:auto;padding:4px 10px;border-radius:9999px;background:var(--secondary);color:var(--text);font-size:13px;font-weight:700}
-.tile-actions{display:flex;gap:8px;margin:4px 12px 12px}.tile-actions .secondary{min-height:48px;padding:0 14px;font-size:15px;white-space:nowrap}
+.tile-actions{display:flex;flex-wrap:wrap;gap:8px;margin:4px 12px 12px}.tile-actions .secondary{min-height:48px;padding:0 14px;font-size:15px;white-space:nowrap}
 .event-row{cursor:default}.event-row .what{flex:1}.secondary.small{min-height:48px;min-width:48px;padding:0;justify-content:center}
 .pin.anchor{background:var(--text);color:var(--card);font-size:16px}
+.row-wrap .calendar{min-height:52px;min-width:52px}
+.cap-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;flex:1}
+.cap{padding:14px;gap:6px;cursor:default}.cap .tile-title{margin:0;font-size:20px}
+.cap-what{font-size:15px;line-height:1.3;color:var(--muted)}
+.onair-row{cursor:default}.onair-row .what{flex:1}.onair-row .thumb{width:48px;height:48px;flex:none}
+.onair-row b,.onair-row small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.what .station{font-weight:700;color:var(--text)}
+.onair-row .primary,.onair-row .secondary{min-height:48px;padding:0 16px;font-size:15px;white-space:nowrap}
+.secondary.latest{display:block;max-width:100%;line-height:48px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left}.sched-row{cursor:default}.sched-row .thumb{flex:none}
+.secondary.say{margin-top:auto;min-height:48px;padding:8px 14px;border-radius:14px;font-size:15px;line-height:1.25;text-align:left}
+.give .top{justify-content:flex-start}.demo{padding:4px 12px;border-radius:9999px;background:var(--text);color:var(--card);font-size:13px;font-weight:700}
+.give h2{margin:0}.give-body{display:flex;gap:20px;flex:1}.give-main{flex:1;display:flex;flex-direction:column;gap:10px;min-width:0}
+.give input[type=radio]{position:absolute;opacity:0;pointer-events:none}
+.switch{display:flex;align-self:flex-start;padding:4px;border-radius:9999px;background:var(--secondary)}
+.switch label{min-height:44px;padding:0 20px;border-radius:9999px;display:flex;align-items:center;font-weight:600;cursor:pointer}
+#give-monthly:checked~.switch label[for=give-monthly],#give-once:checked~.switch label[for=give-once]{background:var(--accent);color:var(--on-accent)}
+#give-monthly:focus-visible~.switch label[for=give-monthly],#give-once:focus-visible~.switch label[for=give-once]{outline:3px solid var(--text);outline-offset:2px}
+.give-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#give-monthly:checked~.give-grid.once,#give-once:checked~.give-grid.monthly{display:none}
+.give-tier{min-height:64px;padding:6px 16px;border-radius:16px;flex-direction:column;align-items:flex-start;justify-content:center;gap:0}
+.give-tier b{font-size:22px}.give-tier small{font-size:14px;color:var(--muted)}.give-tier i{font-size:13px;font-style:normal;color:var(--muted);line-height:1.25;text-align:left}
+.give-qr{width:168px;flex:none;display:flex;flex-direction:column;gap:6px;align-self:center}.give-qr svg{width:168px;height:168px;border-radius:8px;display:block}
 #fullmap{position:fixed;inset:0}
 .overlay{position:fixed;zoom:var(--z)}
 .bar{top:10px;left:10px;right:10px;display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-radius:16px;background:var(--card)}
@@ -166,14 +190,18 @@ function play(button) {
   }).catch(() => { button.lastChild.textContent = " Can't play here"; });
 }
 
-// List tiles each carry their own preview: one plays at a time, and its button reads "Pause" while it does.
+// List tiles each carry their own preview (or live stream): one plays at a time, and its button reads "Pause" (or its data-playing) while it does.
 function rowLabel(button, playing) {
   if (!button.dataset.label) button.dataset.label = button.lastChild.textContent;
-  button.lastChild.textContent = playing ? " Pause" : button.dataset.label;
+  button.lastChild.textContent = playing ? (button.dataset.playing || " Pause") : button.dataset.label;
 }
 function playRow(button) {
   const same = audio && audio.dataset.row === button.dataset.audio;
-  if (same && !audio.paused) { audio.pause(); return; }
+  if (same && !audio.paused) {
+    audio.pause();
+    if (button.classList.contains("live")) audio = null; // a live stream restarts fresh, never from a stale buffer
+    return;
+  }
   if (audio && !same) audio.pause();
   if (!same) { audio = new Audio(button.dataset.audio); audio.dataset.row = button.dataset.audio; }
   audio.onpause = () => rowLabel(button, false);

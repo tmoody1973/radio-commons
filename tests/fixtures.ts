@@ -21,6 +21,7 @@ export const fakeBackstory = (overrides: Partial<BackstoryClient> = {}): Backsto
     { storyId: "s3", title: "Newest", show: "This Bites", showSlug: "this-bites", attribution: "a", publishedAt: Date.UTC(2026, 9, 2, 15), hint: "h", imageUrl: null },
     { storyId: "s2", title: "Older", show: "This Bites", showSlug: "this-bites", attribution: "a", publishedAt: Date.UTC(2026, 8, 25, 15), hint: "h", imageUrl: null },
   ],
+  storyForPage: async () => null,
   askStory: async (id) => (id === STORY.storyId
     ? { status: "ok", passages: [{ text: "We sell <art> and 'antiques'.", startMs: 1_122_000, speaker: "Kim Shine" }] }
     : { status: "not_found", passages: [] }),
@@ -67,5 +68,7 @@ export const fakePlaylist = (overrides: Partial<PlaylistClient> = {}): PlaylistC
   markDigestSeen: async () => undefined,
   searchPlaysIndexed: async () => [],
   stationArtistShows: async () => ({ refreshedAt: null, shows: [] }),
+  stationSchedule: async () => ({ refreshedAt: null, station: "88nine", onNow: null, next: null, match: null, matches: [] }),
+  hostProfile: async () => null,
   ...overrides,
 });

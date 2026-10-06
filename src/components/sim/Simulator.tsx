@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { Device } from "@/lib/sim/brain";
 import type { ChatMessage, TrailEntry } from "@/lib/sim/trail";
 import { cardAfterTurn, needsAccountLink, nextHistory, onScreenFrom } from "@/lib/sim/ui";
 import { CardHost, type CardPayload, type DisplayMode, type Theme } from "./CardHost";
@@ -14,10 +15,6 @@ const PASSCODE_KEY = "radio-commons-sim-passcode";
 const MAX_RECORD_MS = 15_000;
 const DEVICE_W = 1328; // 1280 screen + bezel
 const DEVICE_H = 848;
-const EXAMPLES = [
-  "What was that This Bites episode about frugal dining?",
-  "What was that Uniquely Milwaukee story about the art shop in West Allis?",
-];
 
 function readPasscode(): string {
   try {
@@ -45,8 +42,16 @@ function linkAccount() {
 
 const LINK_OUTCOME_STATUS = { ok: "Linked your Radio Milwaukee account.", failed: "Couldn't link the account. Please try again." };
 
-/** `linked`: the server saw a session cookie when it rendered the page. `linkOutcome`: back from the login (?link=). */
-export function Simulator({ linked: linkedAtLoad = false, linkOutcome }: { linked?: boolean; linkOutcome?: "ok" | "failed" }) {
+interface SimulatorProps {
+  /** The server saw a session cookie when it rendered the page. */
+  linked?: boolean;
+  /** Back from the login (?link=). */
+  linkOutcome?: "ok" | "failed";
+  /** The capabilities card shown before the first question. */
+  introCard: CardPayload;
+}
+
+export function Simulator({ linked: linkedAtLoad = false, linkOutcome, introCard }: SimulatorProps) {
   const [phase, setPhase] = useState<Phase>("idle");
   const [captions, setCaptions] = useState("");
   const [status, setStatus] = useState(linkOutcome ? LINK_OUTCOME_STATUS[linkOutcome] : "");
@@ -55,6 +60,10 @@ export function Simulator({ linked: linkedAtLoad = false, linkOutcome }: { linke
   const [showTrail, setShowTrail] = useState(true); // for judges: what Alexa did, open by default
   const [heard, setHeard] = useState("");
   const [theme, setTheme] = useState<Theme>("light");
+  // Echo Dot: a speaker with no screen. No card renders, and Alexa is told it has no screen, as Alexa+ knows its device.
+  const [device, setDevice] = useState<Device>("show");
+  const deviceRef = useRef<Device>("show");
+  useEffect(() => { deviceRef.current = device; }, [device]);
   const [displayMode, setDisplayMode] = useState<DisplayMode>("inline");
   const [scale, setScale] = useState(1);
   const [pauseSignal, setPauseSignal] = useState(0);
@@ -101,6 +110,7 @@ export function Simulator({ linked: linkedAtLoad = false, linkOutcome }: { linke
   const send = useCallback(async (form: FormData) => {
     const passcode = askPasscode();
     form.set("history", JSON.stringify(history.current));
+    form.set("device", deviceRef.current);
     setPhase("thinking");
     setStatus("");
     try {
@@ -218,7 +228,8 @@ export function Simulator({ linked: linkedAtLoad = false, linkOutcome }: { linke
   };
 
   const lightbar = phase === "listening" ? styles.listening : phase === "thinking" ? styles.thinking : "";
-  const fullscreen = displayMode === "fullscreen" && card;
+  const dot = device === "dot";
+  const fullscreen = !dot && displayMode === "fullscreen" && card;
   return (
     <main className={styles.page}>
       <header className={styles.top}>
@@ -238,7 +249,7 @@ export function Simulator({ linked: linkedAtLoad = false, linkOutcome }: { linke
       <div className={styles.stage}>
         <div className={styles.left}>
           <div ref={fit} className={styles.fit} style={{ height: DEVICE_H * scale }}>
-            <div className={styles.device} style={{ transform: `scale(${scale})` }} role="region" aria-label="Simulated Echo Show 8">
+            <div className={styles.device} style={{ transform: `scale(${scale})` }} role="region" aria-label={dot ? "Simulated Echo Dot (no screen)" : "Simulated Echo Show 8"}>
               <div className={styles.screen} data-theme={theme}>
                 {!fullscreen ? (
                   <div className={styles.conversation}>
@@ -246,7 +257,9 @@ export function Simulator({ linked: linkedAtLoad = false, linkOutcome }: { linke
                     <p className={styles.captions} aria-live="polite">{captions}</p>
                   </div>
                 ) : null}
-                {card ? (
+                {dot ? (
+                  <p className={styles.introCaption}>Echo Dot: no screen. The listener only hears the answer.</p>
+                ) : card ? (
                   <div className={fullscreen ? styles.cardFull : styles.cardArea}>
                     <CardHost
                       card={card} theme={theme} displayMode={displayMode}
@@ -254,10 +267,14 @@ export function Simulator({ linked: linkedAtLoad = false, linkOutcome }: { linke
                     />
                   </div>
                 ) : (
-                  <div className={styles.idle}>
-                    <h1>Radio Commons</h1>
-                    <p>Ask about a Radio Milwaukee story you half-remember.</p>
-                    {EXAMPLES.map((e) => <p key={e} className={styles.prompt}>Try: “{e}”</p>)}
+                  <div className={styles.intro}>
+                    <p className={styles.introCaption}>Say “What can Radio Milwaukee do?” to see this on Alexa.</p>
+                    <div className={styles.cardArea}>
+                      <CardHost
+                        card={introCard} theme={theme} displayMode="inline"
+                        onPlaying={() => voice.current?.pause()} onAsk={askFromCard} onDisplayMode={() => undefined} pauseSignal={0}
+                      />
+                    </div>
                   </div>
                 )}
                 <div className={`${styles.lightbar} ${lightbar}`} aria-hidden="true" />
@@ -275,6 +292,13 @@ export function Simulator({ linked: linkedAtLoad = false, linkOutcome }: { linke
               <input aria-label="Or type a question" placeholder="Or type a question" value={typed} maxLength={300} onChange={(e) => setTyped(e.target.value)} />
               <button type="submit" disabled={phase === "thinking"}>Ask</button>
             </form>
+            <div role="group" aria-label="Device">
+              {(["show", "dot"] as const).map((option) => (
+                <button key={option} type="button" className={styles.toggle} aria-pressed={device === option} onClick={() => setDevice(option)}>
+                  {option === "show" ? "Echo Show" : "Echo Dot"}
+                </button>
+              ))}
+            </div>
             <button type="button" className={styles.toggle} aria-pressed={theme === "dark"} onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}>
               {theme === "dark" ? "Light" : "Dark"} mode
             </button>
