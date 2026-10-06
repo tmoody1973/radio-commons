@@ -324,7 +324,7 @@ function digestView(artists: Digest["artists"], items: DigestItem[]): string {
   }).join("");
   const apple = items.flatMap((item) => (item.kind === "apple" ? [
     ...(item.added > 0 ? [`${item.added} of your saved songs ${item.added === 1 ? "is" : "are"} in Apple Music.`] : []),
-    ...(item.expired > 0 ? ["Apple Music needs reconnecting at radiomilwaukee.org/connect."] : []),
+    ...(item.expired > 0 ? [`Apple Music needs reconnecting at ${new URL(SITE).host}/connect/apple-music.`] : []),
   ] : []));
   const note = apple.length ? `<p class="line small">${escape(apple.join(" "))}</p>` : "";
   return `<article class="card stories">${LOGO}<div class="carousel">${tiles}</div>${note}</article>`;

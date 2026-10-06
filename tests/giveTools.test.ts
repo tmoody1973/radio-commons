@@ -128,7 +128,7 @@ describe("cancel_membership", () => {
   it("unlinked: account linking; unconfigured: not set up", async () => {
     const unlinked = (await mcpPost(handler(fakeGive()), call("cancel_membership"))).message.result;
     expect(unlinked.structuredContent).toEqual({ error: "account_linking_required" });
-    expect(unlinked.content[0].text).toBe("Link your Radio Milwaukee account to manage your membership.");
+    expect(unlinked.content[0].text).toBe(LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH);
     expect((await mcpPostAs(handler(null), call("cancel_membership"), "user_1")).message.result.content[0].text).toMatch(/aren't set up yet/);
   });
 });

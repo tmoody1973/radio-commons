@@ -4,11 +4,15 @@ import type { PublicEvent, When } from "@/lib/fieldGuide";
 import type { DigestItem, FindRow, FollowResult, RecallResult, SavedFind, Station, StationShow, TrackFacts, UnfollowResult } from "@/lib/playlist";
 import { localClock } from "@/lib/stationTime";
 import { streetAddress } from "@/lib/maps";
+import { SITE } from "@/lib/card/tokens";
 
 export const UNAVAILABLE_SPEECH = "I can't reach Radio Milwaukee's stories right now. Please try again in a minute.";
 export const PLAYLIST_UNAVAILABLE_SPEECH = "I can't reach Radio Milwaukee's playlist right now. Please try again in a moment.";
-export const LINK_ACCOUNT_SPEECH = "Link your Radio Milwaukee account to save songs and follow artists.";
-export const LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH = "Link your Radio Milwaukee account to manage your membership.";
+// Amazon runs linking: a device with a screen shows a QR code, a speaker sends a notice to the Alexa app. We can't tell
+// which device asked, so one sentence names both.
+const LINK_HOW = "link your Radio Milwaukee account: scan the QR code if your device shows one, or open the notice Alexa sends to the Alexa app on your phone.";
+export const LINK_ACCOUNT_SPEECH = `To save songs and follow artists, ${LINK_HOW}`;
+export const LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH = `To manage your membership, ${LINK_HOW}`;
 /** The account-linking prompt for one tool: membership tools say so; every other tool keeps the shared prompt. */
 const MEMBERSHIP_TOOLS = new Set(["cancel_membership", "my_membership"]);
 export const linkAccountSpeech = (tool: string) => (MEMBERSHIP_TOOLS.has(tool) ? LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH : LINK_ACCOUNT_SPEECH);
@@ -280,7 +284,10 @@ export function spokenSaved(saved: SavedFind): string {
   return `${base}${savedExtras(saved)}${hint}`;
 }
 
-const APPLE_HINT = "To add these to your Apple Music library too, connect it at radiomilwaukee.org slash connect.";
+// radiomilwaukee.org/connect is a 404 (checked 2026-10-06); the connect page lives on this app.
+const APPLE_CONNECT = `${new URL(SITE).host} slash connect slash apple-music`;
+const APPLE_RECONNECT = `Apple Music needs reconnecting at ${APPLE_CONNECT}.`;
+const APPLE_HINT = `To add these to your Apple Music library too, connect it at ${APPLE_CONNECT}.`;
 const showDay = (ms: number) => new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "America/Chicago" }).format(ms);
 
 /** " I'll keep an eye out for Thao — they play Turner Hall in Milwaukee on Friday, October 9, and we have their Studio Milwaukee story." Each part is optional. */
@@ -298,7 +305,7 @@ export function spokenFinds(finds: FindRow[], page = 1): string {
   const { start, said, left } = listPage(finds, page);
   if (said.length === 0) return "That's all your Finds.";
   const items = said.map((f) => `${f.label}: "${f.title}" by ${f.artist}`).join("; ");
-  const reconnect = finds.some((f) => f.appleMusic.status === "expired") ? " Apple Music needs reconnecting at radiomilwaukee.org slash connect." : "";
+  const reconnect = finds.some((f) => f.appleMusic.status === "expired") ? ` ${APPLE_RECONNECT}` : "";
   return `${start > 0 ? "More of your Finds" : "Your latest Finds"} — ${items}.${reconnect}${nextOffer(left)}`;
 }
 
@@ -334,7 +341,7 @@ function spokenDigestItem(item: DigestItem, isFirst: boolean): string {
     case "show": return `${item.artist} plays ${item.venue} in ${item.city} on ${showDay(item.startsAtMs)}.`;
     case "spins": return `${listOf(item.byStation.map((s, i) => `${stationName(s.station)}${i === 0 ? ` played ${item.artist}` : ""} ${timesSaid(s.count)}`))}.`;
     case "story": return `${isFirst ? "" : "And "}there's a new ${item.show} story about ${item.artist}.`;
-    case "apple": return [item.added > 0 ? `${item.added} of your saved songs ${item.added === 1 ? "is" : "are"} in Apple Music.` : "", item.expired > 0 ? "Apple Music needs reconnecting at radiomilwaukee.org slash connect." : ""].filter(Boolean).join(" ");
+    case "apple": return [item.added > 0 ? `${item.added} of your saved songs ${item.added === 1 ? "is" : "are"} in Apple Music.` : "", item.expired > 0 ? APPLE_RECONNECT : ""].filter(Boolean).join(" ");
   }
 }
 

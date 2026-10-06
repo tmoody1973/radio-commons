@@ -1,12 +1,13 @@
 import { EVENT } from "./fixtures";
 import { describe, expect, it } from "vitest";
+import { LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH, LINK_ACCOUNT_SPEECH, linkAccountSpeech } from "@/lib/speech";
 import type { Story } from "@/lib/backstory";
 import type { SavedFind } from "@/lib/playlist";
 import { EVENTS_UNAVAILABLE_SPEECH, NOT_ALLOWED_SPEECH, NO_PASSAGE_SPEECH, clock, directAudioUrl, eventTime, monthYear, spokenEvents, spokenMatches, spokenPassages, spokenPicks, spokenPlaces, spokenFollowed, spokenSaved, spokenStory, spokenUnfollowed, spokenDigest, spokenFinds, spokenRecent, spokenStationShows } from "@/lib/speech";
 import { readFileSync } from "node:fs";
+import { screenWords } from "@/lib/sim/evalChecks";
 import { CAPABILITIES_SPEECH } from "@/lib/capabilities";
 import { GIVE_SPEECH } from "@/lib/give";
-import { screenWords } from "@/lib/sim/evalChecks";
 
 const STORY: Story = {
   storyId: "s1", show: "Uniquely Milwaukee", title: "Creativity is sustainable, accessible at 414 Art Revival",
@@ -119,7 +120,7 @@ describe("spokenSaved", () => {
     status: "ok", findId: "f1", appleMusic: "pending", artist: "Thao", title: "Sick of the Times", alreadySaved: false,
     artistId: "a1", artistName: "Thao", firstFollow: false, nextShow: null, story: null, recentlySaved: false, ...over,
   });
-  const APPLE_HINT = "To add these to your Apple Music library too, connect it at radiomilwaukee.org slash connect.";
+  const APPLE_HINT = "To add these to your Apple Music library too, connect it at radio-commons.vercel.app slash connect slash apple-music.";
   const SAVED = 'Saved "Sick of the Times" by Thao to your 88Nine Finds, and I\'m adding it to Apple Music.';
 
   it("weaves the follow, the next show and the story into one reply (Milwaukee date)", () => {
@@ -198,7 +199,7 @@ describe("spokenFinds", () => {
     expect(spokenFinds(five, 3)).toBe("That's all your Finds.");
   });
   it("reads a short list whole and keeps the reconnect sentence", () => {
-    expect(spokenFinds([row("1"), row("2", "expired")])).toBe('Your latest Finds — 1: "Song 1" by Artist 1; 2: "Song 2" by Artist 2. Apple Music needs reconnecting at radiomilwaukee.org slash connect.');
+    expect(spokenFinds([row("1"), row("2", "expired")])).toBe('Your latest Finds — 1: "Song 1" by Artist 1; 2: "Song 2" by Artist 2. Apple Music needs reconnecting at radio-commons.vercel.app slash connect slash apple-music.');
   });
   it("speaks an empty list", () => {
     expect(spokenFinds([])).toBe("Your Finds are empty. After I name a song, say 'save it'.");
@@ -235,8 +236,8 @@ describe("follow speech", () => {
     });
     it("reads Apple Music added and expired", () => {
       expect(spokenDigest([{ kind: "apple", added: 3, expired: 0 }])).toBe("Since your last visit: 3 of your saved songs are in Apple Music.");
-      expect(spokenDigest([{ kind: "apple", added: 0, expired: 1 }])).toBe("Since your last visit: Apple Music needs reconnecting at radiomilwaukee.org slash connect.");
-      expect(spokenDigest([{ kind: "apple", added: 2, expired: 1 }])).toBe("Since your last visit: 2 of your saved songs are in Apple Music. Apple Music needs reconnecting at radiomilwaukee.org slash connect.");
+      expect(spokenDigest([{ kind: "apple", added: 0, expired: 1 }])).toBe("Since your last visit: Apple Music needs reconnecting at radio-commons.vercel.app slash connect slash apple-music.");
+      expect(spokenDigest([{ kind: "apple", added: 2, expired: 1 }])).toBe("Since your last visit: 2 of your saved songs are in Apple Music. Apple Music needs reconnecting at radio-commons.vercel.app slash connect slash apple-music.");
     });
     it("reads only the top three items, in order", () => {
       const text = spokenDigest([show, spins, story, { kind: "apple", added: 3, expired: 0 }]);
@@ -266,5 +267,21 @@ describe("spokenStationShows", () => {
   it("is honest when nothing is listed", () => {
     expect(spokenStationShows([], "hyfin")).toBe("None of the artists HYFIN has been playing have shows listed right now.");
     expect(spokenStationShows([], undefined)).toBe("None of the artists Radio Milwaukee has been playing have shows listed right now.");
+  });
+});
+
+describe("account linking prompts", () => {
+  it("name both of Amazon's paths and why, in one sentence a speaker can say", () => {
+    expect(LINK_ACCOUNT_SPEECH).toBe("To save songs and follow artists, link your Radio Milwaukee account: scan the QR code if your device shows one, or open the notice Alexa sends to the Alexa app on your phone.");
+    expect(LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH).toBe("To manage your membership, link your Radio Milwaukee account: scan the QR code if your device shows one, or open the notice Alexa sends to the Alexa app on your phone.");
+    for (const line of [LINK_ACCOUNT_SPEECH, LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH]) {
+      expect(screenWords(line)).toEqual([]);
+      expect(line.match(/[.?!]/g)).toHaveLength(1);
+    }
+  });
+  it("membership tools get the membership prompt; every other tool the shared one", () => {
+    expect(linkAccountSpeech("my_membership")).toBe(LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH);
+    expect(linkAccountSpeech("cancel_membership")).toBe(LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH);
+    expect(linkAccountSpeech("save_find")).toBe(LINK_ACCOUNT_SPEECH);
   });
 });
