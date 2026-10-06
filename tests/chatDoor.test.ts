@@ -1,8 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { buildMcpHandler, CARD_URI, CHAT_SIGN_IN_TEXT } from "@/lib/mcp";
 import { SITE } from "@/lib/card/tokens";
 import { fakeBackstory, fakeFieldGuide, fakePlaylist } from "./fixtures";
-import { mcpPost, mcpPostAs } from "./mcp-wire";
+import { mcpPost, mcpPostAs, mcpRequest, send } from "./mcp-wire";
 
 const chatHandler = () =>
   buildMcpHandler({ backstory: () => fakeBackstory(), fieldGuide: () => fakeFieldGuide(), playlist: () => fakePlaylist(), cardHtml: () => "<!doctype html><title>card</title>", surface: "chat" });
@@ -57,5 +57,43 @@ describe("ChatGPT door: sign-in", () => {
   it("never mentions Alexa in the sign-in reply", async () => {
     const { message } = await mcpPost(chatHandler(), { method: "tools/call", params: { name: "list_finds", arguments: {} } });
     expect(message.result.content[0].text).not.toMatch(/alexa/i);
+  });
+});
+
+describe("ChatGPT route (/api/chatgpt/mcp)", () => {
+  const route = async () => (await import("@/app/api/chatgpt/mcp/route")).POST;
+  const saveFind = (headers: Record<string, string> = {}) =>
+    mcpRequest({ method: "tools/call", params: { name: "save_find", arguments: { title: "No ID" } } }, 1, headers);
+
+  it("serves the chat tool list (no membership tools)", async () => {
+    const listed = names((await mcpPost(await route(), { method: "tools/list" })).message.result);
+    expect(listed).not.toContain("support_radio_milwaukee");
+    expect(listed).toHaveLength(21);
+  });
+
+  it("has no HTTP 401 gate: a signed-out save reaches the tool and gets the sign-in error", async () => {
+    const { status, message } = await send(await route(), saveFind());
+    expect(status).toBe(200);
+    expect(message.result._meta["mcp/www_authenticate"]).toHaveLength(1);
+  });
+
+  it("a junk bearer is treated as signed out, not rejected", async () => {
+    const { status, message } = await send(await route(), saveFind({ authorization: "Bearer junk" }));
+    expect(status).toBe(200);
+    expect(message.result.isError).toBe(true);
+  });
+});
+
+describe("/.well-known/oauth-protected-resource/api/chatgpt/mcp", () => {
+  it("names the chat door as the resource and Clerk as the sign-in server", async () => {
+    vi.stubEnv("CLERK_LISTENER_ISSUER", "https://issuer.example");
+    const { GET } = await import("@/app/.well-known/oauth-protected-resource/api/chatgpt/mcp/route");
+    const res = GET(new Request("https://rc.example/.well-known/oauth-protected-resource/api/chatgpt/mcp"));
+    expect(await res.json()).toEqual({
+      resource: "https://rc.example/api/chatgpt/mcp",
+      authorization_servers: ["https://issuer.example"],
+      scopes_supported: ["openid", "profile", "offline_access"],
+    });
+    vi.unstubAllEnvs();
   });
 });
