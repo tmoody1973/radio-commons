@@ -1,6 +1,7 @@
 import type { TrailEntry } from "@/lib/sim/trail";
 import { LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH, LINK_ACCOUNT_SPEECH } from "@/lib/speech";
 import { GIVE_UNAVAILABLE_SPEECH } from "@/lib/give";
+import { isLinkingPrompt } from "@/lib/sim/ui";
 
 type ToolEntry = Extract<TrailEntry, { kind: "tool" }>;
 export interface CheckResult { pass: boolean; detail: string }
@@ -13,7 +14,7 @@ const describe = (calls: ToolEntry[]) => calls.map((call) => `${call.name}(${JSO
 const result = (pass: boolean, calls: ToolEntry[]): CheckResult => ({ pass, detail: describe(calls) });
 
 /** The tool ran without error. For signed-in tools an unlinked run may stop at the account-linking refusal: still the right tool. */
-const worked = (call: ToolEntry, allowLinking: boolean) => !call.isError || (allowLinking && call.summary === LINK_ACCOUNT_SPEECH);
+const worked = (call: ToolEntry, allowLinking: boolean) => !call.isError || (allowLinking && isLinkingPrompt(call.summary, LINK_ACCOUNT_SPEECH));
 
 export function checkRecentSongs(trail: TrailEntry[]): CheckResult {
   const calls = toolCalls(trail, "recent_songs");
@@ -112,13 +113,13 @@ export function checkSupport(trail: TrailEntry[], _shown: ShownSong[], view?: st
 /** "cancel my membership" from the unlinked eval: cancel_membership, stopped at account linking (it never runs anonymously). */
 export function checkCancelNeedsLink(trail: TrailEntry[]): CheckResult {
   const calls = toolCalls(trail, "cancel_membership");
-  return result(calls.length > 0 && calls.every((call) => call.isError && call.summary === LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH), calls);
+  return result(calls.length > 0 && calls.every((call) => call.isError && isLinkingPrompt(call.summary, LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH)), calls);
 }
 
 /** "Am I a member" while unlinked: my_membership, stopped at the membership linking prompt. */
 export function checkMembershipNeedsLink(trail: TrailEntry[]): CheckResult {
   const calls = toolCalls(trail, "my_membership");
-  return result(calls.length > 0 && calls.every((call) => call.isError && call.summary === LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH), calls);
+  return result(calls.length > 0 && calls.every((call) => call.isError && isLinkingPrompt(call.summary, LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH)), calls);
 }
 
 /** "Upgrade me to Front Row": the give card opened on that level, not a status read. */
