@@ -1,0 +1,761 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Alexa+ door (/api/mcp) is frozen > a signed-out save_find reply 1`] = `
+{
+  "content": [
+    {
+      "text": "To save songs and follow artists, link your Radio Milwaukee account: scan the QR code if your device shows one, or open the notice Alexa sends to the Alexa app on your phone.",
+      "type": "text",
+    },
+  ],
+  "isError": true,
+  "structuredContent": {
+    "error": "account_linking_required",
+  },
+}
+`;
+
+exports[`Alexa+ door (/api/mcp) is frozen > initialize result 1`] = `
+{
+  "capabilities": {
+    "resources": {
+      "listChanged": true,
+    },
+    "tools": {
+      "listChanged": true,
+    },
+  },
+  "protocolVersion": "2025-11-25",
+  "serverInfo": {
+    "name": "radio-commons",
+    "version": "0.2.0",
+  },
+}
+`;
+
+exports[`Alexa+ door (/api/mcp) is frozen > resources/list 1`] = `
+{
+  "resources": [
+    {
+      "description": "A Radio Milwaukee story, quote, list or map, in Alexa+ style.",
+      "mimeType": "text/html;profile=mcp-app",
+      "name": "Story card",
+      "uri": "ui://radio-commons/story-card.html",
+    },
+  ],
+}
+`;
+
+exports[`Alexa+ door (/api/mcp) is frozen > tools/list, every field 1`] = `
+{
+  "tools": [
+    {
+      "_meta": {
+        "ui": {
+          "resourceUri": "ui://radio-commons/story-card.html",
+        },
+        "ui/resourceUri": "ui://radio-commons/story-card.html",
+      },
+      "description": "Find a Radio Milwaukee podcast story a listener remembers, by topic, person, place, neighborhood or something said in it: Milwaukee people, places, nonprofits, food and music. Returns up to three published stories; when none match, the reply names the shows covered. Use only these results; never invent a story.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "description": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string",
+          },
+          "show": {
+            "enum": [
+              "this-bites",
+              "uniquely-milwaukee",
+              "ladies-first",
+              "milwaukee-music-premiere",
+              "studio-milwaukee",
+              "artist-interviews",
+            ],
+            "type": "string",
+          },
+        },
+        "required": [
+          "description",
+        ],
+        "type": "object",
+      },
+      "name": "find_station_story",
+      "title": "Find a Radio Milwaukee story",
+    },
+    {
+      "_meta": {
+        "ui": {
+          "resourceUri": "ui://radio-commons/story-card.html",
+        },
+        "ui/resourceUri": "ui://radio-commons/story-card.html",
+      },
+      "description": "List the newest published Radio Milwaukee stories, optionally for one show, numbered so the listener can pick one. Use for 'the latest episode' or 'any new episodes of This Bites'; for what's new at the station this week, use station_briefing.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "show": {
+            "enum": [
+              "this-bites",
+              "uniquely-milwaukee",
+              "ladies-first",
+              "milwaukee-music-premiere",
+              "studio-milwaukee",
+              "artist-interviews",
+            ],
+            "type": "string",
+          },
+        },
+        "type": "object",
+      },
+      "name": "latest_station_stories",
+      "title": "The newest Radio Milwaukee stories",
+    },
+    {
+      "_meta": {
+        "ui": {
+          "resourceUri": "ui://radio-commons/story-card.html",
+        },
+        "ui/resourceUri": "ui://radio-commons/story-card.html",
+      },
+      "description": "Tell the listener about one Radio Milwaukee story. Speak only from this record, always say the show and month, and describe the summary as Radio Milwaukee's, not your own. Use view "places" when the listener asks where the story's places are; it shows them on a map.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "storyId": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string",
+          },
+          "view": {
+            "enum": [
+              "story",
+              "places",
+            ],
+            "type": "string",
+          },
+        },
+        "required": [
+          "storyId",
+        ],
+        "type": "object",
+      },
+      "name": "get_station_story",
+      "title": "Tell me about a Radio Milwaukee story",
+    },
+    {
+      "_meta": {
+        "ui": {
+          "resourceUri": "ui://radio-commons/story-card.html",
+        },
+        "ui/resourceUri": "ui://radio-commons/story-card.html",
+      },
+      "description": "Answer a listener's detail question about one Radio Milwaukee story using the station's own words. Quote the passages exactly, say when in the episode each is heard, and never add facts. If detailed answers aren't available or nothing matches, say so.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "question": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string",
+          },
+          "storyId": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string",
+          },
+        },
+        "required": [
+          "storyId",
+          "question",
+        ],
+        "type": "object",
+      },
+      "name": "ask_station_story",
+      "title": "Answer a detail question about a Radio Milwaukee story",
+    },
+    {
+      "_meta": {
+        "ui": {
+          "resourceUri": "ui://radio-commons/story-card.html",
+        },
+        "ui/resourceUri": "ui://radio-commons/story-card.html",
+      },
+      "description": "Find upcoming events from Radio Milwaukee's event guide (the MKE Field Guide): by words ("live music"), time (tonight, today, tomorrow, this weekend, this week), free only, or near a place from a story the listener is looking at (nearStoryId, optionally nearPlace by name). Use only these results; never invent an event. For general events not tied to the station's artists; for concerts by artists a station plays ("88Nine artists with shows"), use station_artist_shows. Speaks three at a time; when the reply offers the next ones and the listener says yes, more, the next ones or keep going, call this tool again with the same arguments and page 2 (then 3). Numbers keep counting across pages.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "freeOnly": {
+            "type": "boolean",
+          },
+          "nearPlace": {
+            "maxLength": 80,
+            "minLength": 1,
+            "type": "string",
+          },
+          "nearStoryId": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string",
+          },
+          "page": {
+            "maximum": 4,
+            "minimum": 1,
+            "type": "integer",
+          },
+          "query": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string",
+          },
+          "when": {
+            "enum": [
+              "tonight",
+              "today",
+              "tomorrow",
+              "this-weekend",
+              "this-week",
+            ],
+            "type": "string",
+          },
+        },
+        "type": "object",
+      },
+      "name": "find_events",
+      "title": "Find events in Milwaukee",
+    },
+    {
+      "_meta": {
+        "ui": {
+          "resourceUri": "ui://radio-commons/story-card.html",
+        },
+        "ui/resourceUri": "ui://radio-commons/story-card.html",
+      },
+      "description": "Upcoming concerts by artists Radio Milwaukee's stations have been playing, Milwaukee-area shows first. Use for "88Nine artists with concerts coming up", "artists you play", "artists on HYFIN", "who's touring", "which artists from the station have concerts". Pass station when the listener names one; omit it for all of Radio Milwaukee. No linked account needed. Not for the artists the listener follows (whats_new_for_me) or general events tonight or this weekend (find_events). Use only these results; never invent a show. Speaks three at a time; when the reply offers the next ones and the listener says yes, more, the next ones or keep going, call this tool again with the same arguments and page 2 (then 3). Numbers keep counting across pages.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "page": {
+            "maximum": 4,
+            "minimum": 1,
+            "type": "integer",
+          },
+          "station": {
+            "enum": [
+              "88nine",
+              "hyfin",
+              "rhythmlab",
+              "414music",
+            ],
+            "type": "string",
+          },
+        },
+        "type": "object",
+      },
+      "name": "station_artist_shows",
+      "title": "Shows by artists Radio Milwaukee plays",
+    },
+    {
+      "_meta": {
+        "ui": {
+          "resourceUri": "ui://radio-commons/story-card.html",
+        },
+        "ui/resourceUri": "ui://radio-commons/story-card.html",
+      },
+      "description": "This week's Radio Milwaukee staff picks, in the curator's own words, plus upcoming Radio Milwaukee events. Use for 'what is Radio Milwaukee recommending?'.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {},
+        "type": "object",
+      },
+      "name": "station_picks",
+      "title": "What Radio Milwaukee recommends",
+    },
+    {
+      "_meta": {
+        "ui": {
+          "resourceUri": "ui://radio-commons/story-card.html",
+        },
+        "ui/resourceUri": "ui://radio-commons/story-card.html",
+      },
+      "description": "A short briefing from Radio Milwaukee's newest weekly newsletter: up to four items in the station's own words, each opening its story, Concert Picks or page. Use for 'what's new at Radio Milwaukee this week?'.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {},
+        "type": "object",
+      },
+      "name": "station_briefing",
+      "title": "This week at Radio Milwaukee",
+    },
+    {
+      "_meta": {
+        "ui": {
+          "resourceUri": "ui://radio-commons/story-card.html",
+        },
+        "ui/resourceUri": "ui://radio-commons/story-card.html",
+      },
+      "description": "A short summary of what Radio Milwaukee can do here, with an example phrase for each. Use for "what can you do", "help", "what can Radio Milwaukee do", "how do I use this". Speak the summary as given. If the listener then says "tell me more", describe the capabilities from this result two at a time, each with its example. No linked account needed.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {},
+        "type": "object",
+      },
+      "name": "what_can_you_do",
+      "title": "What Radio Milwaukee can do",
+    },
+    {
+      "_meta": {
+        "ui": {
+          "resourceUri": "ui://radio-commons/story-card.html",
+        },
+        "ui/resourceUri": "ui://radio-commons/story-card.html",
+      },
+      "description": "Find a song Radio Milwaukee played on one of its stations, by station and time window, optionally with descriptive cues like 'horns'. Returns numbered matches with playIds; pass a playId to save_find or get_track_story. Use for 'what was that song on 88Nine this morning?' and 'the one before that'; for 'what's playing now' use on_air_now; for 'the last 5 songs', use recent_songs instead (beforePlayId; pass the same window again). Times are Milwaukee local time, 24-hour HH:MM. Map 'this morning' to 06:00-12:00, 'this afternoon' 12:00-17:00, 'tonight'/'this evening' 17:00-23:59, 'around 8:15' to 08:00-08:30. day is 'today' (default) or 'yesterday'. Use afterPlayId for 'the one after that'. If endTime is earlier than startTime, the window crosses midnight.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "afterPlayId": {
+            "pattern": "^[a-z0-9_]{6,64}$",
+            "type": "string",
+          },
+          "beforePlayId": {
+            "pattern": "^[a-z0-9_]{6,64}$",
+            "type": "string",
+          },
+          "cues": {
+            "items": {
+              "maxLength": 30,
+              "type": "string",
+            },
+            "maxItems": 5,
+            "type": "array",
+          },
+          "day": {
+            "enum": [
+              "today",
+              "yesterday",
+            ],
+            "type": "string",
+          },
+          "endTime": {
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "type": "string",
+          },
+          "startTime": {
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "type": "string",
+          },
+          "station": {
+            "enum": [
+              "hyfin",
+              "88nine",
+              "414music",
+              "rhythmlab",
+            ],
+            "type": "string",
+          },
+        },
+        "required": [
+          "station",
+          "startTime",
+          "endTime",
+        ],
+        "type": "object",
+      },
+      "name": "find_song_played",
+      "title": "Find a song Radio Milwaukee played",
+    },
+    {
+      "_meta": {
+        "ui": {
+          "resourceUri": "ui://radio-commons/story-card.html",
+        },
+        "ui/resourceUri": "ui://radio-commons/story-card.html",
+      },
+      "description": "Search what Radio Milwaukee's stations played over about the last two weeks, by artist or song title. Use for 'when did you last play Nas?', 'have you played the new Thao song?', 'what Kendrick have you played?'. Searches every station unless one is named. Returns numbered songs, newest first, with playIds for save_find and get_track_story.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "query": {
+            "maxLength": 100,
+            "minLength": 2,
+            "type": "string",
+          },
+          "station": {
+            "enum": [
+              "88nine",
+              "hyfin",
+              "rhythmlab",
+              "414music",
+            ],
+            "type": "string",
+          },
+        },
+        "required": [
+          "query",
+        ],
+        "type": "object",
+      },
+      "name": "search_playlist",
+      "title": "Search Radio Milwaukee's playlists",
+    },
+    {
+      "_meta": {
+        "ui": {
+          "resourceUri": "ui://radio-commons/story-card.html",
+        },
+        "ui/resourceUri": "ui://radio-commons/story-card.html",
+      },
+      "description": "The most recent songs on a Radio Milwaukee station, newest first, numbered. Use for 'what did you just play?', 'what just played?', 'the last 5 songs on 88Nine'. For what's on or playing right now, or to listen, use on_air_now. save_find takes the \`number\` field for 'save number 2'; get_track_story takes the playId. For a song at a past time ('around 2 pm'), use find_song_played. Speaks three at a time; when the reply offers the next ones and the listener says yes, more, the next ones or keep going, call this tool again with the same arguments and page 2 (then 3). Numbers keep counting across pages.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "count": {
+            "maximum": 10,
+            "minimum": 1,
+            "type": "integer",
+          },
+          "page": {
+            "maximum": 4,
+            "minimum": 1,
+            "type": "integer",
+          },
+          "station": {
+            "enum": [
+              "hyfin",
+              "88nine",
+              "414music",
+              "rhythmlab",
+            ],
+            "type": "string",
+          },
+        },
+        "required": [
+          "station",
+        ],
+        "type": "object",
+      },
+      "name": "recent_songs",
+      "title": "Latest songs Radio Milwaukee played",
+    },
+    {
+      "_meta": {
+        "ui": {
+          "resourceUri": "ui://radio-commons/story-card.html",
+        },
+        "ui/resourceUri": "ui://radio-commons/story-card.html",
+      },
+      "description": "What's on Radio Milwaukee's stations right now, with a Listen live button (on devices with a screen) that plays each station's live stream. Use for "what's on now", "what's on Radio Milwaukee right now", "what's playing right now on HYFIN", "listen to 88Nine", "play HYFIN", "put on Rhythm Lab". Pass station when the listener names one; omit it for all four stations. No linked account needed. Not for 'the last 5 songs' or 'what did you just play' (recent_songs), or who's hosting or when a show is on (station_schedule). Speak the answer as given.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "station": {
+            "enum": [
+              "88nine",
+              "hyfin",
+              "rhythmlab",
+              "414music",
+            ],
+            "type": "string",
+          },
+        },
+        "type": "object",
+      },
+      "name": "on_air_now",
+      "title": "On air now on Radio Milwaukee",
+    },
+    {
+      "_meta": {
+        "ui": {
+          "resourceUri": "ui://radio-commons/story-card.html",
+        },
+        "ui/resourceUri": "ui://radio-commons/story-card.html",
+      },
+      "description": "88Nine's on-air schedule: who's on now (host and show) and who's next, when a show or host is on, and whether a show already aired this week. Use for "who's on 88Nine", "who's on right now", "who's the DJ", "who's hosting", "when is Rhythm Lab on", "when is Erin Wolf on", "did I miss Audio Taste Test", "what's on tonight on 88Nine". Pass query with the show or host the listener names; omit it for who's on now. Rhythm Lab Radio is an 88Nine show: for it pass query "rhythm lab". Only 88Nine has a schedule. Not for what song is playing (on_air_now). No linked account needed. Speak the answer as given. Speaks three at a time; when the reply offers the next ones and the listener says yes, more, the next ones or keep going, call this tool again with the same arguments and page 2 (then 3). Numbers keep counting across pages.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "page": {
+            "maximum": 4,
+            "minimum": 1,
+            "type": "integer",
+          },
+          "query": {
+            "maxLength": 100,
+            "minLength": 2,
+            "type": "string",
+          },
+          "station": {
+            "enum": [
+              "88nine",
+              "hyfin",
+              "rhythmlab",
+              "414music",
+            ],
+            "type": "string",
+          },
+        },
+        "type": "object",
+      },
+      "name": "station_schedule",
+      "title": "Who's on 88Nine, and when",
+    },
+    {
+      "_meta": {
+        "ui": {
+          "resourceUri": "ui://radio-commons/story-card.html",
+        },
+        "ui/resourceUri": "ui://radio-commons/story-card.html",
+      },
+      "description": "Tell the listener more about a song Radio Milwaukee played: credits, album, year, upcoming local shows. Pass its playId if you have it, and always also its title and artist (and station if known) so it is found even without an id. Use for 'what are the credits on that?', 'tell me about Groove Thang'. Speak only from this record.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "artist": {
+            "maxLength": 200,
+            "type": "string",
+          },
+          "playId": {
+            "pattern": "^[a-z0-9_]{6,64}$",
+            "type": "string",
+          },
+          "station": {
+            "enum": [
+              "88nine",
+              "hyfin",
+              "rhythmlab",
+              "414music",
+            ],
+            "type": "string",
+          },
+          "title": {
+            "maxLength": 200,
+            "type": "string",
+          },
+        },
+        "type": "object",
+      },
+      "name": "get_track_story",
+      "title": "More about a song Radio Milwaukee played",
+    },
+    {
+      "_meta": {
+        "ui": {
+          "resourceUri": "ui://radio-commons/story-card.html",
+        },
+        "ui/resourceUri": "ui://radio-commons/story-card.html",
+      },
+      "annotations": {
+        "idempotentHint": true,
+      },
+      "description": "Save a song the listener heard on Radio Milwaukee to their 88Nine Finds (and Apple Music if connected). Always call this tool when the listener asks, even if they may not have linked their account — the tool starts account linking itself. Pass number (1-10) only when the listener says a number ("save number 3"). Otherwise pass the playId from recent_songs, find_song_played or search_playlist if you have it, and always also pass the song's title and artist (and station if known) so the right play is found even without an id. Use for 'save it', 'save number 3', 'save the song by Thao'. After on_air_now, pass station when the listener names one ("save the HYFIN song"); if several stations were named and the listener doesn't say which, call with no song details and the tool asks which station. Never guess a station.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "artist": {
+            "maxLength": 200,
+            "type": "string",
+          },
+          "number": {
+            "maximum": 10,
+            "minimum": 1,
+            "type": "integer",
+          },
+          "playId": {
+            "pattern": "^[a-z0-9_]{6,64}$",
+            "type": "string",
+          },
+          "station": {
+            "enum": [
+              "88nine",
+              "hyfin",
+              "rhythmlab",
+              "414music",
+            ],
+            "type": "string",
+          },
+          "title": {
+            "maxLength": 200,
+            "type": "string",
+          },
+        },
+        "type": "object",
+      },
+      "name": "save_find",
+      "title": "Save a song to 88Nine Finds",
+    },
+    {
+      "_meta": {
+        "ui": {
+          "resourceUri": "ui://radio-commons/story-card.html",
+        },
+        "ui/resourceUri": "ui://radio-commons/story-card.html",
+      },
+      "description": "List the listener's saved Radio Milwaukee Finds, newest first, numbered. Always call this tool when the listener asks, even if they may not have linked their account — the tool starts account linking itself. Use for 'what's in my Finds?'. Speaks three at a time; when the reply offers the next ones and the listener says yes, more, the next ones or keep going, call this tool again with the same arguments and page 2 (then 3). Numbers keep counting across pages.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "limit": {
+            "maximum": 10,
+            "minimum": 1,
+            "type": "integer",
+          },
+          "page": {
+            "maximum": 4,
+            "minimum": 1,
+            "type": "integer",
+          },
+        },
+        "type": "object",
+      },
+      "name": "list_finds",
+      "title": "List my Finds",
+    },
+    {
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": true,
+      },
+      "description": "Permanently delete all of the listener's Finds and disconnect Apple Music. Always call this tool when the listener asks, even if they may not have linked their account — the tool starts account linking itself. Only call after the listener has clearly confirmed.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {},
+        "type": "object",
+      },
+      "name": "delete_my_finds",
+      "title": "Delete my Finds",
+    },
+    {
+      "annotations": {
+        "idempotentHint": true,
+      },
+      "description": "Follow an artist so the listener can later ask what's new from the artists they follow. Always call this tool when the listener asks, even if they may not have linked their account — the tool starts account linking itself. Pass the artist's name, or the playId of a song by them. Use for 'follow Thao' and 'follow this artist' (pass the playId of the song that just played).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "artist": {
+            "maxLength": 100,
+            "type": "string",
+          },
+          "playId": {
+            "pattern": "^[a-z0-9_]{6,64}$",
+            "type": "string",
+          },
+        },
+        "type": "object",
+      },
+      "name": "follow_artist",
+      "title": "Follow an artist",
+    },
+    {
+      "annotations": {
+        "idempotentHint": true,
+      },
+      "description": "Stop following an artist. Always call this tool when the listener asks, even if they may not have linked their account — the tool starts account linking itself. Use for 'stop following Thao' and 'unfollow Thao'.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "artist": {
+            "maxLength": 100,
+            "type": "string",
+          },
+        },
+        "required": [
+          "artist",
+        ],
+        "type": "object",
+      },
+      "name": "unfollow_artist",
+      "title": "Unfollow an artist",
+    },
+    {
+      "_meta": {
+        "ui": {
+          "resourceUri": "ui://radio-commons/story-card.html",
+        },
+        "ui/resourceUri": "ui://radio-commons/story-card.html",
+      },
+      "description": "What's new since the listener last asked, from the artists the listener follows: upcoming shows, new plays on Radio Milwaukee stations, new stories. Always call this tool when the listener asks, even if they may not have linked their account — the tool starts account linking itself. Use ONLY when the listener says me, my or I follow: 'what's new for me?', 'my artists', 'do any artists I follow have concerts?'. Not for "88Nine artists", artists a station plays, or who's touring: use station_artist_shows.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {},
+        "type": "object",
+      },
+      "name": "whats_new_for_me",
+      "title": "What's new from my artists",
+    },
+    {
+      "_meta": {
+        "ui": {
+          "resourceUri": "ui://radio-commons/story-card.html",
+        },
+        "ui/resourceUri": "ui://radio-commons/story-card.html",
+      },
+      "description": "Become a Radio Milwaukee member (monthly) or make a one-time gift, with Amazon Pay. This is a sandbox demo: no real money moves, and the reply says so. Shows a card with the station's membership levels; each opens a secure Amazon Pay page. Use for "I want to support Radio Milwaukee", "donate", "become a member", "give to the station". For one level ("upgrade me to Front Row", "I want the VIP membership", "what do VIP members get"), pass level (ga, main-floor, front-row or vip) and kind "once" only for a one-time gift: the card opens on that level. Not for checking the listener's own membership (my_membership). No linked account needed. Speak the reply as given.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "kind": {
+            "enum": [
+              "monthly",
+              "once",
+            ],
+            "type": "string",
+          },
+          "level": {
+            "enum": [
+              "ga",
+              "main-floor",
+              "front-row",
+              "vip",
+            ],
+            "type": "string",
+          },
+        },
+        "type": "object",
+      },
+      "name": "support_radio_milwaukee",
+      "title": "Support Radio Milwaukee",
+    },
+    {
+      "_meta": {
+        "ui": {
+          "resourceUri": "ui://radio-commons/story-card.html",
+        },
+        "ui/resourceUri": "ui://radio-commons/story-card.html",
+      },
+      "annotations": {
+        "readOnlyHint": true,
+      },
+      "description": "The listener's own Radio Milwaukee membership (an Amazon Pay sandbox demo), read only: level, amount, member since, the month of the next charge, their gift and what the level includes. Always call this tool when the listener asks, even if they may not have linked their account — the tool starts account linking itself. Use for "am I a member", "what's my membership", "when does my membership renew", "what do I get as a member". Not for joining, giving or upgrading (support_radio_milwaukee) or cancelling (cancel_membership). Speak the reply as given.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {},
+        "type": "object",
+      },
+      "name": "my_membership",
+      "title": "My Radio Milwaukee membership",
+    },
+    {
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": true,
+      },
+      "description": "Cancel the listener's monthly Radio Milwaukee membership (an Amazon Pay sandbox demo). Always call this tool when the listener asks, even if they may not have linked their account — the tool starts account linking itself. First call it without confirmed: it returns the question to ask. Only after the listener clearly says yes, call it again with confirmed true. Use for "cancel my membership", "stop my monthly donation".",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "confirmed": {
+            "type": "boolean",
+          },
+        },
+        "type": "object",
+      },
+      "name": "cancel_membership",
+      "title": "Cancel my Radio Milwaukee membership",
+    },
+  ],
+}
+`;
