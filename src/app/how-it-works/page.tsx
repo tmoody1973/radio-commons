@@ -75,7 +75,9 @@ function Memory() {
           <p className={styles.ask}>{H.erase}</p>
           <p className={styles.body}>{H.notStored}</p>
           <p className={styles.body}>{H.memoryWhy}</p>
-          <a href="/privacy" className={styles.link}>Read the privacy page</a>
+          <p className={styles.body}>
+            <a href="/privacy" className={styles.link}>Read the privacy page</a> · <a href="/terms" className={styles.link}>Terms of use</a>
+          </p>
         </div>
       </div>
     </section>
@@ -176,6 +178,7 @@ export default function HowItWorks() {
             <p className={styles.eyebrow}>{H.eyebrow}</p>
             <h1 className={styles.h1}>{H.headline}</h1>
             <p className={styles.lead}>{H.lead}</p>
+            <p className={styles.note}>{H.builtBy}</p>
           </div>
         </div>
       </header>

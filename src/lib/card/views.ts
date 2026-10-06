@@ -7,6 +7,7 @@ import { LIVE_STREAMS } from "@/lib/streams";
 import { CAPABILITIES } from "@/lib/capabilities";
 import { dollars, LEVELS, type GiveKind } from "@/lib/give/tiers";
 import { PREMIUMS } from "@/lib/give/premiums";
+import type { MembershipFacts } from "@/lib/give";
 import { pinnedPlaces } from "@/lib/map/staticMap";
 import { directionsUrl, streetAddress } from "@/lib/maps";
 import { ARTICLE_SOURCE, clock, longDate, monthYear, showCalendarDay, withoutStationName } from "@/lib/speech";
@@ -43,7 +44,9 @@ export type CardView =
   | { view: "saved"; saved: SavedOk; artworkUrl: string | null; previewUrl: string | null }
   | { view: "briefing"; date: string; items: BriefingItem[] }
   /** links: tier id → its /give URL; qrSvg is our own QR code (from the qrcode library), placed as is. */
-  | { view: "give"; links: Record<string, string>; qrSvg: string; shortUrl: string };
+  /** selected: the tier id the listener asked for ("upgrade me to Front Row"), shown highlighted on its tab. */
+  | { view: "give"; links: Record<string, string>; qrSvg: string; shortUrl: string; selected?: string }
+  | ({ view: "membership" } & MembershipFacts);
 
 const escape = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
@@ -321,7 +324,7 @@ function digestView(artists: Digest["artists"], items: DigestItem[]): string {
   }).join("");
   const apple = items.flatMap((item) => (item.kind === "apple" ? [
     ...(item.added > 0 ? [`${item.added} of your saved songs ${item.added === 1 ? "is" : "are"} in Apple Music.`] : []),
-    ...(item.expired > 0 ? ["Apple Music needs reconnecting at radiomilwaukee.org/connect."] : []),
+    ...(item.expired > 0 ? [`Apple Music needs reconnecting at ${new URL(SITE).host}/connect/apple-music.`] : []),
   ] : []));
   const note = apple.length ? `<p class="line small">${escape(apple.join(" "))}</p>` : "";
   return `<article class="card stories">${LOGO}<div class="carousel">${tiles}</div>${note}</article>`;
@@ -442,21 +445,33 @@ function briefingView(date: string, items: BriefingItem[]): string {
 }
 
 const GIVE_DEMO = "DEMO · Amazon Pay sandbox · no real money";
-const giveTiers = (kind: GiveKind, links: Record<string, string>) =>
+const giveTiers = (kind: GiveKind, links: Record<string, string>, selected?: string) =>
   `<div class="give-grid ${kind}">${LEVELS.map((level) => {
-    const url = links[`${level.slug}-${kind}`];
-    return url ? `<button type="button" class="secondary details give-tier" data-url="${escape(url)}"><b>${escape(dollars(level[kind]))}${kind === "monthly" ? "/mo" : ""}</b><small>${escape(level.name)}</small><i>${escape(PREMIUMS[level.slug].line)}</i></button>` : "";
+    const id = `${level.slug}-${kind}`;
+    const url = links[id];
+    return url ? `<button type="button" class="${id === selected ? "primary" : "secondary"} details give-tier" data-url="${escape(url)}"><b>${escape(dollars(level[kind]))}${kind === "monthly" ? "/mo" : ""}</b><small>${escape(level.name)}</small><i>${escape(PREMIUMS[level.slug].line)}</i></button>` : "";
   }).join("")}</div>`;
 
 /** Support Radio Milwaukee: Monthly | One-time (CSS radios, no script), four levels each opening /give, and a QR for screens that can't open a browser. */
-function giveView(links: Record<string, string>, qrSvg: string, shortUrl: string): string {
+function giveView(links: Record<string, string>, qrSvg: string, shortUrl: string, selected?: string): string {
+  const once = selected?.endsWith("-once");
   return `<article class="card give"><div class="top">${LOGO}<span class="demo">${GIVE_DEMO}</span></div><div class="give-body"><div class="give-main">`
     + `<h2>Support Radio Milwaukee</h2>`
-    + `<input type="radio" name="give-kind" id="give-monthly" checked><input type="radio" name="give-kind" id="give-once">`
+    + `<input type="radio" name="give-kind" id="give-monthly"${once ? "" : " checked"}><input type="radio" name="give-kind" id="give-once"${once ? " checked" : ""}>`
     + `<div class="switch"><label for="give-monthly">Monthly</label><label for="give-once">One-time</label></div>`
-    + giveTiers("monthly", links) + giveTiers("once", links)
+    + giveTiers("monthly", links, selected) + giveTiers("once", links, selected)
     + `<p class="line small">More levels on radiomilwaukee.org</p></div>`
     + `<aside class="give-qr">${qrSvg}<p class="line small">Or open ${escape(shortUrl)} on your phone</p></aside></div></article>`;
+}
+
+/** "Am I a member?": the membership's facts, with Upgrade (when there's a level above) and Cancel as spoken asks. */
+function membershipView(m: MembershipFacts): string {
+  const row = (label: string, value: string | null) => (value ? `<p class="line"><small>${label}</small> ${escape(value)}</p>` : "");
+  const upgrade = m.upgradeTo ? `<button type="button" class="primary ask" data-ask="${escape(`Upgrade me to ${m.upgradeTo}`)}">Upgrade to ${escape(m.upgradeTo)}</button>` : "";
+  return `<article class="card give membership"><div class="top">${LOGO}<span class="demo">${GIVE_DEMO}</span></div>`
+    + `<h2>${escape(m.level)} member</h2>`
+    + row("Amount", m.amount) + row("Member since", m.since) + row("Next charge", m.nextCharge) + row("Gift", m.gift) + row("Includes", m.perks)
+    + `<div class="actions">${upgrade}<button type="button" class="secondary ask" data-ask="Cancel my Radio Milwaukee membership">Cancel membership</button></div></article>`;
 }
 
 export function renderView(card: CardView): string {
@@ -477,6 +492,7 @@ export function renderView(card: CardView): string {
     case "capabilities": return capabilitiesView();
     case "on-air": return onAirView(card.tiles);
     case "schedule": return scheduleView(card.onNow, card.next, card.matches);
-    case "give": return giveView(card.links, card.qrSvg, card.shortUrl);
+    case "give": return giveView(card.links, card.qrSvg, card.shortUrl, card.selected);
+    case "membership": return membershipView(card);
   }
 }

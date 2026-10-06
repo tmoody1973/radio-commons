@@ -3,7 +3,7 @@ import { LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH, LINK_ACCOUNT_SPEECH } from "@/lib/s
 import { GIVE_UNAVAILABLE_SPEECH } from "@/lib/give";
 import type { TrailEntry } from "@/lib/sim/trail";
 import {
-  checkCancelNeedsLink, checkFollowThao, checkOnAirNow, checkSupport, checkRecentSongs, checkAsksWhichStation, checkRecentSongsPage, checkSaveNumber, screenWords, checkSaveStation, checkSearchPlaylist, checkStationArtistShows, checkStationSchedule, checkTrackStory, checkWhatCanYouDo, checkWhatsNew,
+  checkCancelNeedsLink, checkMembershipNeedsLink, checkSupportLevel, checkFollowThao, checkOnAirNow, checkSupport, checkRecentSongs, checkAsksWhichStation, checkRecentSongsPage, checkSaveNumber, screenWords, checkSaveStation, checkSearchPlaylist, checkStationArtistShows, checkStationSchedule, checkTrackStory, checkWhatCanYouDo, checkWhatsNew,
 } from "@/lib/sim/evalChecks";
 
 const tool = (name: string, input: Record<string, unknown> = {}, isError = false, summary = "ok"): TrailEntry =>
@@ -185,5 +185,23 @@ describe("checkRecentSongsPage", () => {
   it("needs recent_songs asked for that page", () => {
     expect(checkRecentSongsPage(2)([tool("recent_songs", { station: "88nine", count: 10, page: 2 })]).pass).toBe(true);
     expect(checkRecentSongsPage(2)([tool("recent_songs", { station: "88nine" })]).pass).toBe(false);
+  });
+});
+
+describe("checkMembershipNeedsLink", () => {
+  it("passes only when an unlinked my_membership stopped at the membership linking prompt", () => {
+    expect(checkMembershipNeedsLink([tool("my_membership", {}, true, LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH)]).pass).toBe(true);
+    expect(checkMembershipNeedsLink([unlinked("my_membership")]).pass).toBe(false);
+    expect(checkMembershipNeedsLink([tool("support_radio_milwaukee")]).pass).toBe(false);
+    expect(checkMembershipNeedsLink([]).pass).toBe(false);
+  });
+});
+
+describe("checkSupportLevel", () => {
+  it("passes on support_radio_milwaukee with that level, never my_membership", () => {
+    expect(checkSupportLevel("front-row")([tool("support_radio_milwaukee", { level: "front-row" })]).pass).toBe(true);
+    expect(checkSupportLevel("front-row")([tool("support_radio_milwaukee", { level: "vip" })]).pass).toBe(false);
+    expect(checkSupportLevel("front-row")([tool("support_radio_milwaukee")]).pass).toBe(false);
+    expect(checkSupportLevel("front-row")([tool("support_radio_milwaukee", { level: "front-row" }), tool("my_membership")]).pass).toBe(false);
   });
 });

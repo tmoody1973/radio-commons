@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import Image from "next/image";
-import { Figtree } from "next/font/google";
+import { Figtree, JetBrains_Mono } from "next/font/google";
+import { AlsoRow, Architecture, Journey } from "./landing-sections";
 import { LANDING } from "@/lib/landing";
 import styles from "./landing.module.css";
 
 const figtree = Figtree({ subsets: ["latin"], weight: ["400", "500", "600", "700", "800"] });
+const mono = JetBrains_Mono({ subsets: ["latin"], weight: ["500"], variable: "--font-mono" });
 
 export const metadata: Metadata = {
   title: "Radio Commons — your local station, inside Alexa+",
@@ -27,7 +29,7 @@ const Check = () => (
 export default function Home() {
   const L = LANDING;
   return (
-    <div className={`${styles.page} ${figtree.className}`}>
+    <div className={`${styles.page} ${figtree.className} ${mono.variable}`}>
       <header className={styles.dark}>
         <div className={`${styles.wrap} ${styles.bar}`}>
           <a href="#top" className={styles.brand}>Radio Commons</a>
@@ -72,6 +74,7 @@ export default function Home() {
               </article>
             ))}
           </div>
+          <AlsoRow />
         </section>
 
         {L.demoVideoUrl ? (
@@ -100,9 +103,15 @@ export default function Home() {
           </div>
         </section>
 
+        <Journey />
+
         <section id="how" className={styles.white}>
           <div className={`${styles.wrap} ${styles.section}`}>
-            <h2 className={styles.h2}>How it works</h2>
+            <div className={styles.intro}>
+              <h2 className={styles.h2}>How it works</h2>
+              <p className={styles.sub}>{L.howSub}</p>
+            </div>
+            <Architecture />
             <ol className={styles.cols4}>
               {L.steps.map((s, i) => (
                 <li key={s.title} className={styles.step}>

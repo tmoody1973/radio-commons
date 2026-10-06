@@ -47,3 +47,9 @@ describe("capabilities card", () => {
     expect(html).not.toContain("data-ask=\"What's");
   });
 });
+
+describe("the Stories tile", () => {
+  it("names community stories, not just food and music", () => {
+    expect(CAPABILITIES.find((c) => c.title === "Stories")?.description).toMatch(/community stories \(Uniquely Milwaukee\)/);
+  });
+});

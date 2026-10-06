@@ -124,7 +124,7 @@ export default function ConnectAppleMusicPage() {
         <h1>Connect Apple Music</h1>
         {/* Hash routing: this page isn't a catch-all route, so Clerk's path-routed steps would 404. */}
         {isLoaded && (isSignedIn ? <ConnectCard /> : <SignIn routing="hash" fallbackRedirectUrl="/connect/apple-music" signUpFallbackRedirectUrl="/connect/apple-music" />)}
-        <p style={{ color: "var(--muted)", fontSize: 14 }}><a href="/privacy" style={{ color: "inherit" }}>Privacy</a></p>
+        <p style={{ color: "var(--muted)", fontSize: 14 }}><a href="/privacy" style={{ color: "inherit" }}>Privacy</a> · <a href="/terms" style={{ color: "inherit" }}>Terms</a></p>
       </section>
     </main>
   );

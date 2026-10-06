@@ -1,5 +1,6 @@
 import type { ChatMessage, TrailEntry } from "@/lib/sim/trail";
-import { LINK_ACCOUNT_SPEECH } from "@/lib/speech";
+import { LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH, LINK_ACCOUNT_SPEECH } from "@/lib/speech";
+import { summarize } from "@/lib/sim/trail";
 
 const MAX_HISTORY = 20;
 const MAX_MESSAGE_CHARS = 2000; // the turn route rejects longer history messages
@@ -72,6 +73,11 @@ export function cardAfterTurn<T>(previous: T | null, next: T | null, trail: Trai
   return trail.some((entry) => entry.kind === "tool") ? null : previous;
 }
 
-/** A Finds tool asked the listener to link their account (refused in the tool, or a 401 from the server). */
+/** The trail keeps only the first 120 characters of a tool's reply, so compare against the same cut. */
+export const isLinkingPrompt = (summary: string, prompt: string = LINK_ACCOUNT_SPEECH) =>
+  summary === prompt || summary === summarize(prompt);
+const LINKING_PROMPTS = [LINK_ACCOUNT_SPEECH, LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH];
+
+/** A signed-in tool asked the listener to link their account (refused in the tool, or a 401 from the server). */
 export const needsAccountLink = (trail: TrailEntry[]) =>
-  trail.some((entry) => entry.kind === "tool" && entry.isError && entry.summary === LINK_ACCOUNT_SPEECH);
+  trail.some((entry) => entry.kind === "tool" && entry.isError && LINKING_PROMPTS.some((prompt) => isLinkingPrompt(entry.summary, prompt)));
