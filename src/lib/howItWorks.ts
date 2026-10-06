@@ -66,7 +66,7 @@ export const HOW_IT_WORKS = {
   },
   alexa: [
     { title: "Add-on manifest", text: "alexa/addon-package/addon.json: Amazon’s add-on manifest, with an MCP integration pointing Alexa+ at our endpoint and example phrases such as “Save that song” and “What’s new for me”. Deployed with npm run alexa:deploy (Amazon’s alexa-ai CLI)." },
-    { title: "MCP 2025-11-25, Streamable HTTP", text: "16 tools at /api/mcp: stories, events, songs, Finds and listener memory. Six need a linked account." },
+    { title: "MCP 2025-11-25, Streamable HTTP", text: "One endpoint, /api/mcp, with tools for stories, the weekly briefing, events, songs, the 88Nine schedule, Finds, listener memory and membership. Tools that touch a listener’s own data need a linked account." },
     { title: "Account linking, per Amazon’s spec", text: "Clerk as the sign-in server: OAuth 2.1 with PKCE (S256), refresh tokens, the add-on sends the RFC 8707 resource parameter during account linking, and RFC 9728 protected-resource metadata at /.well-known/oauth-protected-resource." },
     { title: "MCP Apps cards", text: "Every answer works by voice alone, and on an Echo Show it also returns a card built to Amazon’s MCP design guide: song lists with artwork and 30-second previews, and the digest." },
   ],
@@ -82,6 +82,9 @@ export const HOW_IT_WORKS = {
     { feature: "Alexa+ account linking and the add-on manifest", state: "Live", detail: "Per Amazon’s spec" },
     { feature: "Listener memory in the playlist database", state: "Live", detail: "Follows, last list, digest data, Backstory stories, daily refresh" },
     { feature: "Support Radio Milwaukee: monthly membership with Amazon Pay, cancel by voice (sandbox, no real money)", state: "Live", detail: "" },
+    { feature: "Station stories: This Bites, Uniquely Milwaukee, Ladies First, Radio Milwaukee Artist Interviews, Music Premieres, Studio Milwaukee Sessions", state: "Live", detail: "Find by what you remember, play, ask a detail question; every story published by an editor" },
+    { feature: "Weekly station briefing: “What’s new at Radio Milwaukee this week?” from the 88Nine newsletter", state: "Live", detail: "Each item opens its story, Concert Picks or the page (since October 5)" },
+    { feature: "88Nine schedule: who’s on, when a show airs", state: "Live", detail: "Since October 5" },
     { feature: "Artist and title search", state: "In this release", detail: "About two weeks of plays (today: about a day)" },
     { feature: "“Save number 3” on any device", state: "In this release", detail: "" },
     { feature: "The one-sentence save reply", state: "In this release", detail: "Save, Apple Music, follow, next show, station story" },
