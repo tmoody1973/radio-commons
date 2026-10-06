@@ -3,7 +3,7 @@ import { createMcpHandler } from "mcp-handler";
 import { z } from "zod";
 import { BackstoryUnavailable, type BackstoryClient, type Story } from "@/lib/backstory";
 import { PlaylistUnavailable, type Digest, type PlaylistClient, type RecallMatch, type RecentSong, type SavedFind, type Station } from "@/lib/playlist";
-import { listenerIdFrom } from "@/lib/listenerAuth";
+import { AUTH_TOOLS, listenerIdFrom, OAUTH_SCOPES } from "@/lib/listenerAuth";
 import { CAPABILITIES, CAPABILITIES_SPEECH } from "@/lib/capabilities";
 import { FieldGuideUnavailable, type FieldGuideClient, type PublicEvent } from "@/lib/fieldGuide";
 import { fullPlacesView, renderView, type CardView, type EventItem } from "@/lib/card";
@@ -100,6 +100,34 @@ const unavailable = (): ToolResult => ({ content: text(UNAVAILABLE_SPEECH), isEr
 const playlistUnavailable = (): ToolResult => ({ content: text(PLAYLIST_UNAVAILABLE_SPEECH), isError: true });
 const ACCOUNT_LINKING_REQUIRED = { error: "account_linking_required" };
 const accountLinkingRequired = (speech = LINK_ACCOUNT_SPEECH): ToolResult => ({ content: text(speech), isError: true, structuredContent: ACCOUNT_LINKING_REQUIRED });
+export const CHAT_RESOURCE_PATH = "/api/chatgpt/mcp";
+export const CHAT_SIGN_IN_TEXT = "Sign in to Radio Milwaukee to save songs, follow artists and see what's new for you.";
+// ChatGPT shows its own sign-in screen when a tool error carries this challenge with both error and error_description.
+const chatSignInRequired = (): ToolResult => ({
+  content: text(CHAT_SIGN_IN_TEXT),
+  isError: true,
+  structuredContent: ACCOUNT_LINKING_REQUIRED,
+  _meta: {
+    "mcp/www_authenticate": [
+      `Bearer resource_metadata="${SITE}/.well-known/oauth-protected-resource${CHAT_RESOURCE_PATH}", error="insufficient_scope", error_description="${CHAT_SIGN_IN_TEXT}"`,
+    ],
+  },
+});
+
+type McpServerLike = Parameters<Parameters<typeof createMcpHandler>[0]>[0];
+const SIGNED_IN_TOOLS = new Set<string>(AUTH_TOOLS);
+const SIGNED_IN = [{ type: "oauth2", scopes: [...OAUTH_SCOPES] }];
+const EITHER = [{ type: "noauth" }, ...SIGNED_IN];
+/**
+ * ChatGPT reads each tool's `_meta.securitySchemes`: Finds and follows need sign-in, everything else works either way.
+ * ponytail: patches this request's server instance (chat door only) so 24 call sites stay untouched; a per-tool helper if
+ * more chat-only tool metadata arrives.
+ */
+function declareSecuritySchemes(server: McpServerLike) {
+  const register = server.registerTool.bind(server);
+  server.registerTool = ((name: string, config: { _meta?: Record<string, unknown> }, callback: unknown) =>
+    register(name, { ...config, _meta: { ...config._meta, securitySchemes: SIGNED_IN_TOOLS.has(name) ? SIGNED_IN : EITHER } } as never, callback as never)) as typeof server.registerTool;
+}
 const eventsUnavailable = (): ToolResult => ({ content: text(EVENTS_UNAVAILABLE_SPEECH), isError: true });
 const WHEN = ["tonight", "today", "tomorrow", "this-weekend", "this-week"] as const;
 const clean = (story: Story): Story => {
@@ -177,6 +205,7 @@ export function buildMcpHandler(deps: Deps) {
   const now = deps.now ?? (() => new Date());
   const give = deps.give ?? giveFromEnv;
   const chat = deps.surface === "chat";
+  const signInRequired = (speech?: string): ToolResult => (chat ? chatSignInRequired() : accountLinkingRequired(speech));
   const station = getStation();
   const shows = station.shows.map((s) => s.slug) as [string, ...string[]];
   const card = (view: CardView, extra: Record<string, unknown> = {}) => ({ stationId: station.stationId, view: view.view, cardHtml: renderView(view), ...extra });
@@ -304,6 +333,7 @@ export function buildMcpHandler(deps: Deps) {
   };
   return createMcpHandler(
     (server) => {
+      if (chat) declareSecuritySchemes(server);
       registerAppTool(
         server,
         "find_station_story",
@@ -724,7 +754,7 @@ export function buildMcpHandler(deps: Deps) {
         async ({ number, playId, title, artist, station: slug }, context) =>
           timed("save_find", async () => {
             const listenerId = listenerIdFrom(context.http ?? {});
-            if (!listenerId) return accountLinkingRequired();
+            if (!listenerId) return signInRequired();
             // "Save that song" with nothing named: ask which station's song rather than guess.
             if (number === undefined && !playId && !title && !artist && !slug) {
               const which = whichOnAirSpeech(await onAirTiles(MUSIC_STATIONS));
@@ -769,7 +799,7 @@ export function buildMcpHandler(deps: Deps) {
         async ({ limit, page }, context) =>
           timed("list_finds", async () => {
             const listenerId = listenerIdFrom(context.http ?? {});
-            if (!listenerId) return accountLinkingRequired();
+            if (!listenerId) return signInRequired();
             const finds = await deps.playlist().listFinds(listenerId, limit);
             return { content: text(spokenFinds(finds, page)), structuredContent: { ...(finds.length ? card({ view: "finds", finds }) : {}), finds } };
           }, playlistUnavailable),
@@ -786,7 +816,7 @@ export function buildMcpHandler(deps: Deps) {
         async (_args, context) =>
           timed("delete_my_finds", async () => {
             const listenerId = listenerIdFrom(context.http ?? {});
-            if (!listenerId) return accountLinkingRequired();
+            if (!listenerId) return signInRequired();
             const deleted = await deps.playlist().deleteFinds(listenerId);
             return { content: text(spokenDeleted(deleted)), structuredContent: { ...deleted } };
           }, playlistUnavailable),
@@ -803,7 +833,7 @@ export function buildMcpHandler(deps: Deps) {
         async ({ artist: rawArtist, playId }, context) =>
           timed("follow_artist", async () => {
             const listenerId = listenerIdFrom(context.http ?? {});
-            if (!listenerId) return accountLinkingRequired();
+            if (!listenerId) return signInRequired();
             const artist = rawArtist?.trim() || undefined;
             if (!artist && !playId) return { content: text(WHICH_ARTIST_TO_FOLLOW_SPEECH) };
             const followed = await deps.playlist().follow(listenerId, { artist, playId });
@@ -822,7 +852,7 @@ export function buildMcpHandler(deps: Deps) {
         async ({ artist: rawArtist }, context) =>
           timed("unfollow_artist", async () => {
             const listenerId = listenerIdFrom(context.http ?? {});
-            if (!listenerId) return accountLinkingRequired();
+            if (!listenerId) return signInRequired();
             const artist = rawArtist.trim();
             if (!artist) return { content: text(WHICH_ARTIST_TO_UNFOLLOW_SPEECH) };
             const unfollowed = await deps.playlist().unfollow(listenerId, artist);
@@ -842,7 +872,7 @@ export function buildMcpHandler(deps: Deps) {
         async (_args, context) =>
           timed("whats_new_for_me", async () => {
             const listenerId = listenerIdFrom(context.http ?? {});
-            if (!listenerId) return accountLinkingRequired();
+            if (!listenerId) return signInRequired();
             const [digest, membership] = await Promise.all([deps.playlist().digest(listenerId), activeMembership(listenerId)]);
             // Build the whole reply first: a reply that throws must not mark the digest seen.
             const reply = await digestReply(digest);
@@ -884,7 +914,7 @@ export function buildMcpHandler(deps: Deps) {
         },
         async (_args, context) => {
           const listenerId = listenerIdFrom(context.http ?? {});
-          if (!listenerId) return accountLinkingRequired(LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH);
+          if (!listenerId) return signInRequired(LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH);
           const setup = give();
           if (!setup?.memberships) return { content: text(GIVE_UNAVAILABLE_SPEECH) };
           try {
@@ -908,7 +938,7 @@ export function buildMcpHandler(deps: Deps) {
         },
         async ({ confirmed }, context) => {
           const listenerId = listenerIdFrom(context.http ?? {});
-          if (!listenerId) return accountLinkingRequired(LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH);
+          if (!listenerId) return signInRequired(LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH);
           const setup = give();
           if (!setup?.memberships) return { content: text(GIVE_UNAVAILABLE_SPEECH) };
           try {

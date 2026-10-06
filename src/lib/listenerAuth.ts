@@ -5,6 +5,8 @@ import { getPublicOrigin } from "mcp-handler";
 export const AUTH_TOOLS = ["save_find", "list_finds", "delete_my_finds", "follow_artist", "unfollow_artist", "whats_new_for_me", "cancel_membership", "my_membership"] as const;
 const AUTH_TOOL_SET = new Set<string>(AUTH_TOOLS);
 export const RESOURCE_METADATA_PATH = "/.well-known/oauth-protected-resource";
+/** The scopes a listener's sign-in asks for, on both doors. */
+export const OAUTH_SCOPES = ["openid", "profile", "offline_access"] as const;
 const ACCESS_TOKEN_TYPES = new Set(["at+jwt", "application/at+jwt"]);
 
 export type ListenerAuthInfo = AuthInfo & { extra: { userId: string } };
