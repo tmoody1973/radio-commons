@@ -222,6 +222,23 @@ describe("station_schedule", () => {
     expect(message.result.structuredContent.cardHtml).not.toContain("Old feature");
   });
 
+  it("match tiles get a labelled Add to calendar button per distinct airtime, only when the show has airtimes", () => {
+    const html = renderView({ view: "schedule", onNow: null, next: null, matches: [RHYTHM_LAB, MIDDAY_PROGRAM, { ...TASTE_TEST, name: "No Times", airtimes: [] }] });
+    expect(html.match(/class="secondary calendar"/g)).toHaveLength(2);
+    expect(html).toContain('aria-label="Add Rhythm Lab Radio to calendar"');
+    expect(html).toContain('aria-label="Add 88Nine Midday Show to calendar"');
+    expect(html).toContain("BYDAY%3DFR");
+    expect(html).toContain("BYDAY%3DMO%2CTU%2CWE%2CTH%2CFR");
+    expect(html).not.toContain("Add No Times to calendar");
+  });
+
+  it("the hero's Up next gets an icon-only calendar button; no next means none", () => {
+    const html = renderView({ view: "schedule", onNow: MIDDAY, next: AFTERNOON, matches: [] });
+    expect(html).toContain('class="secondary calendar small"');
+    expect(html).toContain('aria-label="Add 88Nine Afternoon Drive to calendar"');
+    expect(renderView({ view: "schedule", onNow: MIDDAY, next: null, matches: [] })).not.toContain("calendar");
+  });
+
   it("photo order: host photo, then the show's, then a plain tile", () => {
     const SHOW_PHOTO = "https://npr.brightspotcdn.com/show.jpg";
     const hero = (slot: ScheduleSlot) => renderView({ view: "schedule", onNow: slot, next: null, matches: [] });

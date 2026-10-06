@@ -2,7 +2,7 @@ import type { Passage, Story, StoryCardMatch } from "@/lib/backstory";
 import type { BriefingItem } from "@/lib/briefing";
 import type { PublicEvent } from "@/lib/fieldGuide";
 import type { Badge } from "@/lib/map/geo";
-import type { Digest, DigestItem, FindRow, HostCard, RecentSong, SavedFind, ScheduleProgram, ScheduleSlot, Station, StationShow } from "@/lib/playlist";
+import type { Airtime, Digest, DigestItem, FindRow, HostCard, RecentSong, SavedFind, ScheduleProgram, ScheduleSlot, Station, StationShow } from "@/lib/playlist";
 import { LIVE_STREAMS } from "@/lib/streams";
 import { CAPABILITIES } from "@/lib/capabilities";
 import { dollars, LEVELS, type GiveKind } from "@/lib/give/tiers";
@@ -14,7 +14,7 @@ import { ARTICLE_SOURCE, clock, longDate, monthYear, showCalendarDay, withoutSta
 import { localClock } from "@/lib/stationTime";
 import { clockWords, weeklyTimes } from "@/lib/schedule";
 import { sizedArtwork, STATION_NAMES, type SongCard } from "./song";
-import { showCalendarUrl, type CalendarShow } from "./calendar";
+import { programCalendarUrl, showCalendarUrl, slotCalendarUrl, type CalendarShow } from "./calendar";
 import { cleanTicketUrl } from "./tickets";
 import { SITE } from "./tokens";
 
@@ -399,6 +399,22 @@ function latestButtons(hosts: HostCard[] = [], limit: number): string {
   })).slice(0, limit).join("");
 }
 
+/** Icon-only when space is tight ("small"); the label otherwise. Null url (no usable airtime) means no button. */
+const weeklyCalendarButton = (url: string | null, show: string, size: "small" | "") =>
+  url ? `<button type="button" class="secondary calendar${size ? ` ${size}` : ""}" data-url="${escape(url)}" aria-label="${escape(`Add ${show} to calendar`)}">${CAL}${size ? "" : " Add to calendar"}</button>` : "";
+
+/** One weekly event per distinct start and end (a weekday run is one event with a day list). */
+function programCalendarButtons(program: ScheduleProgram): string {
+  const groups = program.airtimes.reduce((byHours, airtime) => {
+    const key = `${airtime.startMin}-${airtime.endMin}`;
+    return new Map(byHours).set(key, [...(byHours.get(key) ?? []), airtime]);
+  }, new Map<string, Airtime[]>());
+  return [...groups.values()].map((airtimes) => {
+    const label = groups.size > 1 ? `${program.name} (${weeklyTimes(airtimes)})` : program.name;
+    return weeklyCalendarButton(programCalendarUrl(program, airtimes, new Date()), label, "");
+  }).join("");
+}
+
 /** On now, large: the host's photo (or the show's, or a plain tile), show, hosts, until when, Listen live, the latest piece, and up next. */
 function onNowView(onNow: ScheduleSlot | null, next: ScheduleSlot | null): string {
   const main = onNow ?? next!;
@@ -407,7 +423,8 @@ function onNowView(onNow: ScheduleSlot | null, next: ScheduleSlot | null): strin
   const latest = latestButtons(main.hostProfiles, 1);
   const upNext = onNow && next
     ? `<div class="next"><p class="meta">Up next</p><div class="row sched-row">${art(scheduleImage(next), next.name, "thumb")}`
-      + `<span class="what"><b>${escape(next.name)}</b><small>${escape([next.hosts.join(" & "), clockWords(next.startsAt)].filter(Boolean).join(" · "))}</small></span></div></div>`
+      + `<span class="what"><b>${escape(next.name)}</b><small>${escape([next.hosts.join(" & "), clockWords(next.startsAt)].filter(Boolean).join(" · "))}</small></span>`
+      + `${weeklyCalendarButton(slotCalendarUrl(next, new Date()), next.name, "small")}</div></div>`
     : "";
   return `<article class="card story music schedule">${LOGO}<div class="body">${art(scheduleImage(main), main.name, "art")}<div class="info">`
     + `<p class="meta">${onNow ? "On now" : "Up next"} · 88Nine</p><h2>${escape(main.name)}</h2>${hosts}<p class="line small">${escape(when)}</p>`
@@ -419,10 +436,11 @@ function programsView(matches: ScheduleProgram[]): string {
   const tiles = matches.slice(0, 5).map((program) => {
     const latest = latestButtons(program.hostProfiles, 1);
     const times = weeklyTimes(program.airtimes);
+    const calendar = programCalendarButtons(program);
     return `<article class="tile digest sched">${art(scheduleImage(program), program.name, "tile-art")}${program.airingNow ? '<span class="chip">On now</span>' : ""}`
       + `<span class="tile-title">${escape(program.name)}</span>`
       + `<span class="tile-date">${program.hosts.length ? `${escape(program.hosts.join(" & "))}<br>` : ""}${escape(times ? times[0].toUpperCase() + times.slice(1) : "")}</span>`
-      + (latest ? `<span class="tile-actions">${latest}</span>` : "") + `</article>`;
+      + (latest || calendar ? `<span class="tile-actions">${calendar}${latest}</span>` : "") + `</article>`;
   }).join("");
   return `<article class="card stories">${LOGO}<div class="carousel">${tiles}</div></article>`;
 }
