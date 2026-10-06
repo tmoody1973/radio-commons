@@ -5,6 +5,7 @@ import type { Story } from "@/lib/backstory";
 import type { SavedFind } from "@/lib/playlist";
 import { EVENTS_UNAVAILABLE_SPEECH, NOT_ALLOWED_SPEECH, NO_PASSAGE_SPEECH, clock, directAudioUrl, eventTime, monthYear, spokenEvents, spokenMatches, spokenPassages, spokenPicks, spokenPlaces, spokenFollowed, spokenSaved, spokenStory, spokenUnfollowed, spokenDigest, spokenFinds, spokenRecent, spokenStationShows } from "@/lib/speech";
 import { readFileSync } from "node:fs";
+import { getStation } from "@/lib/stations";
 import { screenWords } from "@/lib/sim/evalChecks";
 import { CAPABILITIES_SPEECH } from "@/lib/capabilities";
 import { GIVE_SPEECH } from "@/lib/give";
@@ -36,7 +37,7 @@ describe("speech", () => {
     expect(spokenStory({ ...STORY, places: [{ ...STORY.places[0], lat: null, lng: null }] })).toMatch(/Would you like to hear the episode\?$/);
   });
   it("reads a shortlist, or admits there is no match", () => {
-    expect(spokenMatches([])).toBe("I couldn't find a Radio Milwaukee story about that. Try a name, a place or a neighborhood.");
+    expect(spokenMatches([])).toBe("I couldn't find a Radio Milwaukee story about that. I can find stories from This Bites, Uniquely Milwaukee, Ladies First, Milwaukee Music Premiere, Studio Milwaukee Sessions and Radio Milwaukee Artist Interviews.");
     expect(spokenMatches([MATCH])).toBe("I found one Radio Milwaukee story: T1, from This Bites, September 2026.");
     expect(spokenMatches([MATCH, { ...MATCH, storyId: "s2", title: "T2" }])).toBe(
       "I found 2 Radio Milwaukee stories: 1, T1, from This Bites, September 2026; 2, T2, from This Bites, September 2026. Which one?",
@@ -283,5 +284,11 @@ describe("account linking prompts", () => {
     expect(linkAccountSpeech("my_membership")).toBe(LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH);
     expect(linkAccountSpeech("cancel_membership")).toBe(LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH);
     expect(linkAccountSpeech("save_find")).toBe(LINK_ACCOUNT_SPEECH);
+  });
+});
+
+describe("story coverage line", () => {
+  it("names every show the station registry knows, so it can't drift", () => {
+    for (const { name } of getStation().shows) expect(spokenMatches([])).toContain(name);
   });
 });

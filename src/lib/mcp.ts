@@ -307,7 +307,7 @@ export function buildMcpHandler(deps: Deps) {
         {
           title: "Find a Radio Milwaukee story",
           description:
-            "Find a Radio Milwaukee podcast story a listener remembers, by topic, person, place, neighborhood or something said in it. Returns up to three published stories. Use only these results; never invent a story.",
+            "Find a Radio Milwaukee podcast story a listener remembers, by topic, person, place, neighborhood or something said in it: Milwaukee people, places, nonprofits, food and music. Returns up to three published stories; when none match, the reply names the shows covered. Use only these results; never invent a story.",
           inputSchema: z.object({ description: z.string().min(1).max(200), show: z.enum(shows).optional() }),
           ...CARD,
         },

@@ -5,6 +5,7 @@ import type { DigestItem, FindRow, FollowResult, RecallResult, SavedFind, Statio
 import { localClock } from "@/lib/stationTime";
 import { streetAddress } from "@/lib/maps";
 import { SITE } from "@/lib/card/tokens";
+import { getStation } from "@/lib/stations";
 
 export const UNAVAILABLE_SPEECH = "I can't reach Radio Milwaukee's stories right now. Please try again in a minute.";
 export const PLAYLIST_UNAVAILABLE_SPEECH = "I can't reach Radio Milwaukee's playlist right now. Please try again in a moment.";
@@ -19,7 +20,6 @@ export const linkAccountSpeech = (tool: string) => (MEMBERSHIP_TOOLS.has(tool) ?
 export const NOT_FOUND_SPEECH = "I couldn't find that Radio Milwaukee story.";
 export const NOT_ALLOWED_SPEECH = "Detailed answers aren't available for this episode.";
 export const NO_PASSAGE_SPEECH = "I couldn't find that in the episode.";
-const NO_MATCH = "I couldn't find a Radio Milwaukee story about that. Try a name, a place or a neighborhood.";
 const PODTRAC = /^https?:\/\/dts\.podtrac\.com\/redirect\.mp3\//;
 
 export function monthYear(ms: number): string {
@@ -45,6 +45,8 @@ export function spokenMatches(matches: StoryCardMatch[]): string {
 /** Summary labeled as the station's, its source, and one next step: directions to a pinned place, else the episode. */
 export const longDate = (iso: string) => new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", timeZone: "UTC" }).format(new Date(`${iso}T12:00:00Z`));
 export const listOf = (items: string[]) => (items.length <= 1 ? items.join("") : `${items.slice(0, -1).join(", ")} and ${items.at(-1)}`);
+// Which shows we cover comes from the station registry, so a new show is named without touching this line.
+const NO_MATCH = `I couldn't find a Radio Milwaukee story about that. I can find stories from ${listOf(getStation().shows.map((show) => show.name))}.`;
 
 /** A premiere: the song, its album and date when known; offers it when it can play. */
 function spokenPremiere(story: Story): string {
