@@ -2,7 +2,7 @@
 
 *Draft by Claude from the repo's history; Tarik reviews each entry before submission.*
 
-Tarik Moody (Radio Milwaukee) built Radio Commons, an MCP server (a web service that hands an AI assistant a set of named tools it can call) that lets Alexa+ answer from a public radio station's own stories, playlist, events and a listener's saved songs. Built October 2–5, 2026, with Claude Code; every entry below cites the commit, file or doc where the friction shows up.
+Tarik Moody (Radio Milwaukee) built Radio Commons, an MCP server (a web service that hands an AI assistant a set of named tools it can call) that lets Alexa+ answer from a public radio station's own stories, weekly newsletter, playlist and events, keep a listener's saved songs, and take a membership by voice (Amazon Pay sandbox). Built October 2–23, 2026, with Claude Code, across four repos (radio-commons, backstory, rm-playlist-v2, mke-field-guide); every entry below cites the commit, file or doc where the friction shows up.
 
 ## Amazon tools and services
 
@@ -122,27 +122,69 @@ Tarik Moody (Radio Milwaukee) built Radio Commons, an MCP server (a web service 
 - **Suggestion:** A standard spoken line, or let the add-on supply one sentence that Alexa reads before the handoff.
 - **Evidence:** `listener-gaps-plan.md` (gap 5).
 
+### 15. Amazon Pay (sandbox) — monthly membership checkout
+- **Task:** Let a listener become a monthly member by voice, paid with Amazon Pay, in the sandbox only.
+- **Steps:** Created a sandbox-only developer account; created API keys in Integration Central; built the signed Amazon Pay button and checkout session with `@amazonpay/amazon-pay-api-sdk-nodejs` 2.3.6; ran checkout with a sandbox test buyer.
+- **Expected:** Keys, signing and a test checkout work from one guide. **Actual:** (1) The private key file can be downloaded exactly once; lose it and you start over. (2) The SDK's README signs with `AMZN-PAY-RSASSA-PSS`, while the button docs use `AMZN-PAY-RSASSA-PSS-V2`; we had to pick one and test. (3) A real Amazon login on the sandbox page fails with "Your order can't be completed with this account" and no reason, which looks like a bug to a tester.
+- **Severity:** Medium (each cost a debugging round; none blocked).
+- **Workaround:** Store the key in a secret manager the moment it downloads; use `AMZN-PAY-RSASSA-PSS-V2` everywhere; tell testers to use a private window and the sandbox test buyer.
+- **Suggestion:** One algorithm name across SDK and button docs; a "download again" or key-rotation path that's obvious in Integration Central; a sandbox error that says "use a sandbox test buyer".
+- **Evidence:** `src/lib/give/amazonPay.ts:7` (`ALGORITHM`); `docs/GIVE-SETUP.md:19` (one-time key download); `README.md:121` (real login refused).
+
+### 16. Amazon Pay — donations and recurring charges for a nonprofit
+- **Task:** Understand what a public radio station needs before taking real memberships through Amazon Pay, and how monthly charges run.
+- **Steps:** Read the Acceptable Use Policy, the recurring-payments docs and the Alexa+ checkout pages.
+- **Expected:** A clear path for a 501(c)(3) station, and recurring charges that run on a schedule. **Actual:** "Donations and Charitable Solicitations" are under "Items and Activities Requiring Prior Approval", with no description of the approval process; the Alexa+ checkout page points to a Solutions Architect and doesn't mention recurring payments or a sandbox; recurring "charge permissions" don't charge by themselves, so the merchant must schedule every monthly charge.
+- **Severity:** Medium (no blocker in the sandbox; a real launch would stall).
+- **Workaround:** Stayed in the sandbox; a "Simulate next month" button stands in for the scheduler; real merchant registration deliberately not started.
+- **Suggestion:** A short nonprofit/public-media page: how to get donation approval, expected timeline, and a recurring-donation sample with a scheduled charge.
+- **Evidence:** `docs/GIVE-SETUP.md:12` (prior approval), `docs/GIVE-SETUP.md:60` (Simulate next month); `FEEDBACK.md` (Amazon Pay section).
+
+### 17. Amazon Bedrock models — quote-exact extraction with tool use
+- **Task:** Extract people, places and actions from podcast transcripts, each backed by a word-for-word quote (anything not quoted exactly is thrown away).
+- **Steps:** Ran the extraction on Amazon Nova Micro and Nova Lite first (the plan started there), then Claude Haiku 4.5, through the Bedrock Converse API with a forced tool call; tried to add Claude Sonnet 5.5.
+- **Expected:** Nova follows "copy the exact words" and returns valid tool output. **Actual:** Nova Micro paraphrased instead of copying, so the evidence check discarded every This Bites action; Nova Lite returned broken tool output and then went over the mention cap on a 17-minute episode. Sonnet 5.5 on Bedrock needed a one-time Marketplace subscription, rejected forced tool choice, and had no price in AWS's pricing service yet.
+- **Severity:** Medium (we switched models; Nova would have meant editors rebuilding most facts by hand).
+- **Workaround:** Claude Haiku 4.5 on Bedrock: identical results on repeat runs, $0.008–0.029 an episode.
+- **Suggestion:** Document Nova's behavior on verbatim-quote instructions; list Marketplace subscription and tool-choice limits next to each model in the Bedrock model catalog; publish prices on launch day.
+- **Evidence:** backstory repo `docs/decisions/006-claude-haiku-for-extraction.md:5-12`; `docs/LEARNING-LOG.md:29-35` (backstory).
+
+### 18. Amazon Transcribe — station podcasts with local names
+- **Task:** Transcribe every episode with Milwaukee names spelled right (chefs, venues, neighborhoods), so facts can be checked against the words.
+- **Steps:** A 19-episode bake-off: Amazon Transcribe and Deepgram Nova-3, both given the same per-episode name hints, scored against a labeled answer key.
+- **Expected:** Transcribe, as the all-AWS choice, is competitive. **Actual:** Transcribe spelled 74% of answer-key names right versus 84% for Deepgram, worse or equal on every episode, at $0.024/min versus $0.0043/min (about 5.5× the price), and needed the audio copied to S3 first.
+- **Severity:** Medium (it moved transcription off AWS).
+- **Workaround:** Deepgram Nova-3 by default; Transcribe kept as a fallback (`TRANSCRIBER=transcribe`).
+- **Suggestion:** Better custom-vocabulary results for proper nouns, and transcription straight from an HTTPS audio URL without an S3 copy.
+- **Evidence:** backstory repo `docs/decisions/009-deepgram-for-transcription.md:9-14`.
+
 ## Other tools
 
-### 15. Vercel — story card script unreadable at runtime
-- **Steps / Actual:** The MCP Apps bundle read from disk at runtime failed in Vercel functions with `EBADF`. **Severity:** High (card broken in production). **Workaround:** Embed the bundle at install time (`scripts/embed-app-bundle.mjs`). **Suggestion:** Vercel docs: a note on reading non-JS assets from `node_modules` in functions. **Evidence:** commit `351d9da`; `docs/LEARNING-LOG.md:10`.
+### 19. Vercel — story card script unreadable at runtime
+- **Task:** Serve the Echo Show card (an MCP App) from a Vercel function. **Steps:** Read the MCP Apps bundle from `node_modules` at runtime. **Expected:** The file reads as it does locally. **Actual:** The read failed in Vercel functions with `EBADF`. **Severity:** High (card broken in production). **Workaround:** Embed the bundle at install time (`scripts/embed-app-bundle.mjs`). **Suggestion:** Vercel docs: a note on reading non-JS assets from `node_modules` in functions. **Evidence:** commit `351d9da`; `docs/LEARNING-LOG.md:10`.
 
-### 16. Vercel — cold starts against a 500 ms budget
-- **Actual:** First calls after a deploy took 746–1,002 ms versus 105–180 ms warm; the first search hit our 350 ms cut-off. **Severity:** Medium. **Workaround:** Pin `iad1` near Convex; open the database client and wake the Field Guide when the server starts. **Suggestion:** A documented keep-warm option for latency-bound MCP endpoints. **Evidence:** `docs/decisions/001-radio-commons-foundation.md:15`; `docs/LEARNING-LOG.md:8-9`; `src/app/api/mcp/route.ts:10-20`; commit `3a22fbd`.
+### 20. Vercel — cold starts against a 500 ms budget
+- **Task:** Answer Alexa+ within its 500 ms round-trip budget. **Steps:** Deployed, then timed the first and warm calls. **Expected:** First calls near warm speed. **Actual:** First calls after a deploy took 746–1,002 ms versus 105–180 ms warm; the first search hit our 350 ms cut-off. **Severity:** Medium. **Workaround:** Pin `iad1` near Convex; open the database client and wake the Field Guide when the server starts. **Suggestion:** A documented keep-warm option for latency-bound MCP endpoints. **Evidence:** `docs/decisions/001-radio-commons-foundation.md:15`; `docs/LEARNING-LOG.md:8-9`; `src/app/api/mcp/route.ts:10-20`; commit `3a22fbd`.
 
-### 17. Apple MusicKit — add a saved song to the listener's library
-- **Actual:** `authorize()` rejects with a generic `AUTHORIZATION_ERROR` when the Apple ID has no Apple Music subscription, the same error as a declined prompt. **Severity:** Medium (listener sees "try again" with no way forward). **Workaround:** Show "saving to your library needs an Apple Music subscription" on that error. **Suggestion:** A distinct error code for "no subscription". **Evidence:** commit `c7892c1`.
+### 21. Apple MusicKit — add a saved song to the listener's library
+- **Task:** Connect a listener's Apple Music account so saved songs reach their library. **Steps:** MusicKit JS `authorize()` on the connect page. **Expected:** A clear reason when it fails. **Actual:** `authorize()` rejects with a generic `AUTHORIZATION_ERROR` when the Apple ID has no Apple Music subscription, the same error as a declined prompt. **Severity:** Medium (listener sees "try again" with no way forward). **Workaround:** Show "saving to your library needs an Apple Music subscription" on that error. **Suggestion:** A distinct error code for "no subscription". **Evidence:** commit `c7892c1`.
 
-### 18. Convex — production import worked in tests, would fail live
-- **Actual:** The live database connection cannot run transactions while the in-memory test database can, so the Concert Picks import would have failed every time in production. **Severity:** Medium (caught by review, not tests). **Workaround:** A test on a database that refuses transactions. **Suggestion:** Make the test driver refuse transactions the way production does, or document the difference. **Evidence:** `docs/LEARNING-LOG.md:78` (work in the Backstory repo).
+### 22. Neon serverless driver (MKE Field Guide) — an import that passed every test would fail live
+- **Task:** Import the station's weekly Concert Picks into the event guide's Postgres database.
+- **Steps:** Wrote the import with a transaction; tested it on PGlite (in-memory Postgres); reviewed before deploying.
+- **Expected:** Tests on Postgres behave like production Postgres. **Actual:** The production driver (`drizzle-orm/neon-http`) cannot run transactions while PGlite can, so the import would have failed every time in production. Caught by code review, not tests.
+- **Severity:** Medium.
+- **Workaround:** Ordered writes that converge on re-run, plus a test on a database that refuses transactions.
+- **Suggestion:** Neon/Drizzle: a loud warning that the HTTP driver has no transactions; PGlite: an option to refuse them.
+- **Evidence:** `docs/LEARNING-LOG.md:78`; mke-field-guide repo `src/queries/concert-picks-import.ts:100`.
 
-### 19. Clerk and `mcp-handler` — OAuth details for Alexa+ account linking
-- **Actual:** Clerk's OAuth tokens carry no `aud` (audience) claim, so the token is bound by issuer + client id instead; hash-routed sign-in did not return to the connect page; `mcp-handler`'s `protectedResourceHandler` cannot list `scopes_supported`. **Severity:** Low. **Workaround:** Local issuer/client-id check; fixed redirect; generate the metadata ourselves. **Suggestion:** Clerk: an `aud` option per OAuth app; `mcp-handler`: a scopes parameter. **Evidence:** `src/lib/listenerAuth.ts:41`; commit `becb0b3`; `src/app/.well-known/oauth-protected-resource/route.ts:3-10`.
+### 23. Clerk and `mcp-handler` — OAuth details for Alexa+ account linking
+- **Task:** Make Clerk the OAuth 2.1 server for Alexa+ account linking. **Steps:** Clerk OAuth app with PKCE; token checks in the MCP server; protected-resource metadata. **Expected:** Standard audience-bound tokens and complete metadata. **Actual:** Clerk's OAuth tokens carry no `aud` (audience) claim, so the token is bound by issuer + client id instead; hash-routed sign-in did not return to the connect page; `mcp-handler`'s `protectedResourceHandler` cannot list `scopes_supported`. **Severity:** Low. **Workaround:** Local issuer/client-id check; fixed redirect; generate the metadata ourselves. **Suggestion:** Clerk: an `aud` option per OAuth app; `mcp-handler`: a scopes parameter. **Evidence:** `src/lib/listenerAuth.ts:41`; commit `becb0b3`; `src/app/.well-known/oauth-protected-resource/route.ts:3-10`.
 
-### 20. Next.js on GitHub Actions — typecheck in CI
-- **Actual:** Generated route types were missing in CI, so typecheck failed. **Severity:** Low. **Workaround:** Generate route types before typecheck. **Evidence:** commit `e5ad353`; `docs/LEARNING-LOG.md:10`.
+### 24. Next.js on GitHub Actions — typecheck in CI
+- **Task:** Typecheck every pull request in CI. **Steps:** `npm run typecheck` on a fresh checkout. **Expected:** Same result as locally. **Actual:** Generated route types were missing in CI, so typecheck failed. **Severity:** Low. **Workaround:** Generate route types before typecheck. **Suggestion:** Generate route types as part of `tsc` setup, or document the order. **Evidence:** commit `e5ad353`; `docs/LEARNING-LOG.md:10`.
 
-### 21. GitHub Actions — `next/font` Google Fonts downloads failing CI
+### 25. GitHub Actions — `next/font` Google Fonts downloads failing CI
 - **Steps:** Ran CI on pull requests that build the Next.js app.
 - **Expected:** The build passes. **Actual:** CI failed on `next/font` Google Fonts downloads and passed on re-run. Re-runs overwrite the visible conclusion, which is why it looked clean.
 - **Severity:** Low.
@@ -150,10 +192,28 @@ Tarik Moody (Radio Milwaukee) built Radio Commons, an MCP server (a web service 
 - **Suggestion:** Self-host fonts (`next/font/local`).
 - **Evidence:** GitHub Actions runs 37255213140 (attempt 2, branch `fix/dates-and-tomorrow`, 2026-10-05) and 37249831163 (attempt 2, `feat/listener-memory`, 2026-10-05) in tmoody1973/radio-commons; also seen on PR #63's run on 2026-10-04.
 
-### 22. Our own data (NPR Cadence) — HYFIN schedule has gaps
+### 26. Our own data (NPR Cadence) — HYFIN schedule has gaps
 - **Steps:** Read HYFIN's schedule from NPR Cadence for what's-on answers.
 - **Expected:** A complete weekly schedule. **Actual:** HYFIN's schedule has no weekends and no midnight to 6 a.m. This is our station-side data, not an Amazon issue; recorded so the write-up does not overclaim.
 - **Severity:** Low.
 - **Workaround:** None in the add-on.
 - **Suggestion:** Station-side fix in the Cadence schedule.
 - **Evidence:** `listener-gaps-plan.md` (gap 6).
+
+### 27. Mailchimp Marketing API — read the newsletter with the least access
+- **Task:** Read the station's newest weekly newsletter for the Alexa+ briefing, and nothing else.
+- **Steps:** Looked for a read-only or campaign-only API key; called `/campaigns` and `/campaigns/{id}/content` with `fields=`.
+- **Expected:** A key limited to reading campaigns. **Actual:** Mailchimp API keys can't be scoped; any key can read and change everything, including subscribers. The data center is only the suffix of the key (`-us7`).
+- **Severity:** Medium (security exposure, not a functional block).
+- **Workaround:** The key lives only on the server; the code requests only campaign fields and never lists, members or reports.
+- **Suggestion:** Read-only or per-resource API key scopes.
+- **Evidence:** `docs/decisions/007-station-briefing.md:14`; `src/lib/newsletter.ts`.
+
+### 28. NPR content system (CDS) — find a station's shows and audio
+- **Task:** Pull every episode and article for each station show into Backstory.
+- **Steps:** Queried CDS by collection, sorted by publish date; fetched each show's series document for artwork.
+- **Expected:** Newest first by default; every show in its own collection. **Actual:** Results came oldest first unless sorted explicitly (despite the docs); some series documents return 404 (Ladies First); artist interviews and Concert Picks have no collection, so we pick interviews out of a general feed by web address; audio the station plays on its own site is flagged "not streamable".
+- **Severity:** Low (workarounds in code).
+- **Workaround:** Always pass an explicit sort; optional show artwork; a page-address filter per show.
+- **Suggestion:** NPR: per-section collections and a documented default sort. (Not an Amazon issue; recorded because it shaped the build.)
+- **Evidence:** backstory repo `convex/lib/cds.ts:37`, `convex/ingest.ts:57`, `convex/lib/shows.ts` (`pagePrefix`).
