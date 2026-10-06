@@ -9,6 +9,14 @@ import { mcpPost } from "./mcp-wire";
 const addon = JSON.parse(readFileSync("alexa/addon-package/addon.json", "utf8"));
 const listing = addon.storeListing.locales["en-US"];
 const SITE = "https://radio-commons.vercel.app";
+// Amazon's addon.json schema requires all six light icon sizes, and the same six for dark if any are given.
+const AMAZON_ICON_SIZES = ["72x72", "64x64", "88x88", "126x126", "180x180", "241x241"];
+
+// A PNG's width and height sit at bytes 16-23 of its IHDR chunk.
+function pngSize(file: string): string {
+  const header = readFileSync(file);
+  return `${header.readUInt32BE(16)}x${header.readUInt32BE(20)}`;
+}
 
 // Which tool answers each example phrase Amazon shows listeners.
 const PHRASE_TOOLS: Record<string, string> = {
@@ -43,12 +51,28 @@ describe("Alexa+ add-on manifest", () => {
     for (const { example } of CAPABILITIES) expect(listing.examplePhrases).toContain(example);
   });
 
-  it("its privacy page and every icon are served by this app", () => {
+  it("its privacy page and every image are served by this app at the size the manifest claims", () => {
     expect(listing.privacyAndCompliance.privacyPolicyUrl).toBe(`${SITE}/privacy`);
     expect(existsSync("src/app/privacy/page.tsx")).toBe(true);
-    for (const icon of listing.mediaAssets.icons.light) {
-      expect(icon.uri.startsWith(`${SITE}/`)).toBe(true);
-      expect(existsSync(`public/${icon.uri.slice(SITE.length + 1)}`)).toBe(true);
+    const { icons, carouselImages } = listing.mediaAssets;
+    for (const mode of [icons.light, icons.dark]) {
+      expect(mode.map((icon: { size: string }) => icon.size).sort()).toEqual([...AMAZON_ICON_SIZES].sort());
     }
+    expect(carouselImages.length).toBeGreaterThan(0);
+    const images: { size: string; uri: string }[] = [...icons.light, ...icons.dark, ...carouselImages];
+    for (const image of images) {
+      expect(image.uri.startsWith(`${SITE}/`)).toBe(true);
+      const file = `public/${image.uri.slice(SITE.length + 1)}`;
+      expect(existsSync(file)).toBe(true);
+      expect(pngSize(file)).toBe(image.size);
+    }
+  });
+
+  it("stays within Amazon's store listing limits", () => {
+    expect(listing.name.value.length).toBeLessThanOrEqual(30);
+    expect(listing.name.spokenForm.value.trim()).not.toBe("");
+    expect(listing.shortDescription.length).toBeLessThanOrEqual(123);
+    expect(listing.fullDescription.length).toBeLessThanOrEqual(4000);
+    for (const image of listing.mediaAssets.carouselImages) expect(image.altText.length).toBeLessThanOrEqual(250);
   });
 });
