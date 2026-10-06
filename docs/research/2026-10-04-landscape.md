@@ -8,7 +8,9 @@
 
 ## The claim we can make
 
-> Radio Commons is, as far as we can find, the first MCP server built by a radio station itself for its listeners — bringing a station's own journalism, voices and community into Alexa+.
+> As far as we can find, Radio Commons is the first time a public radio station has brought itself into Alexa+: its own editor-approved stories, music, events and membership, built by the station and open source.
+
+**Correction, October 6, 2026.** This section first claimed "the first MCP server built by a radio station itself for its listeners". That is not true: **KAZM "Mellow Mountain Radio" (106.5 FM / 780 AM, Sedona, Arizona), a commercial station, published its own MCP server in July 2026** (about 45 tools: now playing, song history, schedule, local events, listener profiles; for Claude, ChatGPT and other AI apps, not Alexa) and calls itself "the first radio station with an MCP server" ([mellowmountainradio.com/mcp.html](https://mellowmountainradio.com/mcp.html), [GitHub](https://github.com/chelstein/mellowmountainradio)). What we found no one else doing: a *public* radio station, inside *Alexa+*, with an *editor-approved* archive alongside its playlist, events and membership. Other near-misses found on October 6: Spotify's in-episode podcast Q&A (May 2026), Sveriges Radio's text chatbot over its own news articles (2025), NPR and KUOW's 2018 Alexa donation test. Each does one piece; none combines them.
 
 Not "the first MCP for broadcasters": Bloomberg (which broadcasts on TV and radio) and Reuters run MCP servers for paying business customers, and independent developers have wrapped a few broadcasters' public data feeds (ZDF, Radio France, Sveriges Radio, Catalan radio, BBC headlines) in MCP servers. None of those was built by the broadcaster, and none is for listeners on Alexa+.
 
@@ -112,7 +114,7 @@ Starting points only. They describe the full product as planned for Oct 23 — s
 
 **Devpost, "Inspiration" (about 120 words)**
 
-> Alexa+ can already turn newspaper articles into AI-voiced podcasts, and Spotify and Amazon Music answer song requests from their catalogs. But no radio station — in the US or abroad — had brought itself into the assistant, and public radio's old Alexa skills don't carry over to Alexa+. Radio Commons is, as far as we can find, the first MCP server built by a radio station itself for its listeners. Ask about a story you half-remember and Alexa plays the moment the host said it. Ask what's playing on 88Nine and hear the story behind the song, including Milwaukee artists the streaming catalogs barely know, from the station's own premieres and artist interviews. Then find the place, the show or tonight's event. Every fact is approved by a station editor.
+> Alexa+ can already turn newspaper articles into AI-voiced podcasts, and Spotify and Amazon Music answer song requests from their catalogs. But no public radio station had brought itself into the new Alexa, where add-ons now plug in through MCP servers. As far as we can find, Radio Commons is the first time a public radio station has done it, built by the station and open source. Ask about a story you half-remember and Alexa plays the moment the host said it. Ask what's playing on 88Nine and hear the story behind the song, including Milwaukee artists the streaming catalogs barely know, from the station's own premieres and artist interviews. Then find the place, the show or tonight's event. Every fact is approved by a station editor.
 
 **Demo voiceover (about 15 seconds)**
 
@@ -144,7 +146,7 @@ Starting points only. They describe the full product as planned for Oct 23 — s
 >
 > 48 episodes so far, across three shows. The transcript is why Alexa can play the exact moment: it knows the second the host said "stromboli."
 >
-> I checked the US and public broadcasters abroad: as far as I can find, it's the first MCP server a radio station has built itself for its listeners. Here's what I learned building it.
+> I checked the US and public broadcasters abroad: as far as I can find, it's the first time a public radio station has brought itself into Alexa+. Here's what I learned building it.
 
 **Short post (Bluesky / Threads; 295 characters, over X's 280)**
 

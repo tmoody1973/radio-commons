@@ -35,8 +35,8 @@ export const LANDING = {
     { value: "40%", text: "of Radio Milwaukee’s stream listening hours are on smart speakers — more than phones (29%) or computers (27%). Triton, August 2026." },
     { value: "9×", text: "as long: a smart-speaker listener stays about nine times longer than a mobile listener." },
   ],
-  claim: "As far as we can find, Radio Commons is the first MCP server a radio station has built itself for its listeners.",
-  claimDetail: "Others wrap broadcasters’ public data, or sell news to businesses. None brings a station’s own voices, editors and community into Alexa+.",
+  claim: "As far as we can find, Radio Commons is the first time a public radio station has brought itself into Alexa+, built by the station and open source.",
+  claimDetail: "Others wrap broadcasters’ public data, sell news to businesses, or open a commercial station’s live data to chat apps. None brings a public station’s own editor-approved stories, music, events and membership into Alexa+.",
   steps: [
     { title: "The station publishes", text: "Podcasts, music premieres and session write-ups, as it already does, in NPR’s content system." },
     { title: "Backstory reads it", text: "Transcribes every episode and pulls out people, places and songs, each checked against the exact words." },
