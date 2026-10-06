@@ -205,7 +205,7 @@ describe("the card page", () => {
     });
     it("puts Apple Music as a final text line, not a tile", () => {
       expect(html).toContain("2 of your saved songs are in Apple Music");
-      expect(html).toContain("Apple Music needs reconnecting");
+      expect(html).toContain("Apple Music needs reconnecting at radio-commons.vercel.app/connect/apple-music.");
     });
   });
   describe("station-shows view", () => {

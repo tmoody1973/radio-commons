@@ -38,7 +38,7 @@ Behind it: [Backstory](https://github.com/tmoody1973/backstory), the station's s
 
 ```
 Listener ──voice──▶ Alexa+ ──MCP, Streamable HTTP──▶ radio-commons (Next.js on Vercel)
-                                                      ├─ /api/mcp          23 tools (mcp-handler); 7 need a linked account
+                                                      ├─ /api/mcp          24 tools (mcp-handler); 8 need a linked account
                                                       ├─ cards             MCP App (ui://radio-commons/story-card.html)
                                                       ├─ /api/map          Amazon Location map pictures (key stays server-side)
                                                       ├─ /.well-known/…    OAuth resource metadata (Alexa account linking via Clerk)
@@ -50,7 +50,7 @@ Listener ──voice──▶ Alexa+ ──MCP, Streamable HTTP──▶ radio-c
                      Mailchimp: the newest weekly newsletter (campaign content only) · Amazon Pay: sandbox donations
 ```
 
-### The tools Alexa+ can call (23)
+### The tools Alexa+ can call (24)
 
 **Stories** (from Backstory; only editor-published)
 - **`find_station_story`** turns a listener's description into up to three published stories, read back as a numbered list. It also finds a story by something said in it ("the episode where they talked about stromboli"), but only in episodes whose detailed answers are on. If nothing matches well enough, it says so; it never guesses.
@@ -84,7 +84,8 @@ Listener ──voice──▶ Alexa+ ──MCP, Streamable HTTP──▶ radio-c
 - **`whats_new_for_me`** — "What's new for me?": since the listener last asked, new plays of the artists they follow, their upcoming shows and the station's stories about them.
 
 **Support the station** (Amazon Pay **sandbox**: no real money moves, and Alexa says so)
-- **`support_radio_milwaukee`** — "I want to support Radio Milwaukee": the station's membership levels on a card, each opening a secure Amazon Pay page; monthly or one-time.
+- **`support_radio_milwaukee`** — "I want to support Radio Milwaukee": the station's membership levels on a card, each opening a secure Amazon Pay page; monthly or one-time. "Upgrade me to Front Row" opens the card on that level.
+- **`my_membership`** — "Am I a member?": level, amount, member since, next charge month, gift and what the level includes; a demo, read only (linked account).
 - **`cancel_membership`** — "Cancel my membership": asks first, cancels only after a clear yes (linked account).
 
 **Help**

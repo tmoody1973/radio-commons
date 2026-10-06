@@ -115,6 +115,19 @@ export function checkCancelNeedsLink(trail: TrailEntry[]): CheckResult {
   return result(calls.length > 0 && calls.every((call) => call.isError && call.summary === LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH), calls);
 }
 
+/** "Am I a member" while unlinked: my_membership, stopped at the membership linking prompt. */
+export function checkMembershipNeedsLink(trail: TrailEntry[]): CheckResult {
+  const calls = toolCalls(trail, "my_membership");
+  return result(calls.length > 0 && calls.every((call) => call.isError && call.summary === LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH), calls);
+}
+
+/** "Upgrade me to Front Row": the give card opened on that level, not a status read. */
+export const checkSupportLevel = (level: string) => (trail: TrailEntry[]): CheckResult => {
+  const calls = toolCalls(trail, "support_radio_milwaukee");
+  const statusRead = toolCalls(trail, "my_membership").length > 0;
+  return result(!statusRead && calls.length > 0 && calls.every((call) => call.input.level === level && !call.isError), [...calls, ...toolCalls(trail, "my_membership")]);
+};
+
 /** "next three" after "the last ten songs": recent_songs again, asked for that page. */
 export const checkRecentSongsPage = (page: number) => (trail: TrailEntry[]): CheckResult => {
   const calls = toolCalls(trail, "recent_songs");

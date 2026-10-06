@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { AUTH_TOOLS } from "@/lib/listenerAuth";
+import { LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH } from "@/lib/speech";
 import { buildMcpHandler, CARD_URI } from "@/lib/mcp";
 import { renderView } from "@/lib/card";
 import { isOpenableLink } from "@/lib/maps";
@@ -127,7 +128,7 @@ describe("cancel_membership", () => {
   it("unlinked: account linking; unconfigured: not set up", async () => {
     const unlinked = (await mcpPost(handler(fakeGive()), call("cancel_membership"))).message.result;
     expect(unlinked.structuredContent).toEqual({ error: "account_linking_required" });
-    expect(unlinked.content[0].text).toBe("Link your Radio Milwaukee account to manage your membership.");
+    expect(unlinked.content[0].text).toBe(LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH);
     expect((await mcpPostAs(handler(null), call("cancel_membership"), "user_1")).message.result.content[0].text).toMatch(/aren't set up yet/);
   });
 });
@@ -144,5 +145,91 @@ describe("whats_new_for_me membership line", () => {
       expect(message.result.isError).toBeFalsy();
       expect(message.result.content[0].text).not.toContain("member");
     }
+  });
+});
+
+describe("my_membership", () => {
+  const FRONT_ROW: Membership = {
+    ...MEMBER, tierId: "front-row-monthly", amount: "20.00",
+    premium: { items: ["RadioMKE t-shirt", "Sticker"], size: "L", shipTo: { city: "Milwaukee", state: "WI" }, status: "sandbox — not shipped" },
+  };
+
+  it("is a card tool that needs a linked account, kept apart from giving", async () => {
+    expect(AUTH_TOOLS as readonly string[]).toContain("my_membership");
+    const { message } = await mcpPost(handler(fakeGive()), { method: "tools/list" });
+    const tool = message.result.tools.find((t: { name: string }) => t.name === "my_membership");
+    expect(tool._meta.ui.resourceUri).toBe(CARD_URI);
+    expect(tool.description).toMatch(/am I a member/i);
+    expect(tool.description).toMatch(/support_radio_milwaukee/);
+  });
+
+  it("unlinked: the membership linking prompt", async () => {
+    const unlinked = (await mcpPost(handler(fakeGive()), call("my_membership"))).message.result;
+    expect(unlinked.isError).toBe(true);
+    expect(unlinked.structuredContent).toEqual({ error: "account_linking_required" });
+    expect(unlinked.content[0].text).toBe(LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH);
+  });
+
+  it("an active member hears level, amount, since, next charge month, gift and perks, and that it's a demo", async () => {
+    const { message } = await mcpPostAs(handler(fakeGive(memoryStore({ user_1: FRONT_ROW }))), call("my_membership"), "user_1");
+    expect(message.result.isError).toBeFalsy();
+    expect(message.result.content[0].text).toBe(
+      "You're a Front Row member: $20 a month since October 5. Next charge in November. Your Front Row package, size L, includes a merch package: a t-shirt and a sticker. This is a demo membership — no real money, and nothing ships.",
+    );
+    const data = message.result.structuredContent;
+    expect(data.view).toBe("membership");
+    expect(data.member).toBe(true);
+  });
+
+  it("without a gift, says what the level includes; VIP names the Studio Milwaukee Sessions invitation", async () => {
+    const vip = { ...MEMBER, tierId: "vip-monthly", amount: "42.00" };
+    const { message } = await mcpPostAs(handler(fakeGive(memoryStore({ user_1: vip }))), call("my_membership"), "user_1");
+    expect(message.result.content[0].text).toBe(
+      "You're a VIP member: $42 a month since October 5. Next charge in November. VIP includes a hat, a t-shirt and a sticker, plus an invitation for you and a guest to Studio Milwaukee Sessions. This is a demo membership — no real money.",
+    );
+  });
+
+  it("not a member: offers to support, never starts checkout; cancelled says so", async () => {
+    const none = (await mcpPostAs(handler(fakeGive(memoryStore())), call("my_membership"), "user_1")).message.result;
+    expect(none.content[0].text).toBe("You're not a member yet. Want to support Radio Milwaukee?");
+    expect(none.structuredContent).toEqual({ member: false });
+    const cancelled = (await mcpPostAs(handler(fakeGive(memoryStore({ user_1: { ...MEMBER, status: "cancelled" } }))), call("my_membership"), "user_1")).message.result;
+    expect(cancelled.content[0].text).toBe("Your monthly membership is cancelled, so you're not a member right now. Want to support Radio Milwaukee again?");
+  });
+
+  it("a failing store apologizes; no give setup says not set up", async () => {
+    const failing: MembershipStore = { get: async () => { throw new Error("clerk down"); }, set: async () => {} };
+    const failed = (await mcpPostAs(handler(fakeGive(failing)), call("my_membership"), "user_1")).message.result;
+    expect(failed.isError).toBe(true);
+    expect(failed.content[0].text).toMatch(/can't check your membership/);
+    expect((await mcpPostAs(handler(null), call("my_membership"), "user_1")).message.result.content[0].text).toMatch(/aren't set up yet/);
+  });
+
+  it("the card shows the facts and asks to upgrade or cancel; VIP has no upgrade", () => {
+    const html = renderView({ view: "membership", level: "Front Row", amount: "$20/mo", since: "October 5", nextCharge: "November 2026", gift: "Front Row package, size L", perks: "a merch package: a t-shirt and a sticker", upgradeTo: "VIP" });
+    for (const text of ["Front Row", "$20/mo", "October 5", "November 2026", "Front Row package, size L", "a merch package: a t-shirt and a sticker", "DEMO · Amazon Pay sandbox · no real money"]) expect(html).toContain(text);
+    expect(html).toContain('data-ask="Upgrade me to VIP"');
+    expect(html).toContain('data-ask="Cancel my Radio Milwaukee membership"');
+    const vip = renderView({ view: "membership", level: "VIP", amount: "$42/mo", since: "October 5", nextCharge: null, gift: null, perks: "x", upgradeTo: null });
+    expect(vip).not.toContain("Upgrade");
+  });
+});
+
+describe("support_radio_milwaukee with a level (upgrade)", () => {
+  it("opens the give card on that level and says its price and gift, as a demo", async () => {
+    const { message } = await mcpPostAs(handler(fakeGive()), call("support_radio_milwaukee", { level: "front-row" }), "user_1");
+    expect(message.result.content[0].text).toBe("Here's Front Row: $20 a month, with a merch package: a t-shirt and a sticker. Pick your size and I'll open a secure Amazon Pay page. This is a demo, so no real money moves.");
+    const data = message.result.structuredContent;
+    expect(data.view).toBe("give");
+    expect(data.selected).toBe("front-row-monthly");
+    expect(data.cardHtml).toMatch(/class="primary details give-tier" data-url="[^"]*tier=front-row-monthly/);
+    expect(Object.keys(data.links)).toHaveLength(8);
+  });
+
+  it("a one-time level preselects the one-time tab; a level without a size skips the size", async () => {
+    const once = (await mcpPost(handler(fakeGive()), call("support_radio_milwaukee", { level: "ga", kind: "once" }))).message.result;
+    expect(once.content[0].text).toBe("Here's General Admission: $60 one time, with the Green Room newsletter. I'll open a secure Amazon Pay page. This is a demo, so no real money moves.");
+    expect(once.structuredContent.selected).toBe("ga-once");
+    expect(once.structuredContent.cardHtml).toContain('id="give-once" checked');
   });
 });

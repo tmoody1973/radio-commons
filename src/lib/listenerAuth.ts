@@ -2,7 +2,7 @@ import { createPublicKey, verify, type KeyObject } from "node:crypto";
 import type { AuthInfo } from "@modelcontextprotocol/server";
 import { getPublicOrigin } from "mcp-handler";
 
-export const AUTH_TOOLS = ["save_find", "list_finds", "delete_my_finds", "follow_artist", "unfollow_artist", "whats_new_for_me", "cancel_membership"] as const;
+export const AUTH_TOOLS = ["save_find", "list_finds", "delete_my_finds", "follow_artist", "unfollow_artist", "whats_new_for_me", "cancel_membership", "my_membership"] as const;
 const AUTH_TOOL_SET = new Set<string>(AUTH_TOOLS);
 export const RESOURCE_METADATA_PATH = "/.well-known/oauth-protected-resource";
 const ACCESS_TOKEN_TYPES = new Set(["at+jwt", "application/at+jwt"]);

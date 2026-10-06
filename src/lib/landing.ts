@@ -56,7 +56,7 @@ export const LANDING = {
     { name: "Hear the music", tools: ["on_air_now", "station_schedule", "recent_songs", "search_playlist", "find_song_played", "get_track_story"] },
     { name: "Go out", tools: ["find_events", "station_picks", "station_artist_shows"] },
     { name: "Remember me", tools: ["save_find", "list_finds", "delete_my_finds", "follow_artist", "unfollow_artist", "whats_new_for_me"] },
-    { name: "Give", tools: ["support_radio_milwaukee", "cancel_membership"] },
+    { name: "Give", tools: ["support_radio_milwaukee", "my_membership", "cancel_membership"] },
     { name: "Help", tools: ["what_can_you_do"] },
   ],
   howSub: "We built Radio Commons from the systems 88Nine already had, plus one it didn’t.",
