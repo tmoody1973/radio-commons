@@ -121,7 +121,7 @@ describe("spokenSaved", () => {
     status: "ok", findId: "f1", appleMusic: "pending", artist: "Thao", title: "Sick of the Times", alreadySaved: false,
     artistId: "a1", artistName: "Thao", firstFollow: false, nextShow: null, story: null, recentlySaved: false, ...over,
   });
-  const APPLE_HINT = "To add these to your Apple Music library too, connect it at radio-commons.vercel.app slash connect slash apple-music.";
+  const APPLE_HINT = "To add these to your Apple Music library too, connect it at radio-commons dot vercel dot app slash connect.";
   const SAVED = 'Saved "Sick of the Times" by Thao to your 88Nine Finds, and I\'m adding it to Apple Music.';
 
   it("weaves the follow, the next show and the story into one reply (Milwaukee date)", () => {
@@ -200,7 +200,7 @@ describe("spokenFinds", () => {
     expect(spokenFinds(five, 3)).toBe("That's all your Finds.");
   });
   it("reads a short list whole and keeps the reconnect sentence", () => {
-    expect(spokenFinds([row("1"), row("2", "expired")])).toBe('Your latest Finds — 1: "Song 1" by Artist 1; 2: "Song 2" by Artist 2. Apple Music needs reconnecting at radio-commons.vercel.app slash connect slash apple-music.');
+    expect(spokenFinds([row("1"), row("2", "expired")])).toBe('Your latest Finds — 1: "Song 1" by Artist 1; 2: "Song 2" by Artist 2. Apple Music needs reconnecting at radio-commons dot vercel dot app slash connect.');
   });
   it("speaks an empty list", () => {
     expect(spokenFinds([])).toBe("Your Finds are empty. After I name a song, say 'save it'.");
@@ -237,8 +237,8 @@ describe("follow speech", () => {
     });
     it("reads Apple Music added and expired", () => {
       expect(spokenDigest([{ kind: "apple", added: 3, expired: 0 }])).toBe("Since your last visit: 3 of your saved songs are in Apple Music.");
-      expect(spokenDigest([{ kind: "apple", added: 0, expired: 1 }])).toBe("Since your last visit: Apple Music needs reconnecting at radio-commons.vercel.app slash connect slash apple-music.");
-      expect(spokenDigest([{ kind: "apple", added: 2, expired: 1 }])).toBe("Since your last visit: 2 of your saved songs are in Apple Music. Apple Music needs reconnecting at radio-commons.vercel.app slash connect slash apple-music.");
+      expect(spokenDigest([{ kind: "apple", added: 0, expired: 1 }])).toBe("Since your last visit: Apple Music needs reconnecting at radio-commons dot vercel dot app slash connect.");
+      expect(spokenDigest([{ kind: "apple", added: 2, expired: 1 }])).toBe("Since your last visit: 2 of your saved songs are in Apple Music. Apple Music needs reconnecting at radio-commons dot vercel dot app slash connect.");
     });
     it("reads only the top three items, in order", () => {
       const text = spokenDigest([show, spins, story, { kind: "apple", added: 3, expired: 0 }]);

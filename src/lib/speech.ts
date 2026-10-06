@@ -286,8 +286,8 @@ export function spokenSaved(saved: SavedFind): string {
   return `${base}${savedExtras(saved)}${hint}`;
 }
 
-// radiomilwaukee.org/connect is a 404 (checked 2026-10-06); the connect page lives on this app.
-const APPLE_CONNECT = `${new URL(SITE).host} slash connect slash apple-music`;
+// radiomilwaukee.org/connect is a 404 (checked 2026-10-06); this app's /connect redirects to its Apple Music page.
+const APPLE_CONNECT = `${new URL(SITE).host.replaceAll(".", " dot ")} slash connect`;
 const APPLE_RECONNECT = `Apple Music needs reconnecting at ${APPLE_CONNECT}.`;
 const APPLE_HINT = `To add these to your Apple Music library too, connect it at ${APPLE_CONNECT}.`;
 const showDay = (ms: number) => new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "America/Chicago" }).format(ms);
