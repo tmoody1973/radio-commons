@@ -11,26 +11,20 @@
           "value": "Radio Milwaukee",
           "spokenForm": {
             "format": "ipa",
-            "value": " "
+            "value": "ˈreɪdioʊ mɪlˈwɔːki"
           }
         },
-        "shortDescription": "Radio Milwaukee stories, songs and local shows",
-        "fullDescription": "Find Radio Milwaukee podcast stories you half-remember, the songs 88Nine, HYFIN, Rhythm Lab and 414 Music just played, and concerts coming up in Milwaukee, Madison and Chicago. Link your Radio Milwaukee account to save songs to your Finds and your Apple Music library.",
+        "shortDescription": "Find Radio Milwaukee stories, songs and local shows",
+        "fullDescription": "Ask Alexa about Radio Milwaukee, Milwaukee's public music station. Find a podcast story you only half remember, from This Bites, Uniquely Milwaukee, Ladies First, artist interviews, Milwaukee Music Premieres and Studio Milwaukee Sessions, and see the places it mentions on a map. Hear what 88Nine, HYFIN, Rhythm Lab and 414 Music just played or are playing right now, and listen live. Ask when the station last played a song, and get a song's credits. Find concerts by artists the station plays, plus Milwaukee events and staff picks you can add to your calendar. Ask who is on 88Nine right now and when shows air. Get a weekly station briefing, or ask \"What can Radio Milwaukee do?\" to hear the rest.\n\nWith a free Radio Milwaukee account, you can also save songs to your Finds (and to your Apple Music library, once you connect Apple Music), follow artists, and ask \"What's new for me?\" to hear their latest spins, local shows and station stories.",
         "examplePhrases": [
-          "What was that This Bites episode about frugal dining",
-          "What were the last five songs on 88Nine",
-          "What concerts are coming up in Milwaukee this weekend",
-          "Save that song",
-          "What is new from Radio Milwaukee",
-          "What's new for me",
-          "Do any 88Nine artists have concerts coming up",
-          "What can Radio Milwaukee do",
           "What's on Radio Milwaukee right now",
-          "I want to support Radio Milwaukee",
-          "Who's on 88Nine right now"
+          "Save that song",
+          "What was that This Bites episode about frugal dining",
+          "What's new for me"
         ],
         "privacyAndCompliance": {
-          "privacyPolicyUrl": "https://radio-commons.vercel.app/privacy"
+          "privacyPolicyUrl": "https://radio-commons.vercel.app/privacy",
+          "termsOfUseUrl": "https://radio-commons.vercel.app/terms"
         },
         "mediaAssets": {
           "icons": {
@@ -60,9 +54,40 @@
                 "uri": "https://radio-commons.vercel.app/brand/alexa/icon-241x241.png"
               }
             ],
-            "dark": []
+            "dark": [
+              {
+                "size": "72x72",
+                "uri": "https://radio-commons.vercel.app/brand/alexa/icon-dark-72x72.png"
+              },
+              {
+                "size": "64x64",
+                "uri": "https://radio-commons.vercel.app/brand/alexa/icon-dark-64x64.png"
+              },
+              {
+                "size": "88x88",
+                "uri": "https://radio-commons.vercel.app/brand/alexa/icon-dark-88x88.png"
+              },
+              {
+                "size": "126x126",
+                "uri": "https://radio-commons.vercel.app/brand/alexa/icon-dark-126x126.png"
+              },
+              {
+                "size": "180x180",
+                "uri": "https://radio-commons.vercel.app/brand/alexa/icon-dark-180x180.png"
+              },
+              {
+                "size": "241x241",
+                "uri": "https://radio-commons.vercel.app/brand/alexa/icon-dark-241x241.png"
+              }
+            ]
           },
-          "carouselImages": [],
+          "carouselImages": [
+            {
+              "uri": "https://radio-commons.vercel.app/brand/alexa/carousel-1-600x900.png",
+              "altText": "A listener asks Alexa about a This Bites episode on frugal dining, and Alexa shows the episode with a play button and the places it mentions.",
+              "size": "600x900"
+            }
+          ],
           "bannerImages": []
         }
       }

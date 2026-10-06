@@ -75,7 +75,9 @@ function Memory() {
           <p className={styles.ask}>{H.erase}</p>
           <p className={styles.body}>{H.notStored}</p>
           <p className={styles.body}>{H.memoryWhy}</p>
-          <a href="/privacy" className={styles.link}>Read the privacy page</a>
+          <p className={styles.body}>
+            <a href="/privacy" className={styles.link}>Read the privacy page</a> · <a href="/terms" className={styles.link}>Terms of use</a>
+          </p>
         </div>
       </div>
     </section>
