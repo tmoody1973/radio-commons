@@ -80,3 +80,12 @@ describe("judges page (/how-it-works)", () => {
     expect(HOW_IT_WORKS.status.find((r) => r.feature === "Artist and title search")?.state).toBe("In this release");
   });
 });
+
+describe("who built it", () => {
+  it("names Tarik's role and tenure on the landing footer and near the top of the judges page", async () => {
+    const { LANDING } = await import("@/lib/landing");
+    const { HOW_IT_WORKS } = await import("@/lib/howItWorks");
+    expect(LANDING.footer).toContain("Director of Strategy and Innovation at Radio Milwaukee");
+    expect(HOW_IT_WORKS.builtBy).toMatch(/nearly 20 years/);
+  });
+});
