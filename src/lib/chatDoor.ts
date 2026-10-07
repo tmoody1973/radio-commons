@@ -75,6 +75,8 @@ export function patchChatServer(server: McpServerLike) {
           ...config._meta,
           securitySchemes: SIGNED_IN_TOOLS.has(name) ? SIGNED_IN : EITHER,
           ...(STATUS[name] ? { "openai/toolInvocation/invoking": STATUS[name] } : {}),
+          // OpenAI: must be true for any tool the card calls itself (Save from the card).
+          ...(name === "save_find" ? { "openai/widgetAccessible": true } : {}),
         },
       } as never,
       (async (...args: unknown[]) => chatResult(await callback(...args))) as never,

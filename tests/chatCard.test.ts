@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { chatCardPage, renderView, storyCardPage } from "@/lib/card";
+import { CHAT_STYLE } from "@/lib/card/chatStyle";
 
 // The ChatGPT door's card page (approved mockups, 2026-10-07). Alexa's page is pinned by tests/alexaDoor.test.ts.
 describe("chat card page", () => {
@@ -80,5 +81,34 @@ describe("Listen in the chat card", () => {
     const alexa = ownScript(storyCardPage("k"));
     expect(alexa).not.toContain('mode: "pip"');
     expect(alexa).not.toContain("url: button.dataset.audio");
+  });
+});
+
+// Fixes from the slice 2 review (2026-10-07).
+describe("review fixes", () => {
+  const ownScript = (page: string) => page.split("const App = ")[1];
+  const chat = ownScript(chatCardPage("k"));
+  const alexa = ownScript(storyCardPage("k"));
+
+  it("1. --card stays a real surface color (fullscreen panel, warn chip and anchor pin use it); only .card is transparent", () => {
+    expect(CHAT_STYLE).not.toContain("--card:transparent");
+    expect(CHAT_STYLE).toContain("--card:#ffffff");
+    expect(CHAT_STYLE).toContain("--card:#212121");
+  });
+
+  it("2. fullscreen map on phones: side list becomes a bottom sheet and the fit padding follows the panel", () => {
+    expect(CHAT_STYLE).toMatch(/@media \(max-width:600px\)\{[^}]*\.side\{/);
+    expect(chat).toContain("padding: chatMapPadding()");
+    expect(alexa).toContain("padding: { top: 100 * z, bottom: 40 * z, left: 40 * z, right: 340 * z }");
+  });
+
+  it("3. an interrupted play (AbortError) never opens a tab", () => {
+    expect(chat).toContain('e.name === "AbortError"');
+  });
+
+  it("5. after any redraw (picture-in-picture, theme), the playing button and Saved marks come back", () => {
+    expect(chat).toContain("restoreChatState()");
+    expect(chat).toContain("savedKeys.add(button.dataset.save)");
+    expect(alexa).not.toContain("restoreChatState");
   });
 });

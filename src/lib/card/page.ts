@@ -103,6 +103,7 @@ const CHAT_SAVE = `const ask = (b) => app.sendMessage({ role: "user", content: [
     app.callServerTool({ name: "save_find", arguments: JSON.parse(button.dataset.save) }).then((r) => {
       const ok = r && !r.isError && r.structuredContent && r.structuredContent.status === "ok";
       if (!ok) { button.textContent = label; return ask(button); } // includes account_linking_required
+      savedKeys.add(button.dataset.save);
       button.textContent = "Saved ✓";
       button.disabled = true;
     }).catch(() => { button.textContent = label; ask(button); });
@@ -114,7 +115,22 @@ const CHAT_SAVE = `const ask = (b) => app.sendMessage({ role: "user", content: [
 // isn't allowed to play opens in a new tab instead of reading "Can't play here".
 const CHAT_PIP_ON = ` if (button.classList.contains("live")) app.requestDisplayMode({ mode: "pip" }).catch(() => {});`;
 const CHAT_PIP_OFF = ` if (button.classList.contains("live")) app.requestDisplayMode({ mode: "inline" }).catch(() => {});`;
-const CHAT_OPEN_AUDIO = `app.openLink({ url: button.dataset.audio }).catch(() => {}); return; `;
+const CHAT_OPEN_AUDIO = `if (e && e.name === "AbortError") return; app.openLink({ url: button.dataset.audio }).catch(() => {}); return; `;
+// ChatGPT door only: redraws (picture-in-picture, theme, size) rebuild the card, so put back the playing button and the
+// Saved marks; and on phones the fullscreen map's side list is a bottom sheet, so the map frames the pins above it.
+const CHAT_HELPERS = `const savedKeys = new Set();
+function restoreChatState() {
+  root.querySelectorAll("button[data-save]").forEach((b) => { if (savedKeys.has(b.dataset.save)) { b.textContent = "Saved ✓"; b.disabled = true; } });
+  if (!audio || audio.paused) return;
+  const row = audio.dataset.row && [...root.querySelectorAll("button[data-audio]")].find((b) => b.dataset.audio === audio.dataset.row);
+  if (row) rowLabel(row, true); else if (mainButton()) showPlaying(true);
+}
+function chatMapPadding() {
+  const side = root.querySelector(".side");
+  if (window.innerWidth < 600) return { top: 80, left: 20, right: 20, bottom: (side ? side.offsetHeight : 0) + 30 };
+  return { top: 80, bottom: 40, left: 40, right: (side ? side.offsetWidth : 300) + 30 };
+}
+`;
 
 // chat: the ChatGPT door's page. It reads card HTML from the result's _meta (hidden from the model), never zooms
 // (cards fit their content), and adds the chat-only button behaviors below. Alexa's page is chat = false, unchanged.
@@ -139,13 +155,13 @@ function applyContext() {
   render(full);
 }
 
-function render(full) {
+${chat ? CHAT_HELPERS : ""}function render(full) {
   if (!current) return;
   root.innerHTML = full ? current.fullHtml : current.cardHtml;
   // The map picture follows the theme: Amazon draws light and dark versions.
   const dark = document.documentElement.dataset.theme === "dark";
   root.querySelectorAll("img[data-themed]").forEach((img) => { img.src = img.src.replace(/theme=(light|dark)/, dark ? "theme=dark" : "theme=light"); });
-  if (full) startMap();
+  ${chat ? "restoreChatState();\n  " : ""}if (full) startMap();
 }
 
 app.ontoolresult = (result) => {
@@ -185,7 +201,7 @@ function startMap() {
       new maplibregl.Marker({ element: pin }).setLngLat([group.lng, group.lat]).addTo(map);
       bounds.extend([group.lng, group.lat]);
     }
-    map.fitBounds(bounds, { padding: { top: 100 * z, bottom: 40 * z, left: 40 * z, right: 340 * z }, duration: 0, maxZoom: 15 });
+    map.fitBounds(bounds, { padding: ${chat ? "chatMapPadding()" : "{ top: 100 * z, bottom: 40 * z, left: 40 * z, right: 340 * z }"}, duration: 0, maxZoom: 15 });
   }).catch(() => { el.textContent = "The map couldn't load here."; });
 }
 
@@ -212,7 +228,7 @@ function play(button) {
   audio.play().then(() => {
     showPlaying(true);
     window.parent.postMessage({ type: "radio-commons:playing" }, "*"); // lets a host stop its own voice
-  }).catch(() => { ${chat ? CHAT_OPEN_AUDIO : ""}button.lastChild.textContent = " Can't play here"; });
+  }).catch((${chat ? "e" : ""}) => { ${chat ? CHAT_OPEN_AUDIO : ""}button.lastChild.textContent = " Can't play here"; });
 }
 
 // List tiles each carry their own preview (or live stream): one plays at a time, and its button reads "Pause" (or its data-playing) while it does.
@@ -233,7 +249,7 @@ function playRow(button) {
   audio.play().then(() => {
     rowLabel(button, true);${chat ? CHAT_PIP_ON : ""}
     window.parent.postMessage({ type: "radio-commons:playing" }, "*");
-  }).catch(() => { ${chat ? CHAT_OPEN_AUDIO : ""}button.lastChild.textContent = " Can't play here"; });
+  }).catch((${chat ? "e" : ""}) => { ${chat ? CHAT_OPEN_AUDIO : ""}button.lastChild.textContent = " Can't play here"; });
 }
 
 // The host pauses the card when the listener says "stop" or "pause" (Alexa handles those on the device itself).

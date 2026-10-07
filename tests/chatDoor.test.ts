@@ -143,3 +143,20 @@ describe("ChatGPT door: what the model reads", () => {
     expect(storyCardPage("k")).not.toContain("result._meta");
   });
 });
+
+describe("ChatGPT door: review fixes", () => {
+  it("4. save_find is callable from the card (openai/widgetAccessible); other tools aren't marked", async () => {
+    const tools: { name: string; _meta: Record<string, unknown> }[] = (await mcpPost(chatHandler(), { method: "tools/list" })).message.result.tools;
+    expect(tools.find((t) => t.name === "save_find")!._meta["openai/widgetAccessible"]).toBe(true);
+    expect(tools.find((t) => t.name === "find_events")!._meta["openai/widgetAccessible"]).toBeUndefined();
+  });
+
+  it("6. what's new for me keeps the digest items readable by the model on the chat door", async () => {
+    const items = [{ kind: "spins", artistId: "a1", artist: "Nas", total: 2, byStation: [{ station: "88nine", count: 2 }] }];
+    const playlist = fakePlaylist({ digest: async () => ({ since: 0, now: 1, items, artists: [{ artistId: "a1", name: "Nas", artworkUrl: null }] }) as never });
+    const chat = buildMcpHandler({ backstory: () => fakeBackstory(), fieldGuide: () => fakeFieldGuide(), playlist: () => playlist, cardHtml: () => "", surface: "chat", defer: () => {} });
+    const { message } = await mcpPostAs(chat, { method: "tools/call", params: { name: "whats_new_for_me", arguments: {} } }, "user_1");
+    expect(message.result.structuredContent.items).toEqual(items);
+    expect(message.result.structuredContent.cardHtml).toBeUndefined();
+  });
+});

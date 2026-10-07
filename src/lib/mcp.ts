@@ -216,7 +216,8 @@ export function buildMcpHandler(deps: Deps) {
   };
   const digestReply = async (digest: Digest): Promise<ToolResult> => {
     if (digest.items.length > 0) {
-      return { content: text(spokenDigest(digest.items)), structuredContent: card({ view: "digest", artists: digest.artists, items: digest.items }) };
+      // chat: the card HTML moves to _meta, so the model still needs the items to answer "the 4th one".
+      return { content: text(spokenDigest(digest.items)), structuredContent: card({ view: "digest", artists: digest.artists, items: digest.items }, chat ? { artists: digest.artists, items: digest.items } : {}) };
     }
     try {
       const { speech, structuredContent } = await picksReply();
