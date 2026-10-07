@@ -551,8 +551,10 @@ const TRY_ASKING: [label: string, ask: string][] = [
 /** No logo (ChatGPT shows it above the card) and no donate link (OpenAI's apps can't link to checkout): the site has Give. */
 function homeHeader(): string {
   const chips = TRY_ASKING.map(([label, ask]) => `<button type="button" class="chip ask" data-ask="${escape(ask)}">${escape(label)}</button>`).join("");
-  return `<header class="home-head"><b class="home-name">Radio Milwaukee</b><button type="button" class="link details" data-url="${STATION_SITE}">radiomilwaukee.org ↗</button></header>`
+  const feedback = `<button type="button" class="link ask" data-ask="${escape("I'd like to send feedback about the Radio Milwaukee app")}">Send feedback</button>`;
+  return `<header class="home-head"><b class="home-name">Radio Milwaukee <span class="beta">Beta</span></b><button type="button" class="link details" data-url="${STATION_SITE}">radiomilwaukee.org ↗</button></header>`
     + `<p class="home-support">Listener-supported. Support us at radiomilwaukee.org.</p>`
+    + `<p class="home-support">This app is new. Tell us what's broken or what you'd like: ${feedback}</p>`
     + `<section class="home-section"><h3 class="home-title">Try asking</h3><div class="chips">${chips}</div></section>`;
 }
 
@@ -565,17 +567,20 @@ function homeView(tiles: OnAirTile[], episodes: StoryCardMatch[] | null, briefin
   return `<div class="home">${homeHeader()}${section("On air now", onAirView(tiles))}${episodes && episodes.length ? section("New episodes", storiesView(episodes)) : ""}${briefing && briefing.items.length ? section("This week", briefingView(briefing.date, briefing.items)) : ""}${section("Your Finds", yours)}</div>`;
 }
 
-const REQUEST_KIND: Record<StationRequest["kind"], string> = { song_request: "Song request", five_oclock_shadow: "5 O'Clock Shadow suggestion" };
+const REQUEST_KIND: Record<StationRequest["kind"], string> = { song_request: "Song request", five_oclock_shadow: "5 O'Clock Shadow suggestion", feedback: "Beta feedback" };
 
 /** Exactly what the station will receive; nothing sends until the listener taps Send (the token is the only way). */
 function requestView(r: StationRequest, token: string): string {
+  const what = r.kind === "feedback" ? "feedback" : "request";
+  const send = `<button type="button" class="primary send" data-ask="Send my ${what} to Radio Milwaukee" data-call="${escape(JSON.stringify({ name: "send_station_request", arguments: { token } }))}">Send to Radio Milwaukee</button>`;
+  const meta = `<article class="card story request"><div class="info"><p class="meta">${escape(REQUEST_KIND[r.kind])} · to Radio Milwaukee</p>`;
+  const from = `<p class="line from">From: ${escape(r.fromName ?? "name not given")}</p><div class="actions">${send}</div></div></article>`;
+  if (r.kind === "feedback") return `${meta}<p class="line note">“${escape(r.message)}”</p>${from}`;
   const lines = r.kind === "five_oclock_shadow" ? [`Cover by ${r.coverArtist}`, `Originally by ${r.artist}`] : [r.artist];
-  const send = `<button type="button" class="primary send" data-ask="Send my request to Radio Milwaukee" data-call="${escape(JSON.stringify({ name: "send_station_request", arguments: { token } }))}">Send to Radio Milwaukee</button>`;
-  return `<article class="card story request"><div class="info"><p class="meta">${escape(REQUEST_KIND[r.kind])} · to Radio Milwaukee</p><h2>${escape(r.song)}</h2>`
+  return `${meta}<h2>${escape(r.song)}</h2>`
     + lines.map((line) => `<p class="line">${escape(line)}</p>`).join("")
     + (r.note ? `<p class="line note">“${escape(r.note)}”</p>` : "")
-    + `<p class="line from">From: ${escape(r.fromName ?? "name not given")}</p>`
-    + `<div class="actions">${send}</div></div></article>`;
+    + from;
 }
 
 function requestStatusView(ok: boolean, title: string, detail: string): string {

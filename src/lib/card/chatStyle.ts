@@ -113,4 +113,6 @@ button svg{width:16px;height:16px}
 .article .actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 .article.full{max-width:680px;margin:0 auto;border-radius:0}
 .article.full .hero{border-radius:0}
+.beta{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:9999px;border:1px solid var(--divider);color:var(--text-2);font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;vertical-align:2px}
+.home-support .link{font-size:13px}
 `;

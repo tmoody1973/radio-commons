@@ -7,7 +7,7 @@ import { AUTH_TOOLS, OAUTH_SCOPES } from "@/lib/listenerAuth";
 type McpServerLike = Parameters<Parameters<typeof createMcpHandler>[0]>[0];
 type ToolResultLike = { structuredContent?: Record<string, unknown>; _meta?: Record<string, unknown>; [key: string]: unknown };
 
-const SIGNED_IN_TOOLS = new Set<string>([...AUTH_TOOLS, "send_station_request", "create_playlist", "add_to_playlist", "show_playlists", "remove_from_playlist", "delete_playlist"]);
+const SIGNED_IN_TOOLS = new Set<string>([...AUTH_TOOLS, "send_station_request", "send_feedback", "create_playlist", "add_to_playlist", "show_playlists", "remove_from_playlist", "delete_playlist"]);
 const SIGNED_IN = [{ type: "oauth2", scopes: [...OAUTH_SCOPES] }];
 const EITHER = [{ type: "noauth" }, ...SIGNED_IN];
 
@@ -53,6 +53,7 @@ const STATUS: Record<string, string> = {
   remove_from_playlist: "Removing the song…",
   delete_playlist: "Deleting the playlist…",
   read_article: "Opening the article…",
+  send_feedback: "Preparing your feedback…",
 };
 
 // The model reads structuredContent verbatim; these are only for drawing the card, so they go in _meta (hidden

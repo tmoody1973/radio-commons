@@ -11,9 +11,9 @@ const names = (result: { tools: { name: string }[] }) => result.tools.map((t) =>
 const MEMBERSHIP = ["support_radio_milwaukee", "my_membership", "cancel_membership"];
 
 describe("ChatGPT door: tool list", () => {
-  it("keeps the 21 station tools plus send_station_request, station_home, 5 playlist tools and read_article, and drops the 3 membership tools (OpenAI plugin commerce rules)", async () => {
+  it("keeps the 21 station tools plus send_station_request, station_home, 5 playlist tools, read_article and send_feedback, and drops the 3 membership tools (OpenAI plugin commerce rules)", async () => {
     const listed = names((await mcpPost(chatHandler(), { method: "tools/list" })).message.result);
-    expect(listed).toHaveLength(29);
+    expect(listed).toHaveLength(30);
     for (const tool of MEMBERSHIP) expect(listed).not.toContain(tool);
     expect(listed).toContain("save_find");
   });
@@ -69,7 +69,7 @@ describe("ChatGPT route (/api/chatgpt/mcp)", () => {
   it("serves the chat tool list (no membership tools)", async () => {
     const listed = names((await mcpPost(await route(), { method: "tools/list" })).message.result);
     expect(listed).not.toContain("support_radio_milwaukee");
-    expect(listed).toHaveLength(29);
+    expect(listed).toHaveLength(30);
   });
 
   it("has no HTTP 401 gate: a signed-out save reaches the tool and gets the sign-in error", async () => {
@@ -321,6 +321,43 @@ describe("ChatGPT door: send_station_request", () => {
     const { message } = await mcpPostAs(door(setup()), call({ kind: "five_oclock_shadow", song: "Hurt", artist: "Nine Inch Nails" }), "user_1");
     expect(message.result.content[0].text).toContain("Whose cover");
     expect(message.result.structuredContent.view).toBeUndefined();
+  });
+});
+
+describe("ChatGPT door: send_feedback (beta)", () => {
+  const NOW = new Date("2026-10-07T18:00:00Z");
+  const setup = () => ({ counter: { countToday: vi.fn(async () => 0), record: vi.fn(async () => undefined) }, send: vi.fn(async () => undefined), secret: "s" });
+  const door = (requests: ReturnType<typeof setup>, surface: "chat" | "voice" = "chat") =>
+    buildMcpHandler({ backstory: () => fakeBackstory(), fieldGuide: () => fakeFieldGuide(), playlist: () => fakePlaylist(), cardHtml: () => "", surface, now: () => NOW, requests: () => requests });
+  const call = (name: string, args: Record<string, unknown>) => ({ method: "tools/call", params: { name, arguments: args } });
+  const tokenIn = (html: string) => JSON.parse(html.match(/data-call="([^"]+)"/)![1].replace(/&quot;/g, '"')).arguments.token as string;
+
+  it("is only on the ChatGPT door", async () => {
+    const names = async (h: ReturnType<typeof door>) => (await mcpPost(h, { method: "tools/list" })).message.result.tools.map((t: { name: string }) => t.name);
+    expect(await names(door(setup()))).toContain("send_feedback");
+    expect(await names(door(setup(), "voice"))).not.toContain("send_feedback");
+  });
+
+  it("drafts a preview; the card's Send emails it to the station inbox", async () => {
+    const s = setup();
+    const preview = await mcpPostAs(door(s), call("send_feedback", { message: "The map didn't open on my phone", fromName: "Tarik" }), "user_1");
+    expect(preview.message.result.structuredContent.view).toBe("request");
+    expect(preview.message.result._meta.cardHtml).toContain("Beta feedback");
+    expect(s.send).not.toHaveBeenCalled();
+    const { message } = await mcpPostAs(door(s), call("send_station_request", { token: tokenIn(preview.message.result._meta.cardHtml) }), "user_1");
+    expect((s.send.mock.calls[0] as unknown as [{ subject: string }])[0].subject).toBe("Beta feedback (ChatGPT): The map didn't open on my phone");
+    expect(message.result.structuredContent).toMatchObject({ view: "request-status", sent: true });
+  });
+
+  it("with nothing to say, asks what they'd like to tell the station", async () => {
+    const { message } = await mcpPostAs(door(setup()), call("send_feedback", {}), "user_1");
+    expect(message.result.content[0].text).toContain("What would you like to tell");
+    expect(message.result.structuredContent.view).toBeUndefined();
+  });
+
+  it("asks to sign in when signed out", async () => {
+    const { message } = await mcpPost(door(setup()), call("send_feedback", { message: "hi" }));
+    expect(message.result._meta["mcp/www_authenticate"]).toHaveLength(1);
   });
 });
 

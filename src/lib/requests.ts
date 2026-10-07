@@ -5,15 +5,22 @@ import { open, seal } from "@/lib/give/token";
  * station's inbox. Nothing sends without the listener tapping Send on the preview card: the card carries a sealed token
  * the model never sees (plan: docs/superpowers/plans/2026-10-07-chatgpt-requests.md).
  */
-export type RequestKind = "song_request" | "five_oclock_shadow";
-/** fromName: whatever name the listener chose to give the DJ ("Tarik from Bay View"), shown on the card before Send. */
-export interface StationRequest { kind: RequestKind; song: string; artist: string; coverArtist?: string; note?: string; fromName?: string }
-export type RequestError = "missing_song" | "missing_artist" | "missing_cover_artist";
+export type RequestKind = "song_request" | "five_oclock_shadow" | "feedback";
+/**
+ * fromName: whatever name the listener chose to give ("Tarik from Bay View"), shown on the card before Send.
+ * Beta feedback about the ChatGPT app rides the same Send token, inbox and daily limit as requests.
+ */
+export type StationRequest =
+  | { kind: "song_request" | "five_oclock_shadow"; song: string; artist: string; coverArtist?: string; note?: string; fromName?: string }
+  | { kind: "feedback"; message: string; fromName?: string };
+export type RequestError = "missing_song" | "missing_artist" | "missing_cover_artist" | "missing_message";
 
 export const REQUESTS_PER_DAY = 3;
 const NAME_MAX = 120;
 const NOTE_MAX = 300;
 const FROM_MAX = 60;
+const MESSAGE_MAX = 1000;
+const SUBJECT_PREVIEW = 60;
 const TOKEN_TTL_MS = 30 * 60_000;
 const TOKEN_PURPOSE = ":station-request"; // keeps request tokens and /give links apart under one env secret
 
@@ -21,7 +28,12 @@ const TOKEN_PURPOSE = ":station-request"; // keeps request tokens and /give link
 const tidy = (value: unknown, max: number) =>
   typeof value === "string" ? value.replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim().slice(0, max) : "";
 
-export function cleanRequest(input: { kind: RequestKind; song?: unknown; artist?: unknown; coverArtist?: unknown; note?: unknown; fromName?: unknown }): StationRequest | { error: RequestError } {
+export function cleanRequest(input: { kind: RequestKind; song?: unknown; artist?: unknown; coverArtist?: unknown; note?: unknown; fromName?: unknown; message?: unknown }): StationRequest | { error: RequestError } {
+  if (input.kind === "feedback") {
+    const message = tidy(input.message, MESSAGE_MAX);
+    const fromName = tidy(input.fromName, FROM_MAX);
+    return message ? { kind: "feedback", message, ...(fromName ? { fromName } : {}) } : { error: "missing_message" };
+  }
   const song = tidy(input.song, NAME_MAX);
   const artist = tidy(input.artist, NAME_MAX);
   const coverArtist = tidy(input.coverArtist, NAME_MAX);
@@ -35,12 +47,17 @@ export function cleanRequest(input: { kind: RequestKind; song?: unknown; artist?
 
 export function requestEmail(r: StationRequest, sentAt: Date): { subject: string; text: string } {
   const when = new Intl.DateTimeFormat("en-US", { dateStyle: "full", timeStyle: "short", timeZone: "America/Chicago" }).format(sentAt);
+  const footer = `Sent by a listener using Radio Milwaukee in ChatGPT, ${when} (Milwaukee time).`;
+  if (r.kind === "feedback") {
+    const short = r.message.length > SUBJECT_PREVIEW ? `${r.message.slice(0, SUBJECT_PREVIEW).trimEnd()}…` : r.message;
+    return { subject: `Beta feedback (ChatGPT): ${short}`, text: ["Beta feedback on Radio Milwaukee in ChatGPT", "", r.message, "", `From: ${r.fromName ?? "name not given"}`, "", footer].join("\n") };
+  }
   const shadow = r.kind === "five_oclock_shadow";
   const subject = shadow ? `5 O'Clock Shadow suggestion: ${r.song} by ${r.coverArtist} (originally ${r.artist})` : `Song request: ${r.song} — ${r.artist}`;
   const lines = shadow
     ? ["5 O'Clock Shadow suggestion (88Nine's daily 5 pm cover)", "", `Song: ${r.song}`, `Cover by: ${r.coverArtist}`, `Original artist: ${r.artist}`]
     : ["Song request", "", `Song: ${r.song}`, `Artist: ${r.artist}`];
-  return { subject, text: [...lines, `From: ${r.fromName ?? "name not given"}`, ...(r.note ? ["", `Note from the listener: ${r.note}`] : []), "", `Sent by a listener using Radio Milwaukee in ChatGPT, ${when} (Milwaukee time).`].join("\n") };
+  return { subject, text: [...lines, `From: ${r.fromName ?? "name not given"}`, ...(r.note ? ["", `Note from the listener: ${r.note}`] : []), "", footer].join("\n") };
 }
 
 export const sealRequest = (listenerId: string, r: StationRequest, secret: string, now = Date.now()) =>

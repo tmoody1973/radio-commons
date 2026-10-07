@@ -281,3 +281,19 @@ describe("newsletter Read in ChatGPT", () => {
     expect(html).toContain('data-chat-ask="Open the newsletter article &quot;Weekend guide&quot; here"');
   });
 });
+
+describe("beta label and feedback", () => {
+  it("the home says Beta and offers Send feedback (not one of the four Try asking chips)", () => {
+    const html = renderView({ view: "home", tiles: [], episodes: null, briefing: null, finds: null } as never);
+    expect(html).toContain('<span class="beta">Beta</span>');
+    expect(html).toContain('data-ask="I&#39;d like to send feedback about the Radio Milwaukee app"');
+    expect([...html.matchAll(/class="chip ask"/g)]).toHaveLength(4);
+  });
+  it("the feedback preview shows the words, the name and Send", () => {
+    const html = renderView({ view: "request", request: { kind: "feedback", message: "The map <b>didn't</b> open", fromName: "Tarik" }, token: "tok" } as never);
+    expect(html).toContain("Beta feedback · to Radio Milwaukee");
+    expect(html).toContain("The map &lt;b&gt;didn&#39;t&lt;/b&gt; open");
+    expect(html).toContain("From: Tarik");
+    expect(html).toContain('data-ask="Send my feedback to Radio Milwaukee"');
+  });
+});

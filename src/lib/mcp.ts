@@ -116,7 +116,9 @@ const REQUEST_QUESTIONS = {
   missing_song: "Which song would you like to request?",
   missing_artist: "Who's the artist?",
   missing_cover_artist: "Whose cover should 88Nine play for 5 O'Clock Shadow?",
+  missing_message: "What would you like to tell the Radio Milwaukee team about this app?",
 } as const;
+const FEEDBACK_PREVIEW = "Here's your feedback. Tap Send on the card to send it to the Radio Milwaukee team; nothing is sent until you do.";
 export const CHAT_RESOURCE_PATH = "/api/chatgpt/mcp";
 export const CHAT_SIGN_IN_TEXT = "Sign in to Radio Milwaukee to save songs, follow artists and see what's new for you.";
 // ChatGPT shows its own sign-in screen when a tool error carries this challenge with both error and error_description.
@@ -1013,6 +1015,39 @@ export function buildMcpHandler(deps: Deps) {
 
       // ChatGPT door only (slice 5): a request or 5 O'Clock Shadow suggestion, sent only by the card's Send button.
       if (chat) {
+      // Requests, 5 O'Clock Shadow suggestions and beta feedback share one path: a preview, then the card's Send (a sealed token).
+      // ponytail: one 3-a-day limit across all three; a separate feedback count if testers hit it.
+      const sendToStation = async (input: Parameters<typeof cleanRequest>[0] & { token?: string }, context: { http?: Parameters<typeof listenerIdFrom>[0] }): Promise<ToolResult> => {
+        const listenerId = listenerIdFrom(context.http ?? {});
+        if (!listenerId) return signInRequired();
+        const setup = (deps.requests ?? requestsFromEnv)();
+        if (!setup) return { content: text(REQUESTS_UNAVAILABLE), isError: true };
+        const at = now();
+        const day = milwaukeeDay(at.getTime());
+        const status = (sent: boolean, title: string, detail: string): ToolResult =>
+          ({ content: text(`${title} ${detail}`), structuredContent: card({ view: "request-status", ok: sent, title, detail }, { sent }) });
+        try {
+          if (await setup.counter.countToday(listenerId, day) >= REQUESTS_PER_DAY) return status(false, "That's today's three messages to Radio Milwaukee.", "You can send more tomorrow.");
+          if (input.token) {
+            const request = openRequest(input.token, listenerId, setup.secret, at.getTime());
+            if (!request) return status(false, "That preview expired.", "Ask again for a new one, then tap Send.");
+            const email = requestEmail(request, at);
+            await setup.send(email);
+            // Sent already: a failed count must not turn into "not sent".
+            await setup.counter.record(listenerId, day).catch(() => console.error(JSON.stringify({ event: "station_request_count_failed" })));
+            console.log(JSON.stringify({ event: "station_request_sent", kind: request.kind }));
+            return status(true, "Sent to Radio Milwaukee ✓", email.subject);
+          }
+          const request = cleanRequest(input);
+          if ("error" in request) return { content: text(REQUEST_QUESTIONS[request.error]), structuredContent: { status: request.error } };
+          const sealed = sealRequest(listenerId, request, setup.secret, at.getTime());
+          return { content: text(request.kind === "feedback" ? FEEDBACK_PREVIEW : REQUEST_PREVIEW), structuredContent: card({ view: "request", request, token: sealed }, { request }) };
+        } catch {
+          console.error(JSON.stringify({ event: "station_request_failed" }));
+          return status(false, "That didn't send.", "Radio Milwaukee's request line isn't answering. Please try again in a minute.");
+        }
+      };
+
       registerAppTool(
         server,
         "send_station_request",
@@ -1031,36 +1066,20 @@ export function buildMcpHandler(deps: Deps) {
           annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
           ...CARD,
         },
-        async ({ kind, song, artist, coverArtist, note, fromName, token }, context) => {
-          const listenerId = listenerIdFrom(context.http ?? {});
-          if (!listenerId) return signInRequired();
-          const setup = (deps.requests ?? requestsFromEnv)();
-          if (!setup) return { content: text(REQUESTS_UNAVAILABLE), isError: true };
-          const at = now();
-          const day = milwaukeeDay(at.getTime());
-          const status = (sent: boolean, title: string, detail: string): ToolResult =>
-            ({ content: text(`${title} ${detail}`), structuredContent: card({ view: "request-status", ok: sent, title, detail }, { sent }) });
-          try {
-            if (await setup.counter.countToday(listenerId, day) >= REQUESTS_PER_DAY) return status(false, "That's today's three requests.", "You can send more tomorrow.");
-            if (token) {
-              const request = openRequest(token, listenerId, setup.secret, at.getTime());
-              if (!request) return status(false, "That preview expired.", "Ask again for a new one, then tap Send.");
-              const email = requestEmail(request, at);
-              await setup.send(email);
-              // Sent already: a failed count must not turn into "not sent".
-              await setup.counter.record(listenerId, day).catch(() => console.error(JSON.stringify({ event: "station_request_count_failed" })));
-              console.log(JSON.stringify({ event: "station_request_sent", kind: request.kind }));
-              return status(true, "Sent to Radio Milwaukee ✓", email.subject);
-            }
-            const request = cleanRequest({ kind: kind ?? "song_request", song, artist, coverArtist, note, fromName });
-            if ("error" in request) return { content: text(REQUEST_QUESTIONS[request.error]), structuredContent: { status: request.error } };
-            const sealed = sealRequest(listenerId, request, setup.secret, at.getTime());
-            return { content: text(REQUEST_PREVIEW), structuredContent: card({ view: "request", request, token: sealed }, { request }) };
-          } catch {
-            console.error(JSON.stringify({ event: "station_request_failed" }));
-            return status(false, "That didn't send.", "Radio Milwaukee's request line isn't answering. Please try again in a minute.");
-          }
+        async ({ kind, ...rest }, context) => sendToStation({ ...rest, kind: kind ?? "song_request" }, context),
+      );
+
+      registerAppTool(
+        server,
+        "send_feedback",
+        {
+          title: "Send feedback about this app",
+          description: "Radio Milwaukee in ChatGPT is in beta. Send the Radio Milwaukee team the listener's feedback about this app: something broken, something confusing, or an idea. Call with the listener's own words as message to show a preview card; the listener sends it by tapping Send on the card, which is the only way it is sent, so never say it was sent unless a card says so. Ask what name to include as fromName; leave it out if they'd rather not say. Sign-in required; shares the 3-a-day limit with song requests.",
+          inputSchema: z.object({ message: z.string().max(1200).optional(), fromName: z.string().max(100).optional(), token: z.string().max(2000).optional() }),
+          annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+          ...CARD,
         },
+        async ({ message, fromName, token }, context) => sendToStation({ kind: "feedback", message, fromName, token }, context),
       );
       }
 

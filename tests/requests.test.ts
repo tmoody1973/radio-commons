@@ -110,3 +110,24 @@ describe("resendSender", () => {
     await expect(resendSender({ apiKey: "k", from: "f", to: "t", fetch: fetch as unknown as typeof globalThis.fetch })({ subject: "S", text: "T" })).rejects.toThrow("Resend 422");
   });
 });
+
+describe("beta feedback (same Send token, inbox and daily limit as requests)", () => {
+  const at = new Date("2026-10-07T22:00:00Z");
+  it("needs only the listener's words; trims, flattens and caps them at 1000", () => {
+    expect(cleanRequest({ kind: "feedback", message: "  The map didn't\nopen  ", fromName: " Tarik " })).toEqual({ kind: "feedback", message: "The map didn't open", fromName: "Tarik" });
+    expect(cleanRequest({ kind: "feedback", message: " " })).toEqual({ error: "missing_message" });
+    expect((cleanRequest({ kind: "feedback", message: "m".repeat(1500) }) as { message: string }).message).toHaveLength(1000);
+  });
+  it("emails with a subject the inbox can sort on", () => {
+    const { subject, text } = requestEmail({ kind: "feedback", message: "The map didn't open on my phone when I tapped Places on the Uniquely Milwaukee story", fromName: "Tarik" }, at);
+    expect(subject).toBe("Beta feedback (ChatGPT): The map didn't open on my phone when I tapped Places on the…");
+    expect(text).toContain("Beta feedback on Radio Milwaukee in ChatGPT");
+    expect(text).toContain("The map didn't open on my phone when I tapped Places on the Uniquely Milwaukee story");
+    expect(text).toContain("From: Tarik");
+  });
+  it("seals and opens like a request", () => {
+    const now = Date.parse("2026-10-07T18:00:00Z");
+    const feedback = { kind: "feedback" as const, message: "Love it" };
+    expect(openRequest(sealRequest("user_1", feedback, SECRET, now), "user_1", SECRET, now)).toEqual(feedback);
+  });
+});
