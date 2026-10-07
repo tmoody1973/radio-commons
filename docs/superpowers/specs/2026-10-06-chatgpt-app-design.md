@@ -141,6 +141,23 @@ Shared changes allowed to touch Alexa+: none before October 23. After the submis
 | Developer mode plan limits (Pro: read-only tools) | Writes may need a Business plan to test | First hand test with a signed-in tool |
 | Directory review (days to months) | Not on the hackathon timeline | Out of scope; developer mode is the target |
 
+## Publishing (added 2026-10-07, agreed with Tarik)
+
+Beta first, then the directory. Nothing below happens before October 23.
+
+1. **Insider beta (after Oct 23).** Station staff, board members and roughly 10 tech-comfortable listeners add the app themselves from ChatGPT's Plugins page (Add → Add custom MCP server), following `/beta` (setup steps, Copy button, 5 things to try). Materials: `docs/beta/INVITE-EMAIL.md`, `SETUP-SESSION.md`, `VIDEO-SCRIPT.md`. The app says **Beta** and has **Send feedback** (decision 012); `/support` gives digital@radiomilwaukee.org.
+2. **Before the first invitation:**
+   - Merge to `main` in a quiet window. Give the ChatGPT door its **permanent production host** (set `CHATGPT_DOOR_HOST` in production). OpenAI can't change a published server address without a support ticket, so this host is the one we submit later.
+   - **Turn on "Publish CIMD support" in Clerk** (OAuth applications → Settings → Client onboarding), pre-register ChatGPT's client, and allow only pre-registered clients. Testers then skip the client ID and secret fields: as of 2026-10-07, ChatGPT shows CIMD as "Unavailable because the server did not advertise CIMD support". Test first: change the ChatGPT token check to accept ChatGPT's CIMD client ID.
+   - Update `/privacy` for the ChatGPT app (request and feedback emails, the name a listener gives, playlists once live). Tarik reviews the wording.
+3. **Public listing in ChatGPT's directory (`chatgpt.com/plugins`).** This is the listener beta: search, Connect, done. It needs:
+   - Clerk's **production** instance. The development instance is capped at 100 users and shared with Alexa, and accounts can't be moved, so Alexa listeners sign in again. This needs a plan of its own.
+   - The playlist tools hidden until rm-playlist-v2 #69 is live ("unfinished work" is a rejection reason).
+   - A reviewer account that signs in with a password and no email codes.
+   - 5 positive and 3 negative test cases (the `/beta` list is the positive five), a demo video and release notes.
+   - The `/.well-known/openai-apps-challenge` token, OpenAI organization verification, and the icon.
+   - The directory name stays "Radio Milwaukee": OpenAI accepts no "trial or demo" plugins, so "Beta" lives only inside the app and the description.
+
 ## Not in scope
 
-Directory submission, composer @-mentions, Apple Music playlist export, real donations, any change to the Alexa+ add-on before October 23.
+Composer @-mentions, Apple Music playlist export, real donations, any change to the Alexa+ add-on before October 23.
