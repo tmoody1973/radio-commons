@@ -213,3 +213,40 @@ it("on_air_now is callable from the card (the live refresh)", async () => {
   const tools: { name: string; _meta: Record<string, unknown> }[] = (await mcpPost(chatHandler(), { method: "tools/list" })).message.result.tools;
   expect(tools.find((t) => t.name === "on_air_now")!._meta["openai/widgetAccessible"]).toBe(true);
 });
+
+// Slice 3: replies on the ChatGPT door drop voice-only phrasing (Alexa's spoken replies stay word for word).
+describe("ChatGPT door: chat wording", () => {
+  const songs = Array.from({ length: 5 }, (_, i) => ({ playId: `p${i}`, artist: `Artist ${i}`, title: `Song ${i}`, playedAt: 0, artworkUrl: null, previewUrl: null }));
+  const deps = (surface?: "chat") => ({ backstory: () => fakeBackstory(), fieldGuide: () => fakeFieldGuide(), playlist: () => fakePlaylist({ recentSongs: async () => songs, listFinds: async () => [] }), cardHtml: () => "", ...(surface ? { surface } : {}) });
+  const said = async (surface: "chat" | undefined, name: string, args: Record<string, unknown>, as?: string) => {
+    const body = { method: "tools/call", params: { name, arguments: args } };
+    const { message } = as ? await mcpPostAs(buildMcpHandler(deps(surface)), body, as) : await mcpPost(buildMcpHandler(deps(surface)), body);
+    return (message.result.content as { text: string }[]).map((c) => c.text).join(" ");
+  };
+
+  it("no 'Say Alexa, play…' on the ChatGPT door; Alexa keeps it", async () => {
+    expect(await said("chat", "on_air_now", { station: "88nine" })).not.toMatch(/alexa/i);
+    expect(await said(undefined, "on_air_now", { station: "88nine" })).toContain("Say 'Alexa, play");
+  });
+
+  it("no 'Want the next two?' paging in chat (the card shows the whole list)", async () => {
+    expect(await said("chat", "recent_songs", { station: "88nine", count: 5 })).not.toContain("Want the next");
+    expect(await said(undefined, "recent_songs", { station: "88nine", count: 5 })).toContain("Want the next two?");
+  });
+
+  it("no spoken calendar offer in chat (the card has Add to calendar)", async () => {
+    expect(await said("chat", "station_picks", {})).not.toContain("Want to add one to your calendar?");
+    expect(await said(undefined, "station_picks", {})).toContain("Want to add one to your calendar?");
+  });
+
+  it("empty Finds and help say what to do in a chat, not what to say to a speaker", async () => {
+    expect(await said("chat", "list_finds", {}, "user_1")).toContain("Save songs from any song card");
+    expect(await said("chat", "what_can_you_do", {})).toContain('Ask "tell me more" for examples.');
+    expect(await said(undefined, "what_can_you_do", {})).toContain("Say tell me more for examples.");
+  });
+});
+
+it("the card resource isn't described as Alexa+ style on the ChatGPT door", async () => {
+  const { message } = await mcpPost(chatHandler(), { method: "resources/list" });
+  expect(message.result.resources[0].description).not.toMatch(/alexa/i);
+});

@@ -945,7 +945,7 @@ export function buildMcpHandler(deps: Deps) {
       );
       }
 
-      registerAppResource(server, "Story card", CARD_URI, { description: "A Radio Milwaukee story, quote, list or map, in Alexa+ style." }, async () => ({
+      registerAppResource(server, "Story card", CARD_URI, { description: chat ? "A Radio Milwaukee card: a story, quote, song list, events, a map or what's on the air." : "A Radio Milwaukee story, quote, list or map, in Alexa+ style." }, async () => ({
         contents: [{ uri: CARD_URI, mimeType: RESOURCE_MIME_TYPE, text: deps.cardHtml(), _meta: { ui: { csp: CARD_CSP }, ...(chat ? chatWidgetMeta(CARD_CSP) : {}) } }],
       }));
     },

@@ -51,7 +51,7 @@ const STATUS: Record<string, string> = {
 // from the model, forwarded to the card). About half of each card result is HTML.
 const RENDER_ONLY = ["cardHtml", "fullHtml", "mapPlaces"];
 export function chatResult<T extends ToolResultLike>(input: T): T {
-  const result = withPlacesBehindTheMap(input);
+  const result = inChatWords(withPlacesBehindTheMap(input));
   const content = result.structuredContent;
   if (!content || !RENDER_ONLY.some((key) => key in content)) return result;
   const kept = Object.fromEntries(Object.entries(content).filter(([key]) => !RENDER_ONLY.includes(key)));
@@ -68,6 +68,22 @@ const CHAT_EXTRA: Record<string, string> = {
 // On card tools, per-tool guidance against re-listing what the card shows (ChatGPT repeated events as a table).
 const CARD_NOTE = " The card shows these results; reply in one or two sentences and don't list them again.";
 const hasCard = (config: { _meta?: Record<string, unknown> }) => Boolean((config._meta?.ui as { resourceUri?: string } | undefined)?.resourceUri);
+
+// Replies are written to be spoken. In a chat the card shows the whole list and its buttons, so the speaker-only
+// phrases go; the facts don't change. Alexa's replies never pass through here.
+const CHAT_WORDS: [RegExp, string][] = [
+  [/ ?Say 'Alexa, play [^']+' to keep listening\./g, ""],
+  [/ Want the next (one|two|three)\?/g, ""],
+  [/ ?Want to add one to your calendar\?/g, ""],
+  [/After I name a song, say 'save it'\./g, "Save songs from any song card, or ask me to save one."],
+  [/Say tell me more for examples\./g, 'Ask "tell me more" for examples.'],
+];
+function inChatWords<T extends ToolResultLike>(result: T): T {
+  if (!Array.isArray(result.content)) return result;
+  const content = (result.content as { type: string; text?: string }[]).map((part) =>
+    part.type === "text" && part.text ? { ...part, text: CHAT_WORDS.reduce((text, [from, to]) => text.replace(from, to), part.text).trim() } : part);
+  return { ...result, content };
+}
 
 type StoryLike = { places?: unknown[]; [key: string]: unknown };
 /**
