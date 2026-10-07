@@ -10,14 +10,15 @@ const nextConfig: NextConfig = {
   // without CHATGPT_DOOR_HOST (production, Alexa+) there is no rewrite at all.
   async rewrites() {
     const host = process.env.CHATGPT_DOOR_HOST;
-    if (!host) return [];
-    return [
+    // beforeFiles: a plain rewrite list only runs when no route matches, and the root metadata route exists.
+    if (!host) return { beforeFiles: [] };
+    return { beforeFiles: [
       {
         source: "/.well-known/oauth-protected-resource",
         has: [{ type: "host" as const, value: host }],
         destination: "/.well-known/oauth-protected-resource/api/chatgpt/mcp",
       },
-    ];
+    ] };
   },
 };
 

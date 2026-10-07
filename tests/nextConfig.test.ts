@@ -14,17 +14,18 @@ describe("next.config rewrites", () => {
 
   it("adds no rewrite when CHATGPT_DOOR_HOST is unset (production, Alexa+)", async () => {
     vi.stubEnv("CHATGPT_DOOR_HOST", "");
-    expect(await rewrites()).toEqual([]);
+    expect(await rewrites()).toEqual({ beforeFiles: [] });
   });
 
   it("on the ChatGPT host only, serves the chat door's metadata at the root address", async () => {
     vi.stubEnv("CHATGPT_DOOR_HOST", "chatgpt-dev.rmke.org");
-    expect(await rewrites()).toEqual([
+    // beforeFiles: a plain rewrite list only runs when no route matches, and the root metadata route exists.
+    expect(await rewrites()).toEqual({ beforeFiles: [
       {
         source: "/.well-known/oauth-protected-resource",
         has: [{ type: "host", value: "chatgpt-dev.rmke.org" }],
         destination: "/.well-known/oauth-protected-resource/api/chatgpt/mcp",
       },
-    ]);
+    ] });
   });
 });
