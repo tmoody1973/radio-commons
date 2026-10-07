@@ -1,4 +1,5 @@
 import { EXT_APPS_BUNDLE } from "@/generated/ext-apps-bundle";
+import { CHAT_STYLE } from "./chatStyle";
 import { TOKENS } from "./tokens";
 
 const MAPLIBRE = "https://unpkg.com/maplibre-gl@4.7.1/dist/";
@@ -93,8 +94,9 @@ blockquote{margin:0;font-size:40px;line-height:1.1;font-weight:700}blockquote.q-
 /* Map pins live inside the unscaled map, so they size from --z directly (CSS zoom would shift their position). */
 .mappin{min-width:calc(30px * var(--z));height:calc(30px * var(--z));padding:0 calc(8px * var(--z));box-sizing:border-box;border-radius:9999px;background:${TOKENS.accent};color:${TOKENS.onAccent};border:calc(2px * var(--z)) solid #fff;font:700 calc(15px * var(--z)) Figtree,system-ui,sans-serif;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.35)}`;
 
-// readMeta: the ChatGPT door moves card HTML to the result's _meta (hidden from the model), so its page reads both.
-const script = (mapKey: string, readMeta = false) => `
+// chat: the ChatGPT door's page. It reads card HTML from the result's _meta (hidden from the model), never zooms
+// (cards fit their content), and adds the chat-only button behaviors below. Alexa's page is chat = false, unchanged.
+const script = (mapKey: string, chat = false) => `
 const root = document.getElementById("root");
 const app = new App({ name: "radio-commons-story-card", version: "0.2.0" }, {});
 const MAP_STYLE = ${JSON.stringify(`${MAP_STYLE}?key=${encodeURIComponent(mapKey)}`)};
@@ -107,7 +109,7 @@ function applyContext() {
   const ctx = app.getHostContext() || {};
   const width = (ctx.containerDimensions && ctx.containerDimensions.width) || window.innerWidth;
   const full = ctx.displayMode === "fullscreen" && current && current.fullHtml;
-  const z = width / 768;
+  const z = ${chat ? "1" : "width / 768"};
   document.documentElement.dataset.theme = ctx.theme === "dark" ? "dark" : "light";
   document.documentElement.style.setProperty("--z", String(z));
   // The pan-and-zoom map manages its own scale, so fullscreen leaves the page unscaled and scales only the overlays.
@@ -125,7 +127,7 @@ function render(full) {
 }
 
 app.ontoolresult = (result) => {
-  const data = ${readMeta ? "result && { ...result.structuredContent, ...result._meta }" : "result && result.structuredContent"};
+  const data = ${chat ? "result && { ...result.structuredContent, ...result._meta }" : "result && result.structuredContent"};
   if (!data || typeof data.cardHtml !== "string") { root.textContent = "Story unavailable."; return; }
   current = data;
   if (audio) audio.pause(); // a new answer replaces the card, so its sound stops too
@@ -251,10 +253,13 @@ export function storyCardPage(mapKey = process.env.AMAZON_LOCATION_BROWSER_KEY ?
 
 let chatCached: { key: string; html: string } | null = null;
 
-/** The ChatGPT door's card page: the same views and script, reading the card HTML from the result's _meta. */
+/** The ChatGPT door's card page: the shared views and script in chat mode, styled to ChatGPT's design rules. */
 export function chatCardPage(mapKey = process.env.AMAZON_LOCATION_BROWSER_KEY ?? ""): string {
   if (chatCached?.key !== mapKey) {
-    const html = storyCardPage(mapKey).replace(script(mapKey), () => script(mapKey, true));
+    // Same skeleton as storyCardPage, minus the Google Fonts link (ChatGPT requires the system font), plus CHAT_STYLE.
+    const html = `<!doctype html><html lang="en" data-theme="light"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">`
+      + `<title>Radio Milwaukee</title><style>${STYLE}${CHAT_STYLE}</style></head><body><main id="root" aria-live="polite">Loading…</main>`
+      + `<script type="module">${appBundle()}${script(mapKey, true)}</script></body></html>`;
     chatCached = { key: mapKey, html };
   }
   return chatCached.html;
