@@ -89,4 +89,9 @@ button svg{width:16px;height:16px}
 .tile.event .tile-actions{grid-area:actions;align-self:center;margin:0}
 .home{display:flex;flex-direction:column;gap:20px;padding:4px 0}
 .home-title{margin:0 0 8px;font-size:16px;line-height:24px;font-weight:600}
+.playlists .row-wrap > button{position:absolute;inset:0;width:100%;height:100%;min-height:0;min-width:0;padding:0;border-radius:8px;background:transparent;color:transparent;font-size:0}
+.playlists .row-wrap > button:hover{background:var(--divider)}
+.playlists .row-wrap::after{content:"\\203A";color:var(--text-2);font-size:20px;line-height:20px;flex:none}
+.playlist .row-wrap > .remove{min-height:0;height:28px;padding:0 12px;font-size:13px}
+.playlist .thumb{width:40px;height:40px;border-radius:10px;object-fit:cover;flex:none}
 `;

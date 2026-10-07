@@ -1,4 +1,5 @@
 import type { Passage, Story, StoryCardMatch } from "@/lib/backstory";
+import type { PlaylistItem, PlaylistSummary } from "@/lib/playlist";
 import type { StationRequest } from "@/lib/requests";
 import type { BriefingItem } from "@/lib/briefing";
 import type { PublicEvent } from "@/lib/fieldGuide";
@@ -52,7 +53,10 @@ export type CardView =
   | { view: "request"; request: StationRequest; token: string }
   | { view: "request-status"; ok: boolean; title: string; detail: string }
   /** ChatGPT door only: the station home (sidebar entrypoint). finds is null when the listener isn't signed in. */
-  | { view: "home"; tiles: OnAirTile[]; briefing: { date: string; items: BriefingItem[] } | null; finds: FindRow[] | null };
+  | { view: "home"; tiles: OnAirTile[]; briefing: { date: string; items: BriefingItem[] } | null; finds: FindRow[] | null }
+  /** ChatGPT door only: one listener playlist, and the list of them (rm-playlist-v2 #69). */
+  | { view: "playlist"; playlistId: string; name: string; items: PlaylistItem[] }
+  | { view: "playlists"; playlists: PlaylistSummary[] };
 
 const escape = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
@@ -480,6 +484,28 @@ function membershipView(m: MembershipFacts): string {
     + `<div class="actions">${upgrade}<button type="button" class="secondary ask" data-ask="Cancel my Radio Milwaukee membership">Cancel membership</button></div></article>`;
 }
 
+const songCount = (n: number) => `${n} song${n === 1 ? "" : "s"}`;
+const cardCall = (name: string, args: Record<string, unknown>) => escape(JSON.stringify({ name, arguments: args }));
+
+/** One playlist: each song can be removed from the card (no ChatGPT turn); the chat message is the fallback. */
+function playlistView(playlistId: string, name: string, items: PlaylistItem[]): string {
+  const rows = items.map((item) => `<div class="row-wrap"><div class="row">`
+    + (item.artworkUrl ? `<img class="thumb" src="${escape(sizedArtwork(item.artworkUrl) ?? item.artworkUrl)}" alt="${escape(item.artist)} artwork">` : `<span class="thumb ph"></span>`)
+    + `<span class="what"><b>${escape(item.title)}</b><small>${escape(item.artist)} · ${escape(stationLabel(item.stationSlug))}</small></span></div>`
+    + `<button type="button" class="secondary small remove" data-ask="${escape(`Remove "${item.title}" from my playlist ${name}`)}" data-call="${cardCall("remove_from_playlist", { playlist: playlistId, itemId: item.itemId })}">Remove</button></div>`).join("");
+  return `<article class="card playlist"><p class="meta">Playlist · ${songCount(items.length)}</p><h2>${escape(name)}</h2>`
+    + (items.length ? `<div class="list">${rows}</div>` : `<p class="line">No songs yet. Add one: "Add that song to ${escape(name)}".</p>`)
+    + `</article>`;
+}
+
+/** The listener's playlists; a row opens its playlist from the card. */
+function playlistsView(playlists: PlaylistSummary[]): string {
+  if (!playlists.length) return `<article class="card playlists"><p class="line">You don't have any playlists yet. Try "Make a playlist called Road Trip".</p></article>`;
+  const rows = playlists.map((pl) => `<div class="row-wrap"><div class="row"><span class="what"><b>${escape(pl.name)}</b><small>${songCount(pl.itemCount)}</small></span></div>`
+    + `<button type="button" class="secondary open" data-ask="${escape(`Show my playlist ${pl.name}`)}" data-call="${cardCall("show_playlists", { playlist: pl.playlistId })}">Open</button></div>`).join("");
+  return `<article class="card playlists"><p class="meta">Your playlists</p><div class="list">${rows}</div></article>`;
+}
+
 /** The station home: what's on, this week, and your Finds, stacked; each section is the card it already is elsewhere. */
 function homeView(tiles: OnAirTile[], briefing: { date: string; items: BriefingItem[] } | null, finds: FindRow[] | null): string {
   const section = (title: string, body: string) => `<section class="home-section"><h3 class="home-title">${escape(title)}</h3>${body}</section>`;
@@ -529,5 +555,7 @@ export function renderView(card: CardView): string {
     case "request": return requestView(card.request, card.token);
     case "request-status": return requestStatusView(card.ok, card.title, card.detail);
     case "home": return homeView(card.tiles, card.briefing, card.finds);
+    case "playlist": return playlistView(card.playlistId, card.name, card.items);
+    case "playlists": return playlistsView(card.playlists);
   }
 }

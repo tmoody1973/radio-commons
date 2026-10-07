@@ -191,3 +191,30 @@ it("the request preview shows who it's from, or that no name is given", () => {
   expect(renderView({ view: "request", request: { kind: "song_request", song: "No ID", artist: "Tank", fromName: "Tarik from Bay View" }, token: "t" } as never)).toContain("From: Tarik from Bay View");
   expect(renderView({ view: "request", request: { kind: "song_request", song: "No ID", artist: "Tank" }, token: "t" } as never)).toContain("From: name not given");
 });
+
+describe("playlist cards", () => {
+  const calls = (html: string) => [...html.matchAll(/data-call="([^"]+)"/g)].map((m) => JSON.parse(m[1].replace(/&quot;/g, '"').replace(/&amp;/g, "&").replace(/&#39;/g, "'")));
+  const item = { itemId: "i1", playId: "p1", trackId: null, artist: "Tank and the Bangas", title: "No ID", stationSlug: "hyfin", addedAt: 5, artworkUrl: null, previewUrl: null };
+
+  it("one playlist: name, count, each song with Remove that calls remove_from_playlist from the card", () => {
+    const html = renderView({ view: "playlist", playlistId: "pl1", name: "Road Trip", items: [item] } as never);
+    expect(html).toContain("Road Trip");
+    expect(html).toContain("1 song");
+    expect(html).toContain("No ID");
+    expect(calls(html)).toEqual([{ name: "remove_from_playlist", arguments: { playlist: "pl1", itemId: "i1" } }]);
+  });
+
+  it("an empty playlist says how to add songs", () => {
+    expect(renderView({ view: "playlist", playlistId: "pl1", name: "Road Trip", items: [] } as never)).toContain("No songs yet");
+  });
+
+  it("the list of playlists: each row opens its playlist from the card", () => {
+    const html = renderView({ view: "playlists", playlists: [{ playlistId: "pl1", name: "Road Trip", itemCount: 3, updatedAt: 5 }] } as never);
+    expect(html).toContain("3 songs");
+    expect(calls(html)).toEqual([{ name: "show_playlists", arguments: { playlist: "pl1" } }]);
+  });
+
+  it("names can't inject markup", () => {
+    expect(renderView({ view: "playlist", playlistId: "pl1", name: "<img src=x onerror=1>", items: [] } as never)).not.toContain("<img src=x");
+  });
+});
