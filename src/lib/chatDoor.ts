@@ -7,7 +7,7 @@ import { AUTH_TOOLS, OAUTH_SCOPES } from "@/lib/listenerAuth";
 type McpServerLike = Parameters<Parameters<typeof createMcpHandler>[0]>[0];
 type ToolResultLike = { structuredContent?: Record<string, unknown>; _meta?: Record<string, unknown>; [key: string]: unknown };
 
-const SIGNED_IN_TOOLS = new Set<string>(AUTH_TOOLS);
+const SIGNED_IN_TOOLS = new Set<string>([...AUTH_TOOLS, "send_station_request"]);
 const SIGNED_IN = [{ type: "oauth2", scopes: [...OAUTH_SCOPES] }];
 const EITHER = [{ type: "noauth" }, ...SIGNED_IN];
 
@@ -45,6 +45,7 @@ const STATUS: Record<string, string> = {
   follow_artist: "Following the artist…",
   unfollow_artist: "Unfollowing the artist…",
   whats_new_for_me: "Checking what's new for you…",
+  send_station_request: "Preparing your request…",
 };
 
 // The model reads structuredContent verbatim; these are only for drawing the card, so they go in _meta (hidden
@@ -60,7 +61,7 @@ export function chatResult<T extends ToolResultLike>(input: T): T {
 }
 
 // Tools the card calls itself (Save, Places, the live refresh): OpenAI requires openai/widgetAccessible on each.
-const CARD_CALLABLE = new Set(["save_find", "get_station_story", "on_air_now"]);
+const CARD_CALLABLE = new Set(["save_find", "get_station_story", "on_air_now", "send_station_request"]);
 // Chat-only routing hints. ChatGPT answered "what restaurants were discussed" from memory instead of showing the map.
 const CHAT_EXTRA: Record<string, string> = {
   get_station_story: ' When the listener asks about the places, restaurants, venues or stops in a story (what they were or where they are), call this with view "places"; the card maps them. Don\'t list them from memory.',

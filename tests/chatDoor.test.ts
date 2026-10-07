@@ -11,9 +11,9 @@ const names = (result: { tools: { name: string }[] }) => result.tools.map((t) =>
 const MEMBERSHIP = ["support_radio_milwaukee", "my_membership", "cancel_membership"];
 
 describe("ChatGPT door: tool list", () => {
-  it("keeps the 21 station tools and drops the 3 membership tools (OpenAI plugin commerce rules)", async () => {
+  it("keeps the 21 station tools plus send_station_request, and drops the 3 membership tools (OpenAI plugin commerce rules)", async () => {
     const listed = names((await mcpPost(chatHandler(), { method: "tools/list" })).message.result);
-    expect(listed).toHaveLength(21);
+    expect(listed).toHaveLength(22);
     for (const tool of MEMBERSHIP) expect(listed).not.toContain(tool);
     expect(listed).toContain("save_find");
   });
@@ -69,7 +69,7 @@ describe("ChatGPT route (/api/chatgpt/mcp)", () => {
   it("serves the chat tool list (no membership tools)", async () => {
     const listed = names((await mcpPost(await route(), { method: "tools/list" })).message.result);
     expect(listed).not.toContain("support_radio_milwaukee");
-    expect(listed).toHaveLength(21);
+    expect(listed).toHaveLength(22);
   });
 
   it("has no HTTP 401 gate: a signed-out save reaches the tool and gets the sign-in error", async () => {
@@ -249,4 +249,77 @@ describe("ChatGPT door: chat wording", () => {
 it("the card resource isn't described as Alexa+ style on the ChatGPT door", async () => {
   const { message } = await mcpPost(chatHandler(), { method: "resources/list" });
   expect(message.result.resources[0].description).not.toMatch(/alexa/i);
+});
+
+// Slice 5: requests and 5 O'Clock Shadow. Nothing sends without the card's Send (a sealed token the model never sees).
+describe("ChatGPT door: send_station_request", () => {
+  const NOW = new Date("2026-10-07T18:00:00Z");
+  const setup = (used = 0) => ({ counter: { countToday: vi.fn(async () => used), record: vi.fn(async () => undefined) }, send: vi.fn(async () => undefined), secret: "s" });
+  const door = (requests: ReturnType<typeof setup> | null) =>
+    buildMcpHandler({ backstory: () => fakeBackstory(), fieldGuide: () => fakeFieldGuide(), playlist: () => fakePlaylist(), cardHtml: () => "", surface: "chat", now: () => NOW, requests: () => requests });
+  const call = (args: Record<string, unknown>) => ({ method: "tools/call", params: { name: "send_station_request", arguments: args } });
+  const tokenIn = (html: string) => JSON.parse(html.match(/data-call="([^"]+)"/)![1].replace(/&quot;/g, '"')).arguments.token as string;
+  const draft = { kind: "song_request", song: "No ID", artist: "Tank and the Bangas" };
+
+  it("is only on the ChatGPT door", async () => {
+    const alexa = buildMcpHandler({ backstory: () => fakeBackstory(), fieldGuide: () => fakeFieldGuide(), playlist: () => fakePlaylist(), cardHtml: () => "" });
+    const names = (r: { tools: { name: string }[] }) => r.tools.map((t) => t.name);
+    expect(names((await mcpPost(alexa, { method: "tools/list" })).message.result)).not.toContain("send_station_request");
+    expect(names((await mcpPost(door(setup()), { method: "tools/list" })).message.result)).toContain("send_station_request");
+  });
+
+  it("asks to sign in when signed out", async () => {
+    const { message } = await mcpPost(door(setup()), call(draft));
+    expect(message.result._meta["mcp/www_authenticate"]).toHaveLength(1);
+  });
+
+  it("a draft shows the preview; the Send token is in the card only, never where the model reads", async () => {
+    const s = setup();
+    const { message } = await mcpPostAs(door(s), call(draft), "user_1");
+    expect(message.result.structuredContent.view).toBe("request");
+    expect(message.result.structuredContent.request).toEqual(draft);
+    const token = tokenIn(message.result._meta.cardHtml);
+    expect(JSON.stringify(message.result.structuredContent)).not.toContain(token);
+    expect(JSON.stringify(message.result.content)).not.toContain(token);
+    expect(s.send).not.toHaveBeenCalled();
+  });
+
+  it("Send with the card's token emails the station once and counts it", async () => {
+    const s = setup();
+    const preview = await mcpPostAs(door(s), call(draft), "user_1");
+    const { message } = await mcpPostAs(door(s), call({ token: tokenIn(preview.message.result._meta.cardHtml) }), "user_1");
+    expect(s.send).toHaveBeenCalledTimes(1);
+    expect((s.send.mock.calls[0] as unknown as [{ subject: string }])[0].subject).toBe("Song request: No ID — Tank and the Bangas");
+    expect(s.counter.record).toHaveBeenCalledWith("user_1", "2026-10-07");
+    expect(message.result.structuredContent).toMatchObject({ view: "request-status", sent: true });
+  });
+
+  it("a forged token or another listener's token never sends", async () => {
+    const s = setup();
+    const preview = await mcpPostAs(door(s), call(draft), "user_1");
+    const token = tokenIn(preview.message.result._meta.cardHtml);
+    expect((await mcpPostAs(door(s), call({ token }), "user_2")).message.result.structuredContent.sent).toBe(false);
+    expect((await mcpPostAs(door(s), call({ token: "forged" }), "user_1")).message.result.structuredContent.sent).toBe(false);
+    expect(s.send).not.toHaveBeenCalled();
+  });
+
+  it("after three today, no new preview and no send", async () => {
+    const s = setup(3);
+    const { message } = await mcpPostAs(door(s), call(draft), "user_1");
+    expect(message.result.structuredContent.sent).toBe(false);
+    expect(message.result.content[0].text).toContain("tomorrow");
+    expect(s.send).not.toHaveBeenCalled();
+  });
+
+  it("unavailable (no email setup) says so instead of pretending", async () => {
+    const { message } = await mcpPostAs(door(null), call(draft), "user_1");
+    expect(message.result.isError).toBe(true);
+    expect(message.result.content[0].text).toContain("aren't available");
+  });
+
+  it("a 5 O'Clock Shadow suggestion without the cover artist asks for it", async () => {
+    const { message } = await mcpPostAs(door(setup()), call({ kind: "five_oclock_shadow", song: "Hurt", artist: "Nine Inch Nails" }), "user_1");
+    expect(message.result.content[0].text).toContain("Whose cover");
+    expect(message.result.structuredContent.view).toBeUndefined();
+  });
 });

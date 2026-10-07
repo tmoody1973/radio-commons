@@ -5,6 +5,7 @@ import { BackstoryUnavailable, type BackstoryClient, type Story } from "@/lib/ba
 import { PlaylistUnavailable, type Digest, type PlaylistClient, type RecallMatch, type RecentSong, type SavedFind, type Station } from "@/lib/playlist";
 import { listenerIdFrom } from "@/lib/listenerAuth";
 import { chatWidgetMeta, patchChatServer } from "@/lib/chatDoor";
+import { cleanRequest, milwaukeeDay, openRequest, requestEmail, REQUESTS_PER_DAY, requestsFromEnv, sealRequest, type Requests } from "@/lib/requests";
 import { CAPABILITIES, CAPABILITIES_SPEECH } from "@/lib/capabilities";
 import { FieldGuideUnavailable, type FieldGuideClient, type PublicEvent } from "@/lib/fieldGuide";
 import { fullPlacesView, renderView, type CardView, type EventItem } from "@/lib/card";
@@ -87,6 +88,8 @@ interface Deps {
   give?: () => Give | null;
   /** Which door: "voice" is Alexa+ at /api/mcp (default, unchanged); "chat" is ChatGPT at /api/chatgpt/mcp. */
   surface?: "voice" | "chat";
+  /** ChatGPT door: song requests and 5 O'Clock Shadow by email; null when unavailable. Defaults to the env. */
+  requests?: () => Requests | null;
 }
 
 interface ToolResult {
@@ -101,6 +104,13 @@ const unavailable = (): ToolResult => ({ content: text(UNAVAILABLE_SPEECH), isEr
 const playlistUnavailable = (): ToolResult => ({ content: text(PLAYLIST_UNAVAILABLE_SPEECH), isError: true });
 const ACCOUNT_LINKING_REQUIRED = { error: "account_linking_required" };
 const accountLinkingRequired = (speech = LINK_ACCOUNT_SPEECH): ToolResult => ({ content: text(speech), isError: true, structuredContent: ACCOUNT_LINKING_REQUIRED });
+const REQUESTS_UNAVAILABLE = "Requests to Radio Milwaukee aren't available right now.";
+const REQUEST_PREVIEW = "Here's your request. Tap Send on the card to send it to Radio Milwaukee; nothing is sent until you do.";
+const REQUEST_QUESTIONS = {
+  missing_song: "Which song would you like to request?",
+  missing_artist: "Who's the artist?",
+  missing_cover_artist: "Whose cover should 88Nine play for 5 O'Clock Shadow?",
+} as const;
 export const CHAT_RESOURCE_PATH = "/api/chatgpt/mcp";
 export const CHAT_SIGN_IN_TEXT = "Sign in to Radio Milwaukee to save songs, follow artists and see what's new for you.";
 // ChatGPT shows its own sign-in screen when a tool error carries this challenge with both error and error_description.
@@ -940,6 +950,58 @@ export function buildMcpHandler(deps: Deps) {
           } catch {
             console.error(JSON.stringify({ event: "cancel_membership_failed" }));
             return { content: text(CANCEL_FAILED_SPEECH), isError: true };
+          }
+        },
+      );
+      }
+
+      // ChatGPT door only (slice 5): a request or 5 O'Clock Shadow suggestion, sent only by the card's Send button.
+      if (chat) {
+      registerAppTool(
+        server,
+        "send_station_request",
+        {
+          title: "Send Radio Milwaukee a request",
+          description: "Send Radio Milwaukee's DJs a song request, or a suggestion for 5 O'Clock Shadow, 88Nine's daily 5 pm cover song. Call with the details to show a preview card; the listener sends it by tapping Send on the card, which is the only way it is sent, so never say it was sent unless a card says so. For 5 O'Clock Shadow pass song (the song's title), artist (the original artist) and coverArtist (who performs the cover). Sign-in required; up to 3 requests a day.",
+          inputSchema: z.object({
+            kind: z.enum(["song_request", "five_oclock_shadow"]).optional(),
+            song: z.string().max(200).optional(),
+            artist: z.string().max(200).optional(),
+            coverArtist: z.string().max(200).optional(),
+            note: z.string().max(400).optional(),
+            token: z.string().max(2000).optional(),
+          }),
+          annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+          ...CARD,
+        },
+        async ({ kind, song, artist, coverArtist, note, token }, context) => {
+          const listenerId = listenerIdFrom(context.http ?? {});
+          if (!listenerId) return signInRequired();
+          const setup = (deps.requests ?? requestsFromEnv)();
+          if (!setup) return { content: text(REQUESTS_UNAVAILABLE), isError: true };
+          const at = now();
+          const day = milwaukeeDay(at.getTime());
+          const status = (sent: boolean, title: string, detail: string): ToolResult =>
+            ({ content: text(`${title} ${detail}`), structuredContent: card({ view: "request-status", ok: sent, title, detail }, { sent }) });
+          try {
+            if (await setup.counter.countToday(listenerId, day) >= REQUESTS_PER_DAY) return status(false, "That's today's three requests.", "You can send more tomorrow.");
+            if (token) {
+              const request = openRequest(token, listenerId, setup.secret, at.getTime());
+              if (!request) return status(false, "That preview expired.", "Ask again for a new one, then tap Send.");
+              const email = requestEmail(request, at);
+              await setup.send(email);
+              // Sent already: a failed count must not turn into "not sent".
+              await setup.counter.record(listenerId, day).catch(() => console.error(JSON.stringify({ event: "station_request_count_failed" })));
+              console.log(JSON.stringify({ event: "station_request_sent", kind: request.kind }));
+              return status(true, "Sent to Radio Milwaukee ✓", email.subject);
+            }
+            const request = cleanRequest({ kind: kind ?? "song_request", song, artist, coverArtist, note });
+            if ("error" in request) return { content: text(REQUEST_QUESTIONS[request.error]), structuredContent: { status: request.error } };
+            const sealed = sealRequest(listenerId, request, setup.secret, at.getTime());
+            return { content: text(REQUEST_PREVIEW), structuredContent: card({ view: "request", request, token: sealed }, { request }) };
+          } catch {
+            console.error(JSON.stringify({ event: "station_request_failed" }));
+            return status(false, "That didn't send.", "Radio Milwaukee's request line isn't answering. Please try again in a minute.");
           }
         },
       );
