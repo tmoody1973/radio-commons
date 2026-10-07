@@ -50,7 +50,9 @@ export type CardView =
   | ({ view: "membership" } & MembershipFacts)
   /** ChatGPT door only: a request preview whose Send carries the sealed token, and what happened after. */
   | { view: "request"; request: StationRequest; token: string }
-  | { view: "request-status"; ok: boolean; title: string; detail: string };
+  | { view: "request-status"; ok: boolean; title: string; detail: string }
+  /** ChatGPT door only: the station home (sidebar entrypoint). finds is null when the listener isn't signed in. */
+  | { view: "home"; tiles: OnAirTile[]; briefing: { date: string; items: BriefingItem[] } | null; finds: FindRow[] | null };
 
 const escape = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
@@ -478,6 +480,15 @@ function membershipView(m: MembershipFacts): string {
     + `<div class="actions">${upgrade}<button type="button" class="secondary ask" data-ask="Cancel my Radio Milwaukee membership">Cancel membership</button></div></article>`;
 }
 
+/** The station home: what's on, this week, and your Finds, stacked; each section is the card it already is elsewhere. */
+function homeView(tiles: OnAirTile[], briefing: { date: string; items: BriefingItem[] } | null, finds: FindRow[] | null): string {
+  const section = (title: string, body: string) => `<section class="home-section"><h3 class="home-title">${escape(title)}</h3>${body}</section>`;
+  const yours = finds === null
+    ? `<article class="card home-hint"><p class="line">Sign in to see your Finds here: ask "What's in my Finds?"</p></article>`
+    : finds.length ? findsView(finds) : `<article class="card home-hint"><p class="line">No Finds yet. Save songs from any song card.</p></article>`;
+  return `<div class="home">${section("On air now", onAirView(tiles))}${briefing && briefing.items.length ? section("This week", briefingView(briefing.date, briefing.items)) : ""}${section("Your Finds", yours)}</div>`;
+}
+
 const REQUEST_KIND: Record<StationRequest["kind"], string> = { song_request: "Song request", five_oclock_shadow: "5 O'Clock Shadow suggestion" };
 
 /** Exactly what the station will receive; nothing sends until the listener taps Send (the token is the only way). */
@@ -517,5 +528,6 @@ export function renderView(card: CardView): string {
     case "membership": return membershipView(card);
     case "request": return requestView(card.request, card.token);
     case "request-status": return requestStatusView(card.ok, card.title, card.detail);
+    case "home": return homeView(card.tiles, card.briefing, card.finds);
   }
 }

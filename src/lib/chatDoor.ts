@@ -46,6 +46,7 @@ const STATUS: Record<string, string> = {
   unfollow_artist: "Unfollowing the artist…",
   whats_new_for_me: "Checking what's new for you…",
   send_station_request: "Preparing your request…",
+  station_home: "Opening Radio Milwaukee…",
 };
 
 // The model reads structuredContent verbatim; these are only for drawing the card, so they go in _meta (hidden
@@ -122,7 +123,7 @@ export function patchChatServer(server: McpServerLike) {
           // OpenAI: must be true for any tool the card calls itself (Save from the card).
           ...(CARD_CALLABLE.has(name) ? { "openai/widgetAccessible": true } : {}),
           // The live stream floats in picture-in-picture; ChatGPT wants the modes declared before the card loads.
-          ...(hasCard(config) ? { "openai/ui": { availableDisplayModes: ["inline", "fullscreen", "pip"] } } : {}),
+          ...(hasCard(config) ? { "openai/ui": { ...(config._meta?.["openai/ui"] as Record<string, unknown> | undefined), availableDisplayModes: ["inline", "fullscreen", "pip"] } } : {}),
         },
       } as never,
       (async (...args: unknown[]) => chatResult(await callback(...args))) as never,

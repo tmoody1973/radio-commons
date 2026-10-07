@@ -11,9 +11,9 @@ const names = (result: { tools: { name: string }[] }) => result.tools.map((t) =>
 const MEMBERSHIP = ["support_radio_milwaukee", "my_membership", "cancel_membership"];
 
 describe("ChatGPT door: tool list", () => {
-  it("keeps the 21 station tools plus send_station_request, and drops the 3 membership tools (OpenAI plugin commerce rules)", async () => {
+  it("keeps the 21 station tools plus send_station_request and station_home, and drops the 3 membership tools (OpenAI plugin commerce rules)", async () => {
     const listed = names((await mcpPost(chatHandler(), { method: "tools/list" })).message.result);
-    expect(listed).toHaveLength(22);
+    expect(listed).toHaveLength(23);
     for (const tool of MEMBERSHIP) expect(listed).not.toContain(tool);
     expect(listed).toContain("save_find");
   });
@@ -69,7 +69,7 @@ describe("ChatGPT route (/api/chatgpt/mcp)", () => {
   it("serves the chat tool list (no membership tools)", async () => {
     const listed = names((await mcpPost(await route(), { method: "tools/list" })).message.result);
     expect(listed).not.toContain("support_radio_milwaukee");
-    expect(listed).toHaveLength(22);
+    expect(listed).toHaveLength(23);
   });
 
   it("has no HTTP 401 gate: a signed-out save reaches the tool and gets the sign-in error", async () => {
@@ -365,5 +365,35 @@ describe("ChatGPT door: songs in a time window", () => {
     await mcpPost(handler, { method: "tools/call", params: { name: "find_song_played", arguments: window } });
     expect(findSongPlayed).toHaveBeenCalled();
     expect(playsBetween).not.toHaveBeenCalled();
+  });
+});
+
+// Slice 6: the station home — a global entrypoint ChatGPT can list in its sidebar (openai/mcp-extensions).
+describe("ChatGPT door: station home", () => {
+  type T = { name: string; title: string; _meta: Record<string, { entrypoints?: unknown; availableDisplayModes?: string[] }> };
+  const homeDoor = () => buildMcpHandler({ backstory: () => fakeBackstory(), fieldGuide: () => fakeFieldGuide(), playlist: () => fakePlaylist(), cardHtml: () => "", surface: "chat",
+    newsletter: () => ({ latest: async () => ({ date: "Oct. 1", title: "Weekly", items: [{ heading: "Playtime's over", url: "https://radiomilwaukee.org/x", summary: "Jeff Levering is everything." }] }) }) as never });
+
+  it("is a global entrypoint on the ChatGPT door only, and still declares picture-in-picture", async () => {
+    const tools: T[] = (await mcpPost(homeDoor(), { method: "tools/list" })).message.result.tools;
+    const home = tools.find((t) => t.name === "station_home")!;
+    expect(home._meta["openai/ui"].entrypoints).toEqual([{ type: "global" }]);
+    expect(home._meta["openai/ui"].availableDisplayModes).toEqual(["inline", "fullscreen", "pip"]);
+    expect(home.title).not.toBe("Radio Milwaukee");
+    const alexa = buildMcpHandler({ backstory: () => fakeBackstory(), fieldGuide: () => fakeFieldGuide(), playlist: () => fakePlaylist(), cardHtml: () => "" });
+    expect((await mcpPost(alexa, { method: "tools/list" })).message.result.tools.map((t: T) => t.name)).not.toContain("station_home");
+  });
+
+  it("opens with no arguments and no sign-in: on air plus this week, and a hint to sign in for Finds", async () => {
+    const { message } = await mcpPost(homeDoor(), { method: "tools/call", params: { name: "station_home", arguments: {} } });
+    expect(message.result.isError).toBeFalsy();
+    expect(message.result.structuredContent.view).toBe("home");
+    expect(message.result._meta.cardHtml).toContain("Playtime");
+    expect(message.result._meta.cardHtml).toContain("Sign in");
+  });
+
+  it("signed in, it includes your Finds", async () => {
+    const { message } = await mcpPostAs(homeDoor(), { method: "tools/call", params: { name: "station_home", arguments: {} } }, "user_1");
+    expect(message.result._meta.cardHtml).toContain("tile song find");
   });
 });

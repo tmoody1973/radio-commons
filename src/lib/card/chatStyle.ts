@@ -87,4 +87,6 @@ button svg{width:16px;height:16px}
 .tile.event .tile-title{grid-area:title;margin:0;font-size:15px;line-height:22px;font-weight:500}
 .tile.event .tile-date{grid-area:date;margin:0}
 .tile.event .tile-actions{grid-area:actions;align-self:center;margin:0}
+.home{display:flex;flex-direction:column;gap:20px;padding:4px 0}
+.home-title{margin:0 0 8px;font-size:16px;line-height:24px;font-weight:600}
 `;

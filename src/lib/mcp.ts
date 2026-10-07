@@ -966,6 +966,38 @@ export function buildMcpHandler(deps: Deps) {
       );
       }
 
+      // ChatGPT door only (slice 6): the station home, which ChatGPT can list in its sidebar (a global entrypoint).
+      if (chat) {
+      registerAppTool(
+        server,
+        "station_home",
+        {
+          title: "Station home",
+          description: "Radio Milwaukee's home: what's on all four stations now with Listen live, this week's highlights from the newsletter, and the listener's Finds when signed in. Use for \"open Radio Milwaukee\", \"Radio Milwaukee home\", \"show me the station\". Takes no arguments.",
+          inputSchema: z.object({}),
+          annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+          _meta: { ui: { resourceUri: CARD_URI }, "openai/ui": { entrypoints: [{ type: "global" }] } },
+        },
+        async (_args, context) =>
+          timed("station_home", async () => {
+            const listenerId = listenerIdFrom(context.http ?? {});
+            // Each part is optional: a slow or missing source drops its section, never the home.
+            const [tiles, briefing, finds] = await Promise.all([
+              onAirTiles(MUSIC_STATIONS),
+              orNull("home_briefing_failed", async () => {
+                const issue = await (deps.newsletter ?? newsletterFromEnv)().latest();
+                return issue && issue.items.length ? { date: issue.date, items: (await linkItems(issue.items, deps.backstory())).slice(0, 4) } : null;
+              }),
+              listenerId ? orNull("home_finds_failed", () => deps.playlist().listFinds(listenerId, 5)) : Promise.resolve(null),
+            ]);
+            return {
+              content: text("Here's Radio Milwaukee: what's on now, this week's highlights and your Finds."),
+              structuredContent: card({ view: "home", tiles, briefing, finds: listenerId ? (finds ?? []) : null }),
+            };
+          }, playlistUnavailable),
+      );
+      }
+
       // ChatGPT door only (slice 5): a request or 5 O'Clock Shadow suggestion, sent only by the card's Send button.
       if (chat) {
       registerAppTool(
