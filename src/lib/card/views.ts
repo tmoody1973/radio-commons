@@ -53,7 +53,7 @@ export type CardView =
   | { view: "request"; request: StationRequest; token: string }
   | { view: "request-status"; ok: boolean; title: string; detail: string }
   /** ChatGPT door only: the station home (sidebar entrypoint). finds is null when the listener isn't signed in. */
-  | { view: "home"; tiles: OnAirTile[]; briefing: { date: string; items: BriefingItem[] } | null; finds: FindRow[] | null }
+  | { view: "home"; tiles: OnAirTile[]; episodes?: StoryCardMatch[] | null; briefing: { date: string; items: BriefingItem[] } | null; finds: FindRow[] | null }
   /** ChatGPT door only: one listener playlist, and the list of them (rm-playlist-v2 #69). */
   | { view: "playlist"; playlistId: string; name: string; items: PlaylistItem[] }
   | { view: "playlists"; playlists: PlaylistSummary[] };
@@ -507,12 +507,13 @@ function playlistsView(playlists: PlaylistSummary[]): string {
 }
 
 /** The station home: what's on, this week, and your Finds, stacked; each section is the card it already is elsewhere. */
-function homeView(tiles: OnAirTile[], briefing: { date: string; items: BriefingItem[] } | null, finds: FindRow[] | null): string {
+function homeView(tiles: OnAirTile[], episodes: StoryCardMatch[] | null, briefing: { date: string; items: BriefingItem[] } | null, finds: FindRow[] | null): string {
   const section = (title: string, body: string) => `<section class="home-section"><h3 class="home-title">${escape(title)}</h3>${body}</section>`;
   const yours = finds === null
     ? `<article class="card home-hint"><p class="line">Sign in to see your Finds here: ask "What's in my Finds?"</p></article>`
     : finds.length ? findsView(finds) : `<article class="card home-hint"><p class="line">No Finds yet. Save songs from any song card.</p></article>`;
-  return `<div class="home">${section("On air now", onAirView(tiles))}${briefing && briefing.items.length ? section("This week", briefingView(briefing.date, briefing.items)) : ""}${section("Your Finds", yours)}</div>`;
+  // ponytail: storiesView shows the 5 newest, so of 6 shows the one with the oldest episode waits for its next one.
+  return `<div class="home">${section("On air now", onAirView(tiles))}${episodes && episodes.length ? section("New episodes", storiesView(episodes)) : ""}${briefing && briefing.items.length ? section("This week", briefingView(briefing.date, briefing.items)) : ""}${section("Your Finds", yours)}</div>`;
 }
 
 const REQUEST_KIND: Record<StationRequest["kind"], string> = { song_request: "Song request", five_oclock_shadow: "5 O'Clock Shadow suggestion" };
@@ -554,7 +555,7 @@ export function renderView(card: CardView): string {
     case "membership": return membershipView(card);
     case "request": return requestView(card.request, card.token);
     case "request-status": return requestStatusView(card.ok, card.title, card.detail);
-    case "home": return homeView(card.tiles, card.briefing, card.finds);
+    case "home": return homeView(card.tiles, card.episodes ?? null, card.briefing, card.finds);
     case "playlist": return playlistView(card.playlistId, card.name, card.items);
     case "playlists": return playlistsView(card.playlists);
   }

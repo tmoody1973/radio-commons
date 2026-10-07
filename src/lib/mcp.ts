@@ -975,7 +975,7 @@ export function buildMcpHandler(deps: Deps) {
         "station_home",
         {
           title: "Station home",
-          description: "Radio Milwaukee's home: what's on all four stations now with Listen live, this week's highlights from the newsletter, and the listener's Finds when signed in. Use for \"open Radio Milwaukee\", \"Radio Milwaukee home\", \"show me the station\". Takes no arguments.",
+          description: "Radio Milwaukee's home: what's on all four stations now with Listen live, the newest episode of each show (This Bites, Uniquely Milwaukee and more), this week's highlights from the newsletter, and the listener's Finds when signed in. Use for \"open Radio Milwaukee\", \"Radio Milwaukee home\", \"show me the station\". Takes no arguments.",
           inputSchema: z.object({}),
           annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
           _meta: { ui: { resourceUri: CARD_URI }, "openai/ui": { entrypoints: [{ type: "global" }] } },
@@ -984,8 +984,14 @@ export function buildMcpHandler(deps: Deps) {
           timed("station_home", async () => {
             const listenerId = listenerIdFrom(context.http ?? {});
             // Each part is optional: a slow or missing source drops its section, never the home.
-            const [tiles, briefing, finds] = await Promise.all([
+            const [tiles, episodes, briefing, finds] = await Promise.all([
               onAirTiles(MUSIC_STATIONS),
+              // The newest episode of each show, newest first; a show whose lookup fails just drops out of the row.
+              orNull("home_episodes_failed", async () => {
+                const backstory = deps.backstory();
+                const newest = await Promise.all(station.shows.map((show) => orNull("home_episode_failed", async () => (await backstory.latestStoryCards(show.slug))[0] ?? null)));
+                return newest.filter((m) => m !== null).sort((a, b) => b.publishedAt - a.publishedAt);
+              }),
               orNull("home_briefing_failed", async () => {
                 const issue = await (deps.newsletter ?? newsletterFromEnv)().latest();
                 return issue && issue.items.length ? { date: issue.date, items: (await linkItems(issue.items, deps.backstory())).slice(0, 4) } : null;
@@ -993,8 +999,8 @@ export function buildMcpHandler(deps: Deps) {
               listenerId ? orNull("home_finds_failed", () => deps.playlist().listFinds(listenerId, 5)) : Promise.resolve(null),
             ]);
             return {
-              content: text("Here's Radio Milwaukee: what's on now, this week's highlights and your Finds."),
-              structuredContent: card({ view: "home", tiles, briefing, finds: listenerId ? (finds ?? []) : null }),
+              content: text("Here's Radio Milwaukee: what's on now, the newest episodes, this week's highlights and your Finds."),
+              structuredContent: card({ view: "home", tiles, episodes, briefing, finds: listenerId ? (finds ?? []) : null }),
             };
           }, playlistUnavailable),
       );

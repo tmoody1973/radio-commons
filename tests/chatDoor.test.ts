@@ -392,6 +392,27 @@ describe("ChatGPT door: station home", () => {
     expect(message.result._meta.cardHtml).toContain("Sign in");
   });
 
+  it("shows the newest episode of each show, newest first; a show whose lookup fails drops out", async () => {
+    const ep = (storyId: string, show: string, showSlug: string, day: number) =>
+      ({ storyId, title: `${show} episode ${storyId}`, show, showSlug, attribution: "a", publishedAt: Date.UTC(2026, 9, day, 15), hint: "h", imageUrl: null });
+    const latestStoryCards = vi.fn(async (slug?: string) => {
+      if (slug === "ladies-first") throw new Error("timed out");
+      return ({
+        "this-bites": [ep("tb2", "This Bites", "this-bites", 3), ep("tb1", "This Bites", "this-bites", 1)],
+        "uniquely-milwaukee": [ep("um1", "Uniquely Milwaukee", "uniquely-milwaukee", 6)],
+      } as Record<string, ReturnType<typeof ep>[]>)[slug ?? ""] ?? [];
+    });
+    const handler = buildMcpHandler({ backstory: () => fakeBackstory({ latestStoryCards }), fieldGuide: () => fakeFieldGuide(), playlist: () => fakePlaylist(), cardHtml: () => "", surface: "chat" });
+    const { message } = await mcpPost(handler, { method: "tools/call", params: { name: "station_home", arguments: {} } });
+    const html: string = message.result._meta.cardHtml;
+    expect(message.result.isError).toBeFalsy();
+    expect(html).toContain("New episodes");
+    expect(html.indexOf("episode um1")).toBeGreaterThan(-1);
+    expect(html.indexOf("episode um1")).toBeLessThan(html.indexOf("episode tb2"));
+    expect(html).not.toContain("episode tb1");
+    expect(html.indexOf("New episodes")).toBeLessThan(html.indexOf("Your Finds"));
+  });
+
   it("signed in, it includes your Finds", async () => {
     const { message } = await mcpPostAs(homeDoor(), { method: "tools/call", params: { name: "station_home", arguments: {} } }, "user_1");
     expect(message.result._meta.cardHtml).toContain("tile song find");
