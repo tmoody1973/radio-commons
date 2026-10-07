@@ -105,3 +105,19 @@
 
 **What we now believe:** look at how the station actually files things before designing around its labels; "artist interviews" was a web section, not a collection. Build features so they connect through shared addresses (here, a page's URL), and new content lights up old features for free.
 
+
+## 2026-10-07: Radio Milwaukee in ChatGPT (branch feat/chatgpt-app, slices 1–2)
+
+**What we expected:** ChatGPT would need its own server and a redesign of every screen; the Alexa+ server could at best be reused for data.
+
+**What happened:**
+- A ten-minute test on October 6 showed ChatGPT could already use the Alexa+ server as-is: right tools, cards rendering, replies reworded well. What was wrong was the look (a TV-screen card with 40% empty space) and missing sign-in. So ChatGPT got a second address on the same server (decision 010), and Alexa+ is pinned by six snapshot tests, including a byte-for-byte fingerprint of its card page, that passed after every change.
+- Sign-in took the longest, and none of it was code. ChatGPT rejected the settings because the sign-in metadata at the root address named Alexa's door; then Clerk refused ChatGPT's return address because a redirect added on the page was never saved (Clerk only accepted it after a reload showed it gone and it was re-added). Reading the exact `redirect_uri` from the failing URL ended an hour of guessing.
+- ChatGPT doesn't do what its badges suggest. "CSP off" was shown, yet NPR episode audio only played after its server was added to the card's allowed-sites list. Picture-in-picture was declined even after both declarations. A places question was answered from ChatGPT's memory of an earlier chat, not from our server; a Temporary Chat showed the real behaviour.
+- The model only reaches for a tool when it lacks the answer: it listed restaurants from the story record we had sent it, so the map never showed. Sending a place count and a pointer instead of the names brought the map back.
+- Two operational mistakes: a burst of screenshot renders loading images from production tripped Vercel's automatic DDoS protection, and production answered every request with a challenge for about 35 minutes (Alexa+ included); and "redeploy the newest preview" twice picked another branch's build. Both are now rules: never load production from a render harness; pick builds by branch and commit.
+- Cards now follow OpenAI's design rules (system font, no logo, fit to content, brand colour on main buttons only). Save, Places and the live refresh call the server from the card, skipping a ChatGPT turn (about 0.2 s instead of 10–20 s). ChatGPT's own thinking still took 11 s to 3 minutes per turn; our server answered in 0.06–0.7 s.
+
+**What we now believe:** test the real host before designing for it: an hour in ChatGPT changed more of the plan than the documentation did. Decide what the model is allowed to know, because it will answer from whatever you send it. And treat production as shared even from a laptop: a test harness is traffic too.
+
+**In Tarik's words:**
