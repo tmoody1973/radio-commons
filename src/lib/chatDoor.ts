@@ -7,7 +7,7 @@ import { AUTH_TOOLS, OAUTH_SCOPES } from "@/lib/listenerAuth";
 type McpServerLike = Parameters<Parameters<typeof createMcpHandler>[0]>[0];
 type ToolResultLike = { structuredContent?: Record<string, unknown>; _meta?: Record<string, unknown>; [key: string]: unknown };
 
-const SIGNED_IN_TOOLS = new Set<string>([...AUTH_TOOLS, "send_station_request"]);
+const SIGNED_IN_TOOLS = new Set<string>([...AUTH_TOOLS, "send_station_request", "create_playlist", "add_to_playlist", "show_playlists", "remove_from_playlist", "delete_playlist"]);
 const SIGNED_IN = [{ type: "oauth2", scopes: [...OAUTH_SCOPES] }];
 const EITHER = [{ type: "noauth" }, ...SIGNED_IN];
 
@@ -47,6 +47,11 @@ const STATUS: Record<string, string> = {
   whats_new_for_me: "Checking what's new for you…",
   send_station_request: "Preparing your request…",
   station_home: "Opening Radio Milwaukee…",
+  create_playlist: "Making your playlist…",
+  add_to_playlist: "Adding to your playlist…",
+  show_playlists: "Opening your playlists…",
+  remove_from_playlist: "Removing the song…",
+  delete_playlist: "Deleting the playlist…",
 };
 
 // The model reads structuredContent verbatim; these are only for drawing the card, so they go in _meta (hidden
@@ -62,7 +67,7 @@ export function chatResult<T extends ToolResultLike>(input: T): T {
 }
 
 // Tools the card calls itself (Save, Places, the live refresh): OpenAI requires openai/widgetAccessible on each.
-const CARD_CALLABLE = new Set(["save_find", "get_station_story", "on_air_now", "send_station_request"]);
+const CARD_CALLABLE = new Set(["save_find", "get_station_story", "on_air_now", "send_station_request", "show_playlists", "remove_from_playlist"]);
 // Chat-only routing hints. ChatGPT answered "what restaurants were discussed" from memory instead of showing the map.
 const CHAT_EXTRA: Record<string, string> = {
   find_song_played: " Here, without cues it lists every song played in the window (up to 12, newest first) on a card the listener can save from.",

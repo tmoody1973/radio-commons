@@ -11,9 +11,9 @@ const names = (result: { tools: { name: string }[] }) => result.tools.map((t) =>
 const MEMBERSHIP = ["support_radio_milwaukee", "my_membership", "cancel_membership"];
 
 describe("ChatGPT door: tool list", () => {
-  it("keeps the 21 station tools plus send_station_request and station_home, and drops the 3 membership tools (OpenAI plugin commerce rules)", async () => {
+  it("keeps the 21 station tools plus send_station_request, station_home and 5 playlist tools, and drops the 3 membership tools (OpenAI plugin commerce rules)", async () => {
     const listed = names((await mcpPost(chatHandler(), { method: "tools/list" })).message.result);
-    expect(listed).toHaveLength(23);
+    expect(listed).toHaveLength(28);
     for (const tool of MEMBERSHIP) expect(listed).not.toContain(tool);
     expect(listed).toContain("save_find");
   });
@@ -69,7 +69,7 @@ describe("ChatGPT route (/api/chatgpt/mcp)", () => {
   it("serves the chat tool list (no membership tools)", async () => {
     const listed = names((await mcpPost(await route(), { method: "tools/list" })).message.result);
     expect(listed).not.toContain("support_radio_milwaukee");
-    expect(listed).toHaveLength(23);
+    expect(listed).toHaveLength(28);
   });
 
   it("has no HTTP 401 gate: a signed-out save reaches the tool and gets the sign-in error", async () => {
