@@ -148,3 +148,9 @@ describe("Places from the story card", () => {
     expect(own(storyCardPage("k"))).not.toContain("dataset.call");
   });
 });
+
+it("the chat card declares it supports inline, fullscreen and picture-in-picture at startup; Alexa's declares nothing", () => {
+  const own = (page: string) => page.split("const App = ")[1];
+  expect(own(chatCardPage("k"))).toContain('{ availableDisplayModes: ["inline", "fullscreen", "pip"] }');
+  expect(own(storyCardPage("k"))).toContain('new App({ name: "radio-commons-story-card", version: "0.2.0" }, {});');
+});

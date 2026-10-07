@@ -202,3 +202,9 @@ describe("ChatGPT door: places come with the map", () => {
     expect(message.result.structuredContent.story.places).toHaveLength(2);
   });
 });
+
+it("card tools declare picture-in-picture to ChatGPT (openai/ui.availableDisplayModes); tools without a card don't", async () => {
+  const tools: { name: string; _meta: Record<string, { availableDisplayModes?: string[] } | undefined> }[] = (await mcpPost(chatHandler(), { method: "tools/list" })).message.result.tools;
+  expect(tools.find((t) => t.name === "on_air_now")!._meta["openai/ui"]!.availableDisplayModes).toEqual(["inline", "fullscreen", "pip"]);
+  expect(tools.find((t) => t.name === "delete_my_finds")!._meta["openai/ui"]).toBeUndefined();
+});

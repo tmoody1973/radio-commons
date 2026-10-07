@@ -147,7 +147,7 @@ function chatMapPadding() {
 // (cards fit their content), and adds the chat-only button behaviors below. Alexa's page is chat = false, unchanged.
 const script = (mapKey: string, chat = false) => `
 const root = document.getElementById("root");
-const app = new App({ name: "radio-commons-story-card", version: "0.2.0" }, {});
+const app = new App({ name: "radio-commons-story-card", version: "0.2.0" }, ${chat ? '{ availableDisplayModes: ["inline", "fullscreen", "pip"] }' : "{}"});
 const MAP_STYLE = ${JSON.stringify(`${MAP_STYLE}?key=${encodeURIComponent(mapKey)}`)};
 const MAPLIBRE = ${JSON.stringify(MAPLIBRE)};
 let current = null;
