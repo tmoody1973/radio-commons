@@ -3,11 +3,15 @@ export const metadata = { title: "Support | Radio Milwaukee" };
 // Read at request time so the address can change without a rebuild.
 export const dynamic = "force-dynamic";
 
+// The site's global styles strip link styling; listeners need to see what's clickable.
+const LINKS = ".doc a{color:#0b63c5;text-decoration:underline;text-underline-offset:2px}@media (prefers-color-scheme:dark){.doc a{color:#6aa9ff}}";
+
 export default function SupportPage() {
   const email = process.env.STATION_REQUEST_INBOX || "digital@radiomilwaukee.org";
   const mail = <a href={`mailto:${email}`}>{email}</a>;
   return (
-    <main style={{ maxWidth: 640, margin: "64px auto", padding: "0 16px", fontFamily: "system-ui, sans-serif", lineHeight: 1.6 }}>
+    <main className="doc" style={{ maxWidth: 640, margin: "64px auto", padding: "0 16px", fontFamily: "system-ui, sans-serif", lineHeight: 1.6 }}>
+      <style>{LINKS}</style>
       <h1>Support</h1>
       <p>Radio Milwaukee in ChatGPT is in <strong>beta</strong>: it&rsquo;s new, and we&rsquo;re still improving it. Tell us what&rsquo;s broken, what&rsquo;s confusing, or what you&rsquo;d like it to do.</p>
 

@@ -7,6 +7,9 @@ export const metadata = { title: "Try Radio Milwaukee in ChatGPT (beta)", robots
 // Read at request time: the address follows CHATGPT_DOOR_HOST, the same setting the server routes by.
 export const dynamic = "force-dynamic";
 
+// The site's global styles strip link styling; listeners need to see what's clickable.
+const LINKS = ".doc a{color:#0b63c5;text-decoration:underline;text-underline-offset:2px}@media (prefers-color-scheme:dark){.doc a{color:#6aa9ff}}";
+
 const code = { fontFamily: "ui-monospace, monospace", fontSize: 14, padding: "2px 6px", borderRadius: 6, background: "rgba(127,127,127,.15)", wordBreak: "break-all" as const };
 
 // Five things that show the app at its best; also the positive test cases OpenAI's directory review asks for.
@@ -22,7 +25,8 @@ export default function BetaPage() {
   const host = process.env.CHATGPT_DOOR_HOST;
   const address = host ? `https://${host}${CHAT_RESOURCE_PATH}` : null;
   return (
-    <main style={{ maxWidth: 680, margin: "56px auto", padding: "0 16px", fontFamily: "system-ui, sans-serif", lineHeight: 1.6 }}>
+    <main className="doc" style={{ maxWidth: 680, margin: "56px auto", padding: "0 16px", fontFamily: "system-ui, sans-serif", lineHeight: 1.6 }}>
+      <style>{LINKS}</style>
       <p style={{ margin: 0, fontSize: 13, fontWeight: 600, letterSpacing: ".06em", textTransform: "uppercase", opacity: 0.7 }}>Beta · invitation</p>
       <h1 style={{ marginTop: 4 }}>Try Radio Milwaukee in ChatGPT</h1>
       <p>Thanks for helping us test it. Radio Milwaukee in ChatGPT lets you listen live, find the song you just heard, save it, hear our stories and podcasts, and see what&rsquo;s happening in Milwaukee, all inside a ChatGPT chat. Setup takes about five minutes.</p>
