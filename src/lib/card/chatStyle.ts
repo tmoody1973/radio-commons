@@ -60,4 +60,17 @@ button svg{width:16px;height:16px}
 .briefing .row-wrap > button{position:absolute;inset:0;width:100%;height:100%;min-height:0;min-width:0;padding:0;border-radius:8px;background:transparent;color:transparent;font-size:0}
 .briefing .row-wrap > button:hover{background:var(--divider)}
 .briefing .row-wrap::after{content:"\\203A";color:var(--text-2);font-size:20px;line-height:20px;flex:none}
+.secondary.say{white-space:normal;height:auto;min-height:36px;padding:8px 14px;border-radius:14px;font-size:13px;line-height:18px;text-align:left}
+.tile-actions .calendar{font-size:0;width:28px;padding:0;justify-content:center;gap:0}
+.tile-actions .calendar svg{width:16px;height:16px}
+.onair-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:12px 0;min-height:0;background:transparent;border-top:1px solid var(--divider);border-radius:0}
+.onair-row:first-child{border-top:0}
+.onair-row .thumb{width:40px;height:40px;border-radius:10px;box-shadow:0 0 0 1px var(--ring)}
+.onair-row .what{flex:1 1 0;min-width:0}
+.onair-row .what b{font-size:14px;line-height:20px;font-weight:500}
+.onair-row .what small{font-size:12px;line-height:18px}
+.onair-row .primary,.onair-row .secondary{min-height:0;height:32px;padding:0 12px;font-size:13px}
+.cap-grid .tile{width:auto;min-width:0}
+.cap-grid .tile-title{white-space:normal;margin-top:0}
+@media (max-width:480px){.onair-row .what{flex-basis:calc(100% - 52px)}.onair-row .primary{margin-left:52px}.cap-grid{grid-template-columns:1fr 1fr}}
 `;
