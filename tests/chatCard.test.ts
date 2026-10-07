@@ -163,3 +163,26 @@ it("while a live stream plays, the chat on-air card refreshes what's on every mi
   expect(chat).toContain("startLiveRefresh()");
   expect(own(storyCardPage("k"))).not.toContain("refreshOnAir");
 });
+
+describe("request cards", () => {
+  const callOf = (html: string) => JSON.parse(html.match(/data-call="([^"]+)"/)![1].replace(/&quot;/g, '"').replace(/&amp;/g, "&").replace(/&#39;/g, "'"));
+
+  it("the preview shows exactly what will be sent, and Send carries the sealed token", () => {
+    const html = renderView({ view: "request", request: { kind: "five_oclock_shadow", song: "Hurt", artist: "Nine Inch Nails", coverArtist: "Johnny Cash", note: "Every day" }, token: "tok123" } as never);
+    expect(html).toContain("5 O&#39;Clock Shadow suggestion");
+    expect(html).toContain("Hurt");
+    expect(html).toContain("Cover by Johnny Cash");
+    expect(html).toContain("Originally by Nine Inch Nails");
+    expect(html).toContain("Every day");
+    expect(callOf(html)).toEqual({ name: "send_station_request", arguments: { token: "tok123" } });
+  });
+
+  it("listener text can't inject markup", () => {
+    const html = renderView({ view: "request", request: { kind: "song_request", song: "<script>x</script>", artist: "a" }, token: "t" } as never);
+    expect(html).not.toContain("<script>");
+  });
+
+  it("the status card says plainly what happened", () => {
+    expect(renderView({ view: "request-status", ok: true, title: "Sent to Radio Milwaukee ✓", detail: "Song request: No ID" } as never)).toContain("Sent to Radio Milwaukee ✓");
+  });
+});

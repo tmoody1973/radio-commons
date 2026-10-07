@@ -1,4 +1,5 @@
 import type { Passage, Story, StoryCardMatch } from "@/lib/backstory";
+import type { StationRequest } from "@/lib/requests";
 import type { BriefingItem } from "@/lib/briefing";
 import type { PublicEvent } from "@/lib/fieldGuide";
 import type { Badge } from "@/lib/map/geo";
@@ -46,7 +47,10 @@ export type CardView =
   /** links: tier id → its /give URL; qrSvg is our own QR code (from the qrcode library), placed as is. */
   /** selected: the tier id the listener asked for ("upgrade me to Front Row"), shown highlighted on its tab. */
   | { view: "give"; links: Record<string, string>; qrSvg: string; shortUrl: string; selected?: string }
-  | ({ view: "membership" } & MembershipFacts);
+  | ({ view: "membership" } & MembershipFacts)
+  /** ChatGPT door only: a request preview whose Send carries the sealed token, and what happened after. */
+  | { view: "request"; request: StationRequest; token: string }
+  | { view: "request-status"; ok: boolean; title: string; detail: string };
 
 const escape = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
@@ -474,6 +478,22 @@ function membershipView(m: MembershipFacts): string {
     + `<div class="actions">${upgrade}<button type="button" class="secondary ask" data-ask="Cancel my Radio Milwaukee membership">Cancel membership</button></div></article>`;
 }
 
+const REQUEST_KIND: Record<StationRequest["kind"], string> = { song_request: "Song request", five_oclock_shadow: "5 O'Clock Shadow suggestion" };
+
+/** Exactly what the station will receive; nothing sends until the listener taps Send (the token is the only way). */
+function requestView(r: StationRequest, token: string): string {
+  const lines = r.kind === "five_oclock_shadow" ? [`Cover by ${r.coverArtist}`, `Originally by ${r.artist}`] : [r.artist];
+  const send = `<button type="button" class="primary send" data-ask="Send my request to Radio Milwaukee" data-call="${escape(JSON.stringify({ name: "send_station_request", arguments: { token } }))}">Send to Radio Milwaukee</button>`;
+  return `<article class="card story request"><div class="info"><p class="meta">${escape(REQUEST_KIND[r.kind])} · to Radio Milwaukee</p><h2>${escape(r.song)}</h2>`
+    + lines.map((line) => `<p class="line">${escape(line)}</p>`).join("")
+    + (r.note ? `<p class="line note">“${escape(r.note)}”</p>` : "")
+    + `<div class="actions">${send}</div></div></article>`;
+}
+
+function requestStatusView(ok: boolean, title: string, detail: string): string {
+  return `<article class="card story request-status${ok ? " ok" : ""}"><div class="info"><h2>${escape(title)}</h2><p class="line">${escape(detail)}</p></div></article>`;
+}
+
 export function renderView(card: CardView): string {
   switch (card.view) {
     case "story": return storyView(card.story, card.releaseEvent ?? null);
@@ -494,5 +514,7 @@ export function renderView(card: CardView): string {
     case "schedule": return scheduleView(card.onNow, card.next, card.matches);
     case "give": return giveView(card.links, card.qrSvg, card.shortUrl, card.selected);
     case "membership": return membershipView(card);
+    case "request": return requestView(card.request, card.token);
+    case "request-status": return requestStatusView(card.ok, card.title, card.detail);
   }
 }
