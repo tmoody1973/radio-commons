@@ -53,6 +53,12 @@ export const fakePlaylist = (overrides: Partial<PlaylistClient> = {}): PlaylistC
   getTrackFacts: async () => ({ status: "ok" }),
   recentSongs: async () => [],
   playsBetween: async () => [],
+  createPlaylist: async (_l, name) => ({ status: "ok" as const, playlistId: "pl1", name }),
+  addToPlaylist: async () => ({ status: "ok" as const, alreadyIn: false, playlistName: "Road Trip", artist: "Tank", title: "No ID", itemCount: 1 }),
+  removeFromPlaylist: async () => ({ status: "ok" as const }),
+  listPlaylists: async () => [],
+  getPlaylist: async () => ({ status: "ok" as const, playlistId: "pl1", name: "Road Trip", items: [] }),
+  deletePlaylist: async () => ({ status: "ok" as const, deletedItems: 0 }),
   saveFind: async () => ({ status: "ok", findId: "find_1", appleMusic: "not_linked", artist: "Ezra Collective", title: "Victory Dance", alreadySaved: false,
     artistId: "artist_1", artistName: "Ezra Collective", firstFollow: false, nextShow: null, story: null, recentlySaved: false }),
   listFinds: async () => [{

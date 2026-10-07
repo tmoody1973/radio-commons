@@ -133,6 +133,12 @@ export interface PlaylistClient {
   findSongPlayed(args: { station: Station; from: number; to: number; cues?: string[]; beforePlayId?: string; afterPlayId?: string }): Promise<RecallResult>;
   getTrackFacts(args: { trackId?: string; playId?: string }): Promise<TrackFacts>;
   recentSongs(station: Station, count: number): Promise<RecentSong[]>;
+  createPlaylist(listenerId: string, name: string): Promise<z.infer<typeof createdSchema>>;
+  addToPlaylist(listenerId: string, playlistId: string, playId: string): Promise<AddedToPlaylist>;
+  removeFromPlaylist(listenerId: string, playlistId: string, itemId: string): Promise<z.infer<typeof okOrMissing>>;
+  listPlaylists(listenerId: string): Promise<PlaylistSummary[]>;
+  getPlaylist(listenerId: string, playlistId: string): Promise<PlaylistResult>;
+  deletePlaylist(listenerId: string, playlistId: string): Promise<z.infer<typeof deletedPlaylistSchema>>;
   /** Every play on one station between two instants, newest first (the public playlist, promos removed). */
   playsBetween(station: Station, from: number, to: number, limit: number): Promise<RecentSong[]>;
   saveFind(listenerId: string, playId: string): Promise<SavedFind>;
@@ -168,6 +174,31 @@ const SEARCH_TIMEOUT_MS = 2000;
 const toRecentSongs = (plays: z.infer<typeof publicPlaySchema>[]): RecentSong[] =>
   plays.map(({ _id, artist, title, playedAt, artworkUrl, previewUrl }) => ({ playId: _id, artist, title, playedAt, artworkUrl, previewUrl }));
 
+// Listener playlists (rm-playlist-v2 #69, not deployed before Oct 23). Shapes follow its playlists.ts.
+const notFound = z.object({ status: z.literal("not_found") });
+const createdSchema = z.discriminatedUnion("status", [
+  z.object({ status: z.literal("ok"), playlistId: z.string(), name: z.string() }),
+  z.object({ status: z.literal("bad_name") }), z.object({ status: z.literal("limit") }),
+]);
+const addedSchema = z.discriminatedUnion("status", [
+  z.object({ status: z.literal("ok"), alreadyIn: z.boolean(), playlistName: z.string(), artist: z.string(), title: z.string(), itemCount: z.number() }),
+  notFound, z.object({ status: z.literal("full") }),
+]);
+const playlistSummarySchema = z.object({ playlistId: z.string(), name: z.string(), itemCount: z.number(), updatedAt: z.number() });
+const playlistItemSchema = z.object({
+  itemId: z.string(), playId: z.string(), trackId: z.string().nullable(), artist: z.string(), title: z.string(), stationSlug: z.string(),
+  addedAt: z.number(), artworkUrl: z.string().nullable(), previewUrl: z.string().nullable(),
+});
+const playlistSchema = z.discriminatedUnion("status", [
+  z.object({ status: z.literal("ok"), playlistId: z.string(), name: z.string(), items: z.array(playlistItemSchema) }), notFound,
+]);
+const okOrMissing = z.discriminatedUnion("status", [z.object({ status: z.literal("ok") }), notFound]);
+const deletedPlaylistSchema = z.discriminatedUnion("status", [z.object({ status: z.literal("ok"), deletedItems: z.number() }), notFound]);
+export type PlaylistSummary = z.infer<typeof playlistSummarySchema>;
+export type PlaylistItem = z.infer<typeof playlistItemSchema>;
+export type PlaylistResult = z.infer<typeof playlistSchema>;
+export type AddedToPlaylist = z.infer<typeof addedSchema>;
+
 export function createPlaylistClient({ query, mutation, action, serverKey, timeoutMs = 350 }: {
   query: Call; mutation: Call; action: Call; serverKey: string; timeoutMs?: number;
 }): PlaylistClient {
@@ -196,6 +227,12 @@ export function createPlaylistClient({ query, mutation, action, serverKey, timeo
     // The same newest-first public playlist the website widget shows (station IDs and promos already removed).
     recentSongs: async (station, count) =>
       toRecentSongs(await call(query, "plays:recentByStation", { stationSlug: station, limit: count }, z.array(publicPlaySchema))),
+    createPlaylist: (listenerId, name) => call(mutation, "playlists:create", keyed({ listenerId, name }), createdSchema),
+    addToPlaylist: (listenerId, playlistId, playId) => call(mutation, "playlists:addSong", keyed({ listenerId, playlistId, playId }), addedSchema),
+    removeFromPlaylist: (listenerId, playlistId, itemId) => call(mutation, "playlists:removeSong", keyed({ listenerId, playlistId, itemId }), okOrMissing),
+    listPlaylists: (listenerId) => call(query, "playlists:list", keyed({ listenerId }), z.array(playlistSummarySchema)),
+    getPlaylist: (listenerId, playlistId) => call(query, "playlists:get", keyed({ listenerId, playlistId }), playlistSchema),
+    deletePlaylist: (listenerId, playlistId) => call(mutation, "playlists:remove", keyed({ listenerId, playlistId }), deletedPlaylistSchema),
     playsBetween: async (station, from, to, limit) =>
       toRecentSongs(await call(query, "plays:searchByStation", { stationSlug: station, afterMs: from, beforeMs: to, limit }, z.array(publicPlaySchema))),
     saveFind: (listenerId, playId) => call(mutation, "finds:save", keyed({ listenerId, playId }), savedSchema),

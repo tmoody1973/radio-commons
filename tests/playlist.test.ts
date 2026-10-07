@@ -4,6 +4,42 @@ import { createPlaylistClient, PlaylistUnavailable } from "@/lib/playlist";
 const noop = async () => ({});
 const base = { query: noop, mutation: noop, action: noop, serverKey: "server-key" };
 
+describe("playlist client: listener playlists (rm-playlist-v2 #69)", () => {
+  it("each call goes to playlists:* with the server key and listener id", async () => {
+    const asked: [string, Record<string, unknown>][] = [];
+    const reply: Record<string, unknown> = {
+      "playlists:create": { status: "ok", playlistId: "pl1", name: "Road Trip" },
+      "playlists:addSong": { status: "ok", alreadyIn: false, playlistName: "Road Trip", artist: "Tank", title: "No ID", itemCount: 1 },
+      "playlists:removeSong": { status: "ok" },
+      "playlists:list": [{ playlistId: "pl1", name: "Road Trip", itemCount: 1, updatedAt: 5 }],
+      "playlists:get": { status: "ok", playlistId: "pl1", name: "Road Trip", items: [{ itemId: "i1", playId: "p1", trackId: null, artist: "Tank", title: "No ID", stationSlug: "hyfin", addedAt: 5, artworkUrl: null, previewUrl: null }] },
+      "playlists:remove": { status: "ok", deletedItems: 1 },
+    };
+    const record = async (name: string, args: Record<string, unknown>) => { asked.push([name, args]); return reply[name]; };
+    const client = createPlaylistClient({ ...base, query: record, mutation: record });
+    expect(await client.createPlaylist("u1", "Road Trip")).toMatchObject({ status: "ok", playlistId: "pl1" });
+    expect(await client.addToPlaylist("u1", "pl1", "p1")).toMatchObject({ status: "ok", itemCount: 1 });
+    expect(await client.removeFromPlaylist("u1", "pl1", "i1")).toEqual({ status: "ok" });
+    expect(await client.listPlaylists("u1")).toHaveLength(1);
+    expect(await client.getPlaylist("u1", "pl1")).toMatchObject({ status: "ok", items: [{ itemId: "i1" }] });
+    expect(await client.deletePlaylist("u1", "pl1")).toEqual({ status: "ok", deletedItems: 1 });
+    const key = { serverKey: "server-key", listenerId: "u1" };
+    expect(asked).toEqual([
+      ["playlists:create", { ...key, name: "Road Trip" }],
+      ["playlists:addSong", { ...key, playlistId: "pl1", playId: "p1" }],
+      ["playlists:removeSong", { ...key, playlistId: "pl1", itemId: "i1" }],
+      ["playlists:list", key],
+      ["playlists:get", { ...key, playlistId: "pl1" }],
+      ["playlists:remove", { ...key, playlistId: "pl1" }],
+    ]);
+  });
+
+  it("before the functions exist (pre-merge), every call is PlaylistUnavailable", async () => {
+    const missing = async () => { throw new Error("Could not find public function for 'playlists:list'"); };
+    await expect(createPlaylistClient({ ...base, query: missing }).listPlaylists("u1")).rejects.toBeInstanceOf(PlaylistUnavailable);
+  });
+});
+
 describe("playlist client", () => {
   it("playsBetween reads the public station playlist between two times (plays:searchByStation, newest first)", async () => {
     const asked: [string, Record<string, unknown>][] = [];
