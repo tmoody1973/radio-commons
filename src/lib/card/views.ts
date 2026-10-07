@@ -109,7 +109,7 @@ function storyView(story: Story, releaseEvent: PublicEvent | null = null): strin
   if (story.contentType !== "episode") return articleView(story);
   const pinned = pinnedPlaces(story);
   const secondary = pinned.length > 1
-    ? `<button type="button" class="secondary ask" data-ask="Where are the places from that episode?">${PIN} Places</button>`
+    ? `<button type="button" class="secondary ask" data-ask="Where are the places from that episode?" data-call="${escape(JSON.stringify({ name: "get_station_story", arguments: { storyId: story.storyId, view: "places" } }))}">${PIN} Places</button>`
     : pinned.length === 1
       ? `<button type="button" class="secondary directions" data-url="${escape(directionsUrl(pinned[0].name, pinned[0].address, pinned[0].lat, pinned[0].lng))}">${PIN} Directions</button>`
       : "";

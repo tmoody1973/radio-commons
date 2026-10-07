@@ -94,9 +94,20 @@ blockquote{margin:0;font-size:40px;line-height:1.1;font-weight:700}blockquote.q-
 /* Map pins live inside the unscaled map, so they size from --z directly (CSS zoom would shift their position). */
 .mappin{min-width:calc(30px * var(--z));height:calc(30px * var(--z));padding:0 calc(8px * var(--z));box-sizing:border-box;border-radius:9999px;background:${TOKENS.accent};color:${TOKENS.onAccent};border:calc(2px * var(--z)) solid #fff;font:700 calc(15px * var(--z)) Figtree,system-ui,sans-serif;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.35)}`;
 
-// ChatGPT door only: Save calls save_find from the card (no extra ChatGPT turn). Anything but a clean "ok" (signed out,
+// ChatGPT door only: Save calls save_find, and Places calls get_station_story, from the card (no extra ChatGPT turn). Anything but a clean "ok" (signed out,
 // song not found, an error) falls back to the chat message, so ChatGPT explains or shows its sign-in screen.
 const CHAT_SAVE = `const ask = (b) => app.sendMessage({ role: "user", content: [{ type: "text", text: b.dataset.ask }] }).catch(() => {});
+  if (button.dataset.call) {
+    const call = JSON.parse(button.dataset.call);
+    button.disabled = true;
+    app.callServerTool({ name: call.name, arguments: call.arguments }).then((r) => {
+      const next = r && !r.isError && { ...r.structuredContent, ...r._meta };
+      if (!next || typeof next.cardHtml !== "string") { button.disabled = false; return ask(button); }
+      current = next; // e.g. the story card becomes its map card, in place
+      applyContext();
+    }).catch(() => { button.disabled = false; ask(button); });
+    return;
+  }
   if (button.dataset.save) {
     const label = button.textContent;
     button.textContent = "Saving…";

@@ -167,3 +167,18 @@ it("card tools tell ChatGPT the card already lists the results; tools without a 
   expect(tools.find((t) => t.name === "find_events")!.description.endsWith(note)).toBe(true);
   expect(tools.find((t) => t.name === "delete_my_finds")!.description).not.toContain(note);
 });
+
+it("get_station_story: 'what restaurants were discussed' goes to the map view, and the card may call it", async () => {
+  const tools: { name: string; description: string; _meta: Record<string, unknown> }[] = (await mcpPost(chatHandler(), { method: "tools/list" })).message.result.tools;
+  const story = tools.find((t) => t.name === "get_station_story")!;
+  expect(story.description).toContain('call this with view "places"');
+  expect(story.description).toContain("restaurants");
+  expect(story._meta["openai/widgetAccessible"]).toBe(true);
+});
+
+it("the chat card may load NPR-hosted episode audio (cpa.ds.npr.org) once ChatGPT enforces the allowed-sites list", async () => {
+  const { message } = await mcpPost(chatHandler(), { method: "resources/read", params: { uri: CARD_URI } });
+  const meta = message.result.contents[0]._meta;
+  expect(meta.ui.csp.resourceDomains).toContain("https://cpa.ds.npr.org");
+  expect(meta["openai/widgetCSP"].resource_domains).toContain("https://cpa.ds.npr.org");
+});

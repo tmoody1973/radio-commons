@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { chatCardPage, renderView, storyCardPage } from "@/lib/card";
 import { CHAT_STYLE } from "@/lib/card/chatStyle";
+import { STORY } from "./fixtures";
 
 // The ChatGPT door's card page (approved mockups, 2026-10-07). Alexa's page is pinned by tests/alexaDoor.test.ts.
 describe("chat card page", () => {
@@ -126,4 +127,24 @@ it("a tool result without a card leaves the chat card empty (ChatGPT's reply exp
 it("events (never pictured) are a list in chat, and tile buttons are 28px, not Alexa's 48px", () => {
   expect(CHAT_STYLE).toContain(".carousel:has(> .tile.event){flex-direction:column");
   expect(CHAT_STYLE).toContain(".tile-actions .secondary{min-height:0");
+});
+
+// Places on a story card opens the map card in place on the ChatGPT door (no extra ChatGPT turn); Alexa asks as before.
+describe("Places from the story card", () => {
+  const own = (page: string) => page.split("const App = ")[1];
+  const twoPlaces = { ...STORY, places: [STORY.places[0], { ...STORY.places[0], name: "Bread House", lat: 43.02, lng: -88.02 }] };
+
+  it("the Places button carries the get_station_story call for the map view", () => {
+    const html = renderView({ view: "story", story: twoPlaces } as never);
+    const raw = html.match(/data-call="([^"]+)"/)![1].replace(/&quot;/g, '"').replace(/&amp;/g, "&");
+    expect(JSON.parse(raw)).toEqual({ name: "get_station_story", arguments: { storyId: STORY.storyId, view: "places" } });
+    expect(html).toContain('data-ask="Where are the places from that episode?"');
+  });
+
+  it("the chat card calls it and swaps in the map card; anything else falls back to the chat message", () => {
+    const chat = own(chatCardPage("k"));
+    expect(chat).toContain("button.dataset.call");
+    expect(chat).toContain("current = next;");
+    expect(own(storyCardPage("k"))).not.toContain("dataset.call");
+  });
 });
