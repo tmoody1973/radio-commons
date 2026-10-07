@@ -69,6 +69,12 @@ Every event has **Add to calendar** and **Details**.
 - *"What's new for me?"* tells you, since your last visit, how often our stations played the artists you follow, their upcoming shows, and our stories about them.
 - *"Stop following Thao"*
 
+### Send us a request
+- *"Request No ID by Tank and the Bangas"*
+- *"Suggest Johnny Cash's Hurt for 5 O'Clock Shadow"*, our daily 5 pm cover song: name the song, the original artist, and whose cover you'd like to hear.
+
+ChatGPT asks what name the DJ should use (say "Tarik from Bay View", or skip it), then shows a card with **exactly** what we'll receive. Nothing is sent until you tap **Send to Radio Milwaukee**. Up to three requests a day. Requests need you to be signed in.
+
 ### Not sure what to ask?
 *"What can you do?"*
 
@@ -76,14 +82,14 @@ Every event has **Add to calendar** and **Details**.
 
 ## Your account
 
-Saving songs, Finds, follows and *"What's new for me?"* need a Radio Milwaukee listener account, so your saves belong to you. The first time, ChatGPT shows a **Sign in** screen; sign in (or create an account) and choose **Allow**. You only do this once.
+Saving songs, Finds, follows, requests and *"What's new for me?"* need a Radio Milwaukee listener account, so your saves belong to you. The first time, ChatGPT shows a **Sign in** screen; sign in (or create an account) and choose **Allow**. You only do this once.
 
 It's the same account you'd use with Radio Milwaukee on Alexa, so your Finds and follows are the same in both places.
 
 ## Privacy
 
 - We keep only what makes the features work: the songs you save, the artists you follow, when you last asked what's new, and, for 30 minutes, the last numbered list we showed you (so "save number 3" works).
-- We know you by an account ID, not by your name or email.
+- We know you by an account ID, not by your name or email. A request carries only what you see on its card before you tap Send, including the name you chose to give (or none).
 - *"Delete my Finds"* erases your saved songs, your follows and your Apple Music link. Radio Milwaukee asks you to confirm first.
 - Read the full policy: [radio-commons.vercel.app/privacy](https://radio-commons.vercel.app/privacy).
 
@@ -98,4 +104,3 @@ It's the same account you'd use with Radio Milwaukee on Alexa, so your Finds and
 These are in development and aren't available yet:
 - **Every song in a time window:** *"What played on HYFIN between 10 and 10:30?"* with each song ready to save.
 - **Your playlists:** build playlists from what Radio Milwaukee plays.
-- **Send us a request:** draft a song request or a **5 O'Clock Shadow** cover suggestion with ChatGPT and send it straight to the station.
