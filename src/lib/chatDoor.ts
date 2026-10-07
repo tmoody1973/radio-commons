@@ -50,7 +50,8 @@ const STATUS: Record<string, string> = {
 // The model reads structuredContent verbatim; these are only for drawing the card, so they go in _meta (hidden
 // from the model, forwarded to the card). About half of each card result is HTML.
 const RENDER_ONLY = ["cardHtml", "fullHtml", "mapPlaces"];
-export function chatResult<T extends ToolResultLike>(result: T): T {
+export function chatResult<T extends ToolResultLike>(input: T): T {
+  const result = withPlacesBehindTheMap(input);
   const content = result.structuredContent;
   if (!content || !RENDER_ONLY.some((key) => key in content)) return result;
   const kept = Object.fromEntries(Object.entries(content).filter(([key]) => !RENDER_ONLY.includes(key)));
@@ -67,6 +68,21 @@ const CHAT_EXTRA: Record<string, string> = {
 // On card tools, per-tool guidance against re-listing what the card shows (ChatGPT repeated events as a table).
 const CARD_NOTE = " The card shows these results; reply in one or two sentences and don't list them again.";
 const hasCard = (config: { _meta?: Record<string, unknown> }) => Boolean((config._meta?.ui as { resourceUri?: string } | undefined)?.resourceUri);
+
+type StoryLike = { places?: unknown[]; [key: string]: unknown };
+/**
+ * ChatGPT answered "what restaurants were discussed?" from the story record it already had, so the map never showed.
+ * Outside the map view, a story keeps its summary but carries a place count and a pointer instead of the names.
+ */
+function withPlacesBehindTheMap<T extends ToolResultLike>(result: T): T {
+  const content = result.structuredContent;
+  const story = content?.story as StoryLike | undefined;
+  if (!content || content.view === "places" || !Array.isArray(story?.places) || story.places.length < 2) return result;
+  const { places, ...rest } = story;
+  const pointer = `This story mentions ${places.length} places. To list or map them, call get_station_story with this storyId and view "places".`;
+  const text = Array.isArray(result.content) ? (result.content as unknown[]) : [];
+  return { ...result, structuredContent: { ...content, story: { ...rest, placeCount: places.length } }, content: [...text, { type: "text", text: pointer }] };
+}
 
 /**
  * Every tool registered on the chat door goes through here: chat descriptions, sign-in schemes, a status line, and

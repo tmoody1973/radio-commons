@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { buildMcpHandler, CARD_URI, CHAT_SIGN_IN_TEXT } from "@/lib/mcp";
 import { SITE } from "@/lib/card/tokens";
 import { chatCardPage, storyCardPage } from "@/lib/card";
-import { fakeBackstory, fakeFieldGuide, fakePlaylist } from "./fixtures";
+import { fakeBackstory, fakeFieldGuide, fakePlaylist, STORY } from "./fixtures";
 import { mcpPost, mcpPostAs, mcpRequest, send } from "./mcp-wire";
 
 const chatHandler = () =>
@@ -181,4 +181,24 @@ it("the chat card may load NPR-hosted episode audio (cpa.ds.npr.org) once ChatGP
   const meta = message.result.contents[0]._meta;
   expect(meta.ui.csp.resourceDomains).toContain("https://cpa.ds.npr.org");
   expect(meta["openai/widgetCSP"].resource_domains).toContain("https://cpa.ds.npr.org");
+});
+
+// ChatGPT answered "what restaurants were discussed?" from the story record it already had, so no map. On the chat door a
+// story result keeps its summary but sends a place count and a pointer instead of the names; the map view keeps them.
+describe("ChatGPT door: places come with the map", () => {
+  const story = { ...STORY, storyId: "s2", places: [STORY.places[0], { ...STORY.places[0], name: "Bread House", lat: 43.02, lng: -88.02 }] };
+  const handler = () => buildMcpHandler({ backstory: () => fakeBackstory({ getStory: async () => story }), fieldGuide: () => fakeFieldGuide(), playlist: () => fakePlaylist(), cardHtml: () => "", surface: "chat" });
+
+  it("a story result sends a place count and a pointer to the map view, not the names", async () => {
+    const { message } = await mcpPost(handler(), { method: "tools/call", params: { name: "get_station_story", arguments: { storyId: "s2" } } });
+    expect(message.result.structuredContent.story.places).toBeUndefined();
+    expect(message.result.structuredContent.story.placeCount).toBe(2);
+    expect(message.result.structuredContent.story.summary).toBe(story.summary);
+    expect(message.result.content.map((c: { text: string }) => c.text).join(" ")).toContain('view "places"');
+  });
+
+  it("the map view itself keeps the places for the model", async () => {
+    const { message } = await mcpPost(handler(), { method: "tools/call", params: { name: "get_station_story", arguments: { storyId: "s2", view: "places" } } });
+    expect(message.result.structuredContent.story.places).toHaveLength(2);
+  });
 });
