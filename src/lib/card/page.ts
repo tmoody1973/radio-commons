@@ -93,7 +93,8 @@ blockquote{margin:0;font-size:40px;line-height:1.1;font-weight:700}blockquote.q-
 /* Map pins live inside the unscaled map, so they size from --z directly (CSS zoom would shift their position). */
 .mappin{min-width:calc(30px * var(--z));height:calc(30px * var(--z));padding:0 calc(8px * var(--z));box-sizing:border-box;border-radius:9999px;background:${TOKENS.accent};color:${TOKENS.onAccent};border:calc(2px * var(--z)) solid #fff;font:700 calc(15px * var(--z)) Figtree,system-ui,sans-serif;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.35)}`;
 
-const script = (mapKey: string) => `
+// readMeta: the ChatGPT door moves card HTML to the result's _meta (hidden from the model), so its page reads both.
+const script = (mapKey: string, readMeta = false) => `
 const root = document.getElementById("root");
 const app = new App({ name: "radio-commons-story-card", version: "0.2.0" }, {});
 const MAP_STYLE = ${JSON.stringify(`${MAP_STYLE}?key=${encodeURIComponent(mapKey)}`)};
@@ -124,7 +125,7 @@ function render(full) {
 }
 
 app.ontoolresult = (result) => {
-  const data = result && result.structuredContent;
+  const data = ${readMeta ? "result && { ...result.structuredContent, ...result._meta }" : "result && result.structuredContent"};
   if (!data || typeof data.cardHtml !== "string") { root.textContent = "Story unavailable."; return; }
   current = data;
   if (audio) audio.pause(); // a new answer replaces the card, so its sound stops too
@@ -246,4 +247,15 @@ export function storyCardPage(mapKey = process.env.AMAZON_LOCATION_BROWSER_KEY ?
     cached = { key: mapKey, html };
   }
   return cached.html;
+}
+
+let chatCached: { key: string; html: string } | null = null;
+
+/** The ChatGPT door's card page: the same views and script, reading the card HTML from the result's _meta. */
+export function chatCardPage(mapKey = process.env.AMAZON_LOCATION_BROWSER_KEY ?? ""): string {
+  if (chatCached?.key !== mapKey) {
+    const html = storyCardPage(mapKey).replace(script(mapKey), () => script(mapKey, true));
+    chatCached = { key: mapKey, html };
+  }
+  return chatCached.html;
 }

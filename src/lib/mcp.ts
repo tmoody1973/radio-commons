@@ -3,7 +3,8 @@ import { createMcpHandler } from "mcp-handler";
 import { z } from "zod";
 import { BackstoryUnavailable, type BackstoryClient, type Story } from "@/lib/backstory";
 import { PlaylistUnavailable, type Digest, type PlaylistClient, type RecallMatch, type RecentSong, type SavedFind, type Station } from "@/lib/playlist";
-import { AUTH_TOOLS, listenerIdFrom, OAUTH_SCOPES } from "@/lib/listenerAuth";
+import { listenerIdFrom } from "@/lib/listenerAuth";
+import { chatWidgetMeta, patchChatServer } from "@/lib/chatDoor";
 import { CAPABILITIES, CAPABILITIES_SPEECH } from "@/lib/capabilities";
 import { FieldGuideUnavailable, type FieldGuideClient, type PublicEvent } from "@/lib/fieldGuide";
 import { fullPlacesView, renderView, type CardView, type EventItem } from "@/lib/card";
@@ -114,20 +115,6 @@ const chatSignInRequired = (): ToolResult => ({
   },
 });
 
-type McpServerLike = Parameters<Parameters<typeof createMcpHandler>[0]>[0];
-const SIGNED_IN_TOOLS = new Set<string>(AUTH_TOOLS);
-const SIGNED_IN = [{ type: "oauth2", scopes: [...OAUTH_SCOPES] }];
-const EITHER = [{ type: "noauth" }, ...SIGNED_IN];
-/**
- * ChatGPT reads each tool's `_meta.securitySchemes`: Finds and follows need sign-in, everything else works either way.
- * ponytail: patches this request's server instance (chat door only) so 24 call sites stay untouched; a per-tool helper if
- * more chat-only tool metadata arrives.
- */
-function declareSecuritySchemes(server: McpServerLike) {
-  const register = server.registerTool.bind(server);
-  server.registerTool = ((name: string, config: { _meta?: Record<string, unknown> }, callback: unknown) =>
-    register(name, { ...config, _meta: { ...config._meta, securitySchemes: SIGNED_IN_TOOLS.has(name) ? SIGNED_IN : EITHER } } as never, callback as never)) as typeof server.registerTool;
-}
 const eventsUnavailable = (): ToolResult => ({ content: text(EVENTS_UNAVAILABLE_SPEECH), isError: true });
 const WHEN = ["tonight", "today", "tomorrow", "this-weekend", "this-week"] as const;
 const clean = (story: Story): Story => {
@@ -333,7 +320,7 @@ export function buildMcpHandler(deps: Deps) {
   };
   return createMcpHandler(
     (server) => {
-      if (chat) declareSecuritySchemes(server);
+      if (chat) patchChatServer(server);
       registerAppTool(
         server,
         "find_station_story",
@@ -958,7 +945,7 @@ export function buildMcpHandler(deps: Deps) {
       }
 
       registerAppResource(server, "Story card", CARD_URI, { description: "A Radio Milwaukee story, quote, list or map, in Alexa+ style." }, async () => ({
-        contents: [{ uri: CARD_URI, mimeType: RESOURCE_MIME_TYPE, text: deps.cardHtml(), _meta: { ui: { csp: CARD_CSP } } }],
+        contents: [{ uri: CARD_URI, mimeType: RESOURCE_MIME_TYPE, text: deps.cardHtml(), _meta: { ui: { csp: CARD_CSP }, ...(chat ? chatWidgetMeta(CARD_CSP) : {}) } }],
       }));
     },
     { serverInfo: { name: "radio-commons", version: "0.2.0" } },

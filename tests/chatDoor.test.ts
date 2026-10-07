@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { buildMcpHandler, CARD_URI, CHAT_SIGN_IN_TEXT } from "@/lib/mcp";
 import { SITE } from "@/lib/card/tokens";
+import { chatCardPage, storyCardPage } from "@/lib/card";
 import { fakeBackstory, fakeFieldGuide, fakePlaylist } from "./fixtures";
 import { mcpPost, mcpPostAs, mcpRequest, send } from "./mcp-wire";
 
@@ -95,5 +96,50 @@ describe("/.well-known/oauth-protected-resource/api/chatgpt/mcp", () => {
       scopes_supported: ["openid", "profile", "offline_access"],
     });
     vi.unstubAllEnvs();
+  });
+});
+
+// Speed: ChatGPT reads structuredContent verbatim, so render-only HTML goes in _meta (hidden from the model,
+// forwarded to the card). OpenAI plugins reference, "Keep fields concise; the model reads them verbatim."
+describe("ChatGPT door: what the model reads", () => {
+  it("moves the card's HTML out of structuredContent into _meta", async () => {
+    const { message } = await mcpPost(chatHandler(), { method: "tools/call", params: { name: "what_can_you_do", arguments: {} } });
+    expect(message.result.structuredContent.cardHtml).toBeUndefined();
+    expect(message.result.structuredContent.view).toBe("capabilities");
+    expect(typeof message.result._meta.cardHtml).toBe("string");
+  });
+
+  it("keeps a sign-in challenge in _meta when there is no card", async () => {
+    const { message } = await mcpPost(chatHandler(), { method: "tools/call", params: { name: "list_finds", arguments: {} } });
+    expect(message.result._meta["mcp/www_authenticate"]).toHaveLength(1);
+  });
+
+  it("drops voice-only instructions from tool descriptions, keeps the trust rules", async () => {
+    const tools: { name: string; description: string }[] = (await mcpPost(chatHandler(), { method: "tools/list" })).message.result.tools;
+    for (const tool of tools) expect(tool.description).not.toMatch(/\bSpeaks?\b|three at a time|on devices with a screen/);
+    expect(tools.find((t) => t.name === "get_station_story")!.description).toContain("Answer only from this record");
+  });
+
+  it("gives every tool a short status line while it runs", async () => {
+    const tools: { name: string; _meta: Record<string, unknown> }[] = (await mcpPost(chatHandler(), { method: "tools/list" })).message.result.tools;
+    for (const tool of tools) {
+      const status = tool._meta["openai/toolInvocation/invoking"];
+      expect(typeof status, tool.name).toBe("string");
+      expect((status as string).length, tool.name).toBeLessThanOrEqual(64);
+    }
+  });
+
+  it("declares the card's allowed sites under ChatGPT's key too, and tells the model the card shows the details", async () => {
+    const { message } = await mcpPost(chatHandler(), { method: "resources/read", params: { uri: CARD_URI } });
+    const meta = message.result.contents[0]._meta;
+    expect(meta.ui.csp.resourceDomains).toContain("https://*.mzstatic.com");
+    expect(meta["openai/widgetCSP"].resource_domains).toEqual(meta.ui.csp.resourceDomains);
+    expect(meta["openai/widgetCSP"].connect_domains).toEqual(meta.ui.csp.connectDomains);
+    expect(meta["openai/widgetDescription"]).toMatch(/card/i);
+  });
+
+  it("the chat card page reads the HTML from _meta; the Alexa page is unchanged", () => {
+    expect(chatCardPage("k")).toContain("...result._meta");
+    expect(storyCardPage("k")).not.toContain("result._meta");
   });
 });

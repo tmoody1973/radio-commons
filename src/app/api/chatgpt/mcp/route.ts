@@ -1,7 +1,7 @@
 import { after } from "next/server";
 import { withMcpAuth } from "mcp-handler";
 import { backstoryFromEnv, type BackstoryClient } from "@/lib/backstory";
-import { storyCardPage } from "@/lib/card";
+import { chatCardPage } from "@/lib/card";
 import { fieldGuideFromEnv } from "@/lib/fieldGuide";
 import { verifyChatGptToken } from "@/lib/listenerAuth";
 import { buildMcpHandler, CHAT_RESOURCE_PATH } from "@/lib/mcp";
@@ -16,7 +16,7 @@ const backstory = () => (client ??= backstoryFromEnv());
 let playlistClient: PlaylistClient | undefined;
 const playlist = () => (playlistClient ??= playlistFromEnv());
 
-const handler = buildMcpHandler({ backstory, fieldGuide: fieldGuideFromEnv, playlist, defer: (task) => after(task), cardHtml: storyCardPage, surface: "chat" });
+const handler = buildMcpHandler({ backstory, fieldGuide: fieldGuideFromEnv, playlist, defer: (task) => after(task), cardHtml: chatCardPage, surface: "chat" });
 
 // No 401 gate: a signed-out call reaches the tool, whose mcp/www_authenticate error opens ChatGPT's sign-in screen.
 const authed = withMcpAuth(handler, verifyChatGptToken, { required: false, resourceMetadataPath: `/.well-known/oauth-protected-resource${CHAT_RESOURCE_PATH}` });
