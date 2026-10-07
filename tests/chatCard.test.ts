@@ -112,3 +112,7 @@ describe("review fixes", () => {
     expect(alexa).not.toContain("restoreChatState");
   });
 });
+
+it("keyboard users can see which tile has focus (apps-sdk-ui focus ring)", () => {
+  expect(CHAT_STYLE).toContain(".tile:focus-visible{outline:2px solid var(--focus);outline-offset:2px}");
+});
