@@ -133,6 +133,8 @@ export interface PlaylistClient {
   findSongPlayed(args: { station: Station; from: number; to: number; cues?: string[]; beforePlayId?: string; afterPlayId?: string }): Promise<RecallResult>;
   getTrackFacts(args: { trackId?: string; playId?: string }): Promise<TrackFacts>;
   recentSongs(station: Station, count: number): Promise<RecentSong[]>;
+  /** Every play on one station between two instants, newest first (the public playlist, promos removed). */
+  playsBetween(station: Station, from: number, to: number, limit: number): Promise<RecentSong[]>;
   saveFind(listenerId: string, playId: string): Promise<SavedFind>;
   listFinds(listenerId: string, limit?: number): Promise<FindRow[]>;
   deleteFinds(listenerId: string): Promise<z.infer<typeof deletedSchema>>;
@@ -194,6 +196,8 @@ export function createPlaylistClient({ query, mutation, action, serverKey, timeo
     // The same newest-first public playlist the website widget shows (station IDs and promos already removed).
     recentSongs: async (station, count) =>
       toRecentSongs(await call(query, "plays:recentByStation", { stationSlug: station, limit: count }, z.array(publicPlaySchema))),
+    playsBetween: async (station, from, to, limit) =>
+      toRecentSongs(await call(query, "plays:searchByStation", { stationSlug: station, afterMs: from, beforeMs: to, limit }, z.array(publicPlaySchema))),
     saveFind: (listenerId, playId) => call(mutation, "finds:save", keyed({ listenerId, playId }), savedSchema),
     listFinds: (listenerId, limit) => call(query, "finds:list", keyed(limit === undefined ? { listenerId } : { listenerId, limit }), z.array(findSchema)),
     deleteFinds: (listenerId) => call(mutation, "finds:deleteAllForListener", keyed({ listenerId }), deletedSchema),

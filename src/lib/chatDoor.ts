@@ -64,6 +64,7 @@ export function chatResult<T extends ToolResultLike>(input: T): T {
 const CARD_CALLABLE = new Set(["save_find", "get_station_story", "on_air_now", "send_station_request"]);
 // Chat-only routing hints. ChatGPT answered "what restaurants were discussed" from memory instead of showing the map.
 const CHAT_EXTRA: Record<string, string> = {
+  find_song_played: " Here, without cues it lists every song played in the window (up to 12, newest first) on a card the listener can save from.",
   get_station_story: ' When the listener asks about the places, restaurants, venues or stops in a story (what they were or where they are), call this with view "places"; the card maps them. Don\'t list them from memory.',
 };
 // On card tools, per-tool guidance against re-listing what the card shows (ChatGPT repeated events as a table).

@@ -217,6 +217,13 @@ export function spokenTrackFacts(facts: TrackFacts): string {
   return `"${f.title}" by ${f.artist}${details ? `, ${details}` : ""}.`;
 }
 
+/** Chat: "HYFIN between 10:00 a.m. and 10:30 a.m., newest first: 1, "A" by B; …" (every play, no paging). */
+export function spokenWindow(stationName: string, songs: { artist: string; title: string }[], from: number, to: number): string {
+  const span = `${stationName} between ${localClock(from)} and ${localClock(to)}`;
+  if (songs.length === 0) return `I don't have anything logged on ${span}.`;
+  return `${span}, newest first: ${numbered(songs.map((song) => `"${song.title}" by ${song.artist}`))}.`;
+}
+
 /** "The last 5 on 88Nine, newest first: 1, A; 2, B; 3, C. Want the next two?" Page 2: "Next on 88Nine: 4, D; 5, E." */
 export function spokenRecent(stationName: string, songs: { artist: string; title: string }[], page = 1): string {
   if (songs.length === 0) return `I haven't logged any songs on ${stationName} yet.`;

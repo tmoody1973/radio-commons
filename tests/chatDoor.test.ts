@@ -330,3 +330,40 @@ it("send_station_request asks ChatGPT to get the name the DJ should use", async 
   expect(tool.inputSchema.properties.fromName).toBeDefined();
   expect(tool.description).toContain("fromName");
 });
+
+// Slice 4a: in chat, "what played on HYFIN between 10 and 10:30?" lists every play in the window; Alexa keeps one guess.
+describe("ChatGPT door: songs in a time window", () => {
+  const NOW = new Date("2026-10-07T18:00:00Z"); // 1 p.m. in Milwaukee
+  const songs = [3, 2, 1].map((n) => ({ playId: `p${n}`, artist: `Artist ${n}`, title: `Song ${n}`, playedAt: Date.parse("2026-10-07T15:00:00Z") + n * 300_000, artworkUrl: null, previewUrl: null }));
+  const make = (surface?: "chat") => {
+    const playsBetween = vi.fn(async () => songs);
+    const findSongPlayed = vi.fn(async () => ({ status: "ok" as const, matches: [] }));
+    const handler = buildMcpHandler({ backstory: () => fakeBackstory(), fieldGuide: () => fakeFieldGuide(), playlist: () => fakePlaylist({ playsBetween, findSongPlayed } as never), cardHtml: () => "", now: () => NOW, ...(surface ? { surface } : {}) });
+    return { handler, playsBetween, findSongPlayed };
+  };
+  const window = { station: "hyfin", startTime: "10:00", endTime: "10:30" };
+
+  it("chat: no cues → every play between the two times, as a numbered song card", async () => {
+    const { handler, playsBetween, findSongPlayed } = make("chat");
+    const { message } = await mcpPost(handler, { method: "tools/call", params: { name: "find_song_played", arguments: window } });
+    expect(playsBetween).toHaveBeenCalledWith("hyfin", Date.parse("2026-10-07T15:00:00Z"), Date.parse("2026-10-07T15:30:00Z"), 12);
+    expect(findSongPlayed).not.toHaveBeenCalled();
+    expect(message.result.structuredContent.view).toBe("songs");
+    expect(message.result.structuredContent.songs.map((s: { number: number; title: string }) => [s.number, s.title])).toEqual([[1, "Song 3"], [2, "Song 2"], [3, "Song 1"]]);
+    expect(message.result.content[0].text).toContain("HYFIN between 10:00 a.m. and 10:30 a.m.");
+  });
+
+  it("chat with cues ('the one with horns') still asks for the best match", async () => {
+    const { handler, playsBetween, findSongPlayed } = make("chat");
+    await mcpPost(handler, { method: "tools/call", params: { name: "find_song_played", arguments: { ...window, cues: ["horns"] } } });
+    expect(findSongPlayed).toHaveBeenCalled();
+    expect(playsBetween).not.toHaveBeenCalled();
+  });
+
+  it("Alexa keeps one confident answer", async () => {
+    const { handler, playsBetween, findSongPlayed } = make();
+    await mcpPost(handler, { method: "tools/call", params: { name: "find_song_played", arguments: window } });
+    expect(findSongPlayed).toHaveBeenCalled();
+    expect(playsBetween).not.toHaveBeenCalled();
+  });
+});

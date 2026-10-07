@@ -5,6 +5,15 @@ const noop = async () => ({});
 const base = { query: noop, mutation: noop, action: noop, serverKey: "server-key" };
 
 describe("playlist client", () => {
+  it("playsBetween reads the public station playlist between two times (plays:searchByStation, newest first)", async () => {
+    const asked: [string, Record<string, unknown>][] = [];
+    const play = { _id: "p1", artist: "Tiana Major9", title: "alright!", playedAt: 1500, artworkUrl: null, previewUrl: null };
+    const client = createPlaylistClient({ ...base, query: async (name, args) => { asked.push([name, args]); return [play]; } });
+    const songs = await client.playsBetween("hyfin", 1000, 2000, 12);
+    expect(asked).toEqual([["plays:searchByStation", { stationSlug: "hyfin", afterMs: 1000, beforeMs: 2000, limit: 12 }]]);
+    expect(songs).toEqual([{ playId: "p1", artist: "Tiana Major9", title: "alright!", playedAt: 1500, artworkUrl: null, previewUrl: null }]);
+  });
+
   it("validates findSongPlayed replies", async () => {
     const client = createPlaylistClient({ ...base, query: async () => ({ status: "weird" }) });
     await expect(client.findSongPlayed({ station: "88nine", from: 0, to: 1 })).rejects.toBeInstanceOf(PlaylistUnavailable);

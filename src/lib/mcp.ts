@@ -17,7 +17,7 @@ import { createHash } from "node:crypto";
 import { eventMapPoints, MAP_H, MAP_W, pinnedEvents, pinnedPlaces } from "@/lib/map/staticMap";
 import {
   directAudioUrl, eventTime, EVENTS_UNAVAILABLE_SPEECH, NO_PLACES_FOR_EVENTS_SPEECH, NO_PLACES_SPEECH, spokenEvents, spokenPicks, NOT_ALLOWED_SPEECH, NOT_FOUND_SPEECH, EMPTY_DIGEST_SPEECH, EMPTY_DIGEST_NO_PICKS_SPEECH, LINK_ACCOUNT_SPEECH, LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH, PLAYLIST_UNAVAILABLE_SPEECH, spokenDigest, spokenFinds, spokenLatest, spokenMatches, spokenPassages,
-  NEWSLETTER_UNAVAILABLE_SPEECH, NO_NEWSLETTER_SPEECH, spokenBriefing, spokenOnAir, spokenPlaces, spokenRecall, spokenRecent, spokenSearch, spokenStationShows, spokenDeleted, spokenFollowed, spokenSaved, spokenUnfollowed, noSongOnAirSpeech, whichOnAirSpeech, WHICH_ARTIST_TO_FOLLOW_SPEECH, WHICH_ARTIST_TO_UNFOLLOW_SPEECH, spokenStory, spokenTrackFacts, UNAVAILABLE_SPEECH,
+  NEWSLETTER_UNAVAILABLE_SPEECH, NO_NEWSLETTER_SPEECH, spokenBriefing, spokenOnAir, spokenPlaces, spokenRecall, spokenRecent, spokenSearch, spokenStationShows, spokenDeleted, spokenFollowed, spokenSaved, spokenUnfollowed, noSongOnAirSpeech, whichOnAirSpeech, WHICH_ARTIST_TO_FOLLOW_SPEECH, WHICH_ARTIST_TO_UNFOLLOW_SPEECH, spokenStory, spokenTrackFacts, spokenWindow, UNAVAILABLE_SPEECH,
 } from "@/lib/speech";
 import { localWindow } from "@/lib/stationTime";
 import { noScheduleSpeech, programsFrom, SCHEDULE_UNAVAILABLE_SPEECH, spokenOnNow, spokenPrograms, withFreshLatest } from "@/lib/schedule";
@@ -39,6 +39,7 @@ const CLOCK_TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 // Playlist play ids are long lowercase ids; a list number like "1" fails here so Alexa retries with the real one.
 const DEFAULT_RECENT_SONGS = 5;
 const SEARCH_RESULTS_SHOWN = 5;
+const WINDOW_SONGS = 12;
 const MUSIC_STATIONS = ["88nine", "hyfin", "rhythmlab", "414music"] as const;
 const STATION_SLUG = z.enum(MUSIC_STATIONS);
 const MAX_RECENT_SONGS = 10;
@@ -581,6 +582,16 @@ export function buildMcpHandler(deps: Deps) {
         async ({ day, startTime, endTime, ...rest }, context) =>
           timed("find_song_played", async () => {
             const window = localWindow({ day: day ?? "today", startTime, endTime }, now());
+            // Chat shows a list, so without cues it lists every play in the window instead of one spoken best guess.
+            if (chat && !rest.cues?.length && !rest.beforePlayId && !rest.afterPlayId) {
+              const songs = await deps.playlist().playsBetween(rest.station, window.from, window.to, WINDOW_SONGS);
+              rememberScreen(context, songs.map((song) => song.playId));
+              const numbered = songs.map(({ playId, artist, title, playedAt }, i) => ({ number: i + 1, playId, artist, title, playedAt }));
+              return {
+                content: [...text(spokenWindow(STATION_NAMES[rest.station], songs, window.from, window.to)), ...text(JSON.stringify({ songs: numbered }))],
+                structuredContent: { ...(songs.length ? card({ view: "songs", songs: songs.map(songCardFromRecent) }) : {}), stationId: station.stationId, songs: numbered },
+              };
+            }
             const result = await deps.playlist().findSongPlayed({ ...rest, ...window });
             // One id per song: extra ids (trackId, list labels) led Alexa to save with the wrong one.
             const matches = result.matches.map(({ playId, artist, title, playedAt }) => ({ playId, artist, title, playedAt }));
