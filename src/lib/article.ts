@@ -78,9 +78,11 @@ export function parseArticle(doc: CdsArticle): Article {
 /** Null when the page isn't an article (a show page, a form); throws ArticleUnavailable when the site or NPR fails. */
 export function createArticleReader(opts: { token: string; fetch?: typeof fetch; timeoutMs?: number }): ArticleReader {
   const fetchImpl = opts.fetch ?? fetch;
+  // A 404 is an answer (no such page, or NPR doesn't carry it), not an outage: null, and the listener gets the link.
   const get = async (url: string, headers: Record<string, string> = {}) => {
     const response = await fetchImpl(url, { headers, signal: AbortSignal.timeout(opts.timeoutMs ?? 4000) })
       .catch((error: unknown) => { throw new ArticleUnavailable(`${url} failed: ${String(error)}`); });
+    if (response.status === 404) return null;
     if (!response.ok) throw new ArticleUnavailable(`${url} returned ${response.status}`);
     return response;
   };
@@ -88,11 +90,11 @@ export function createArticleReader(opts: { token: string; fetch?: typeof fetch;
     async read(url) {
       if (!isStationPage(url)) return null;
       const page = await get(url);
-      if (!isStationPage(page.url || url)) return null; // a redirect off the site
+      if (!page || !isStationPage(page.url || url)) return null; // missing, or a redirect off the site
       const id = articleIdFromPage(await page.text());
       if (!id) return null;
-      const body = (await (await get(CDS_DOCUMENTS + encodeURIComponent(id), { Authorization: `Bearer ${opts.token}` })).json()) as { resources?: CdsArticle[] };
-      const doc = body.resources?.[0];
+      const cds = await get(CDS_DOCUMENTS + encodeURIComponent(id), { Authorization: `Bearer ${opts.token}` });
+      const doc = cds && ((await cds.json()) as { resources?: CdsArticle[] }).resources?.[0];
       return doc ? parseArticle(doc) : null;
     },
   };

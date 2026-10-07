@@ -88,6 +88,9 @@ describe("createArticleReader", () => {
   it("a page with no NPR story (a show page, a form) is null", async () => {
     expect(await createArticleReader({ token: "t", fetch: fake("<html></html>") as unknown as typeof globalThis.fetch }).read("https://radiomilwaukee.org/x")).toBeNull();
   });
+  it("a page NPR doesn't have (404, e.g. some podcast pages) is null, not a failure", async () => {
+    expect(await createArticleReader({ token: "t", fetch: fake(page, 404) as unknown as typeof globalThis.fetch }).read("https://radiomilwaukee.org/x")).toBeNull();
+  });
   it("NPR refusing is ArticleUnavailable, so the tool falls back to the link", async () => {
     await expect(createArticleReader({ token: "t", fetch: fake(page, 500) as unknown as typeof globalThis.fetch }).read("https://radiomilwaukee.org/x")).rejects.toBeInstanceOf(ArticleUnavailable);
   });
