@@ -166,7 +166,7 @@ ${chat ? CHAT_HELPERS : ""}function render(full) {
 
 app.ontoolresult = (result) => {
   const data = ${chat ? "result && { ...result.structuredContent, ...result._meta }" : "result && result.structuredContent"};
-  if (!data || typeof data.cardHtml !== "string") { root.textContent = "Story unavailable."; return; }
+  if (!data || typeof data.cardHtml !== "string") { root.textContent = ${chat ? '""' : '"Story unavailable."'}; return; }
   current = data;
   if (audio) audio.pause(); // a new answer replaces the card, so its sound stops too
   audio = null;

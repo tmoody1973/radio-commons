@@ -166,4 +166,4 @@ it("chat opens the audio in a new tab when the card isn't allowed to play it", (
 
 ## Later (unchanged from the spec)
 
-Slice 3 copy pass (chat-worded replies), slice 4 playlists, slice 5 requests and 5 O'Clock Shadow, slice 6 station home.
+Slice 3 copy pass (chat-worded replies), slice 4 playlists **plus songs in a time window** (new read-only rm-playlist-v2 query; chat lists every play in the window instead of one guess — see spec), slice 5 requests and 5 O'Clock Shadow, slice 6 station home.

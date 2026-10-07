@@ -10,13 +10,19 @@ import { playlistFromEnv, type PlaylistClient } from "@/lib/playlist";
 // The ChatGPT door: same tools and data as /api/mcp (Alexa+), with chat replies, cards and sign-in (decision 010).
 export const preferredRegion = "iad1";
 
-// ponytail: no warm-up calls here; ChatGPT has no 500 ms budget. Add them if first-call latency shows up in hand tests.
 let client: BackstoryClient | undefined;
 const backstory = () => (client ??= backstoryFromEnv());
 let playlistClient: PlaylistClient | undefined;
 const playlist = () => (playlistClient ??= playlistFromEnv());
+// No 500 ms budget here: the Field Guide may take a cold start (seen in the hand test, 2026-10-07).
+const FIELD_GUIDE_TIMEOUT_MS = 6000;
+const fieldGuide = () => fieldGuideFromEnv(FIELD_GUIDE_TIMEOUT_MS);
 
-const handler = buildMcpHandler({ backstory, fieldGuide: fieldGuideFromEnv, playlist, defer: (task) => after(task), cardHtml: chatCardPage, surface: "chat" });
+// Wake both like /api/mcp does, so the first ChatGPT question after a quiet spell isn't the one that times out.
+if (process.env.BACKSTORY_CONVEX_URL) void backstory().searchStoryCards("warm up").catch(() => undefined); // not at build time in CI
+if (process.env.BACKSTORY_CONVEX_URL) void fieldGuide().picks().catch(() => undefined);
+
+const handler = buildMcpHandler({ backstory, fieldGuide, playlist, defer: (task) => after(task), cardHtml: chatCardPage, surface: "chat" });
 
 // No 401 gate: a signed-out call reaches the tool, whose mcp/www_authenticate error opens ChatGPT's sign-in screen.
 const authed = withMcpAuth(handler, verifyChatGptToken, { required: false, resourceMetadataPath: `/.well-known/oauth-protected-resource${CHAT_RESOURCE_PATH}` });

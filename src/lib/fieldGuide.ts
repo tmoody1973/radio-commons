@@ -55,6 +55,7 @@ export function createFieldGuideClient({ baseUrl, fetch: get = fetch, timeoutMs 
   };
 }
 
-export function fieldGuideFromEnv(): FieldGuideClient {
-  return createFieldGuideClient({ baseUrl: process.env.FIELD_GUIDE_URL ?? "https://mke-field-guide.vercel.app" });
+/** timeoutMs: the client's default (2 s) suits Alexa+'s budget; the ChatGPT door can wait out a cold start. */
+export function fieldGuideFromEnv(timeoutMs?: number): FieldGuideClient {
+  return createFieldGuideClient({ baseUrl: process.env.FIELD_GUIDE_URL ?? "https://mke-field-guide.vercel.app", ...(timeoutMs ? { timeoutMs } : {}) });
 }

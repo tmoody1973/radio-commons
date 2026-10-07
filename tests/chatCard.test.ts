@@ -116,3 +116,9 @@ describe("review fixes", () => {
 it("keyboard users can see which tile has focus (apps-sdk-ui focus ring)", () => {
   expect(CHAT_STYLE).toContain(".tile:focus-visible{outline:2px solid var(--focus);outline-offset:2px}");
 });
+
+it("a tool result without a card leaves the chat card empty (ChatGPT's reply explains); Alexa keeps its message", () => {
+  const own = (page: string) => page.split("const App = ")[1];
+  expect(own(chatCardPage("k"))).toContain('{ root.textContent = ""; return; }');
+  expect(own(storyCardPage("k"))).toContain('{ root.textContent = "Story unavailable."; return; }');
+});

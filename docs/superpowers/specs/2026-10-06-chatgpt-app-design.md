@@ -89,6 +89,7 @@ New, listener-owned playlists in the playlist database (rm-playlist-v2), next to
 - "Make me a playlist of Milwaukee artists 88Nine played this month" works by the model searching the playlist and adding; no new search tool.
 - Card: a playlist is a song list inline (first 8, Show more) and fullscreen for the whole list. Each song has a 30-second preview and Remove.
 - Later, not now: export to Apple Music (Finds already connect to it), share links.
+- **Songs in a time window (added 2026-10-07, Tarik):** in chat, "what played on HYFIN around 10?" or "from 10 to 10:30" shows **every** play in that window as a swipeable list with Save on each, not one best guess. Today `alexa:findSongPlayed` returns status `ok` with one match whenever there are no cues (checked: 09:45–10:15 and 10:00–10:30 on HYFIN each returned one song). Plan: a new read-only query in rm-playlist-v2 ("plays on a station between two times", newest first, capped at about 12), called only by the ChatGPT door; Alexa keeps its one confident answer.
 
 ## Requests and 5 O'Clock Shadow (new)
 
