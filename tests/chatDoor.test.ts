@@ -160,3 +160,10 @@ describe("ChatGPT door: review fixes", () => {
     expect(message.result.structuredContent.cardHtml).toBeUndefined();
   });
 });
+
+it("card tools tell ChatGPT the card already lists the results; tools without a card don't", async () => {
+  const tools: { name: string; description: string }[] = (await mcpPost(chatHandler(), { method: "tools/list" })).message.result.tools;
+  const note = "The card shows these results; reply in one or two sentences and don't list them again.";
+  expect(tools.find((t) => t.name === "find_events")!.description.endsWith(note)).toBe(true);
+  expect(tools.find((t) => t.name === "delete_my_finds")!.description).not.toContain(note);
+});

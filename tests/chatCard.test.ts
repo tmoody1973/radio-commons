@@ -122,3 +122,8 @@ it("a tool result without a card leaves the chat card empty (ChatGPT's reply exp
   expect(own(chatCardPage("k"))).toContain('{ root.textContent = ""; return; }');
   expect(own(storyCardPage("k"))).toContain('{ root.textContent = "Story unavailable."; return; }');
 });
+
+it("events (never pictured) are a list in chat, and tile buttons are 28px, not Alexa's 48px", () => {
+  expect(CHAT_STYLE).toContain(".carousel:has(> .tile.event){flex-direction:column");
+  expect(CHAT_STYLE).toContain(".tile-actions .secondary{min-height:0");
+});

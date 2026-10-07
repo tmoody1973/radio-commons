@@ -75,4 +75,16 @@ button svg{width:16px;height:16px}
 @media (max-width:480px){.onair-row .what{flex-basis:calc(100% - 52px)}.onair-row .primary{margin-left:52px}.cap-grid{grid-template-columns:1fr 1fr}}
 @media (max-width:600px){.side{top:auto;left:10px;right:10px;bottom:10px;width:auto;max-height:42%}}
 .tile:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.tile-actions .secondary{min-height:0;min-width:0}
+.carousel:has(> .tile.event){flex-direction:column;gap:0;overflow:visible}
+.tile.event{width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"head actions" "title actions" "date actions";column-gap:12px;row-gap:2px;padding:12px 0;border-top:1px solid var(--divider);cursor:default}
+.tile.event:first-child{border-top:0;padding-top:0}
+.tile.event:last-child{padding-bottom:0}
+.tile.event .ev-head{grid-area:head;margin:0;gap:8px;display:flex;align-items:center}
+.tile.event .badge{position:static;min-width:20px;height:20px;font-size:11px}
+.tile.event .ev-cat{font-size:12px;line-height:18px;font-weight:500;color:var(--text-2)}
+.tile.event .tag{font-size:11px;line-height:16px;padding:1px 8px;border-radius:9999px;background:var(--soft);color:var(--text);font-weight:500;margin:0}
+.tile.event .tile-title{grid-area:title;margin:0;font-size:15px;line-height:22px;font-weight:500}
+.tile.event .tile-date{grid-area:date;margin:0}
+.tile.event .tile-actions{grid-area:actions;align-self:center;margin:0}
 `;

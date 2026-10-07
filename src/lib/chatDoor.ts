@@ -58,6 +58,10 @@ export function chatResult<T extends ToolResultLike>(result: T): T {
   return { ...result, structuredContent: kept, _meta: { ...result._meta, ...moved } };
 }
 
+// On card tools, per-tool guidance against re-listing what the card shows (ChatGPT repeated events as a table).
+const CARD_NOTE = " The card shows these results; reply in one or two sentences and don't list them again.";
+const hasCard = (config: { _meta?: Record<string, unknown> }) => Boolean((config._meta?.ui as { resourceUri?: string } | undefined)?.resourceUri);
+
 /**
  * Every tool registered on the chat door goes through here: chat descriptions, sign-in schemes, a status line, and
  * results with the card HTML moved to _meta. ponytail: patches this request's server instance (mcp-handler builds one
@@ -70,7 +74,7 @@ export function patchChatServer(server: McpServerLike) {
       name,
       {
         ...config,
-        ...(config.description ? { description: chatDescription(config.description) } : {}),
+        ...(config.description ? { description: chatDescription(config.description) + (hasCard(config) ? CARD_NOTE : "") } : {}),
         _meta: {
           ...config._meta,
           securitySchemes: SIGNED_IN_TOOLS.has(name) ? SIGNED_IN : EITHER,
