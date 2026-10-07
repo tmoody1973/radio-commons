@@ -110,6 +110,12 @@ const CHAT_SAVE = `const ask = (b) => app.sendMessage({ role: "user", content: [
   }
   `;
 
+// ChatGPT door only: the live stream floats in picture-in-picture while the listener keeps chatting, and audio the card
+// isn't allowed to play opens in a new tab instead of reading "Can't play here".
+const CHAT_PIP_ON = ` if (button.classList.contains("live")) app.requestDisplayMode({ mode: "pip" }).catch(() => {});`;
+const CHAT_PIP_OFF = ` if (button.classList.contains("live")) app.requestDisplayMode({ mode: "inline" }).catch(() => {});`;
+const CHAT_OPEN_AUDIO = `app.openLink({ url: button.dataset.audio }).catch(() => {}); return; `;
+
 // chat: the ChatGPT door's page. It reads card HTML from the result's _meta (hidden from the model), never zooms
 // (cards fit their content), and adds the chat-only button behaviors below. Alexa's page is chat = false, unchanged.
 const script = (mapKey: string, chat = false) => `
@@ -206,7 +212,7 @@ function play(button) {
   audio.play().then(() => {
     showPlaying(true);
     window.parent.postMessage({ type: "radio-commons:playing" }, "*"); // lets a host stop its own voice
-  }).catch(() => { button.lastChild.textContent = " Can't play here"; });
+  }).catch(() => { ${chat ? CHAT_OPEN_AUDIO : ""}button.lastChild.textContent = " Can't play here"; });
 }
 
 // List tiles each carry their own preview (or live stream): one plays at a time, and its button reads "Pause" (or its data-playing) while it does.
@@ -217,7 +223,7 @@ function rowLabel(button, playing) {
 function playRow(button) {
   const same = audio && audio.dataset.row === button.dataset.audio;
   if (same && !audio.paused) {
-    audio.pause();
+    audio.pause();${chat ? CHAT_PIP_OFF : ""}
     if (button.classList.contains("live")) audio = null; // a live stream restarts fresh, never from a stale buffer
     return;
   }
@@ -225,9 +231,9 @@ function playRow(button) {
   if (!same) { audio = new Audio(button.dataset.audio); audio.dataset.row = button.dataset.audio; }
   audio.onpause = () => rowLabel(button, false);
   audio.play().then(() => {
-    rowLabel(button, true);
+    rowLabel(button, true);${chat ? CHAT_PIP_ON : ""}
     window.parent.postMessage({ type: "radio-commons:playing" }, "*");
-  }).catch(() => { button.lastChild.textContent = " Can't play here"; });
+  }).catch(() => { ${chat ? CHAT_OPEN_AUDIO : ""}button.lastChild.textContent = " Can't play here"; });
 }
 
 // The host pauses the card when the listener says "stop" or "pause" (Alexa handles those on the device itself).

@@ -64,3 +64,21 @@ describe("Save from the card", () => {
     expect(ownScript(chatCardPage("k"))).toContain("callServerTool");
   });
 });
+
+// Listen live keeps playing while the listener chats (picture-in-picture); audio the card can't play opens instead.
+describe("Listen in the chat card", () => {
+  const ownScript = (page: string) => page.split("const App = ")[1];
+  it("Listen live asks for picture-in-picture and returns inline when it stops", () => {
+    const chat = ownScript(chatCardPage("k"));
+    expect(chat).toContain('requestDisplayMode({ mode: "pip" })');
+    expect(chat).toContain('requestDisplayMode({ mode: "inline" })');
+  });
+  it("opens the audio in a new tab when the card isn't allowed to play it", () => {
+    expect(ownScript(chatCardPage("k"))).toContain("app.openLink({ url: button.dataset.audio })");
+  });
+  it("Alexa's card does neither", () => {
+    const alexa = ownScript(storyCardPage("k"));
+    expect(alexa).not.toContain('mode: "pip"');
+    expect(alexa).not.toContain("url: button.dataset.audio");
+  });
+});
