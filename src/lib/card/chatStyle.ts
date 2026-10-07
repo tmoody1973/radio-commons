@@ -101,4 +101,16 @@ button svg{width:16px;height:16px}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 .chip{background:transparent;color:var(--text);border:1px solid var(--divider);border-radius:9999px;padding:6px 12px;font-size:13px;line-height:18px}
 .chip:hover{background:var(--soft)}
+.article{padding:0 0 12px;overflow:hidden}
+.article .hero{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:12px 12px 0 0}
+.article .caption{margin:6px 16px 0;font-size:12px;line-height:16px;color:var(--text-2)}
+.article .meta,.article h2,.article .teaser,.article .body,.article .actions{margin-left:16px;margin-right:16px}
+.article .meta{margin-top:12px}
+.article .teaser{margin-top:4px;color:var(--text-2);font-size:14px;line-height:20px}
+.article .body p{margin:10px 0;font-size:15px;line-height:22px}
+.article .body .lead b{font-weight:600}
+.article .sub{margin:18px 0 4px;font-size:13px;line-height:18px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--text-2)}
+.article .actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.article.full{max-width:680px;margin:0 auto;border-radius:0}
+.article.full .hero{border-radius:0}
 `;

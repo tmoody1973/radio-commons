@@ -6,6 +6,8 @@ import { PlaylistUnavailable, type Digest, type PlaylistClient, type RecallMatch
 import { listenerIdFrom } from "@/lib/listenerAuth";
 import { chatWidgetMeta, patchChatServer } from "@/lib/chatDoor";
 import { registerPlaylistTools } from "@/lib/playlistTools";
+import { registerArticleTool } from "@/lib/articleTool";
+import { articleReaderFromEnv, type ArticleReader } from "@/lib/article";
 import { cleanRequest, milwaukeeDay, openRequest, requestEmail, REQUESTS_PER_DAY, requestsFromEnv, sealRequest, type Requests } from "@/lib/requests";
 import { CAPABILITIES, CAPABILITIES_SPEECH } from "@/lib/capabilities";
 import { FieldGuideUnavailable, type FieldGuideClient, type PublicEvent } from "@/lib/fieldGuide";
@@ -77,6 +79,8 @@ const MEMBER_LINE_BUDGET_MS = 300;
 const LEVEL_SLUG = z.enum(LEVELS.map((level) => level.slug) as [string, ...string[]]);
 
 interface Deps {
+  /** ChatGPT door: radiomilwaukee.org articles from NPR CDS; null until NPR_CDS_TOKEN is set. */
+  articles?: () => ArticleReader | null;
   backstory: () => BackstoryClient;
   fieldGuide: () => FieldGuideClient;
   playlist: () => PlaylistClient;
@@ -335,6 +339,7 @@ export function buildMcpHandler(deps: Deps) {
     (server) => {
       if (chat) patchChatServer(server);
       if (chat) registerPlaylistTools(server, { playlist: deps.playlist, card, signInRequired, timed, cardMeta: CARD });
+      if (chat) registerArticleTool(server, { reader: deps.articles ?? articleReaderFromEnv, card, cardMeta: CARD });
       registerAppTool(
         server,
         "find_station_story",
@@ -1000,7 +1005,7 @@ export function buildMcpHandler(deps: Deps) {
             ]);
             return {
               content: text("Here's Radio Milwaukee: what's on now, the newest episodes, this week's highlights and your Finds."),
-              structuredContent: card({ view: "home", tiles, episodes, briefing, finds: listenerId ? (finds ?? []) : null }),
+              structuredContent: card({ view: "home", tiles, episodes, briefing, finds: listenerId ? (finds ?? []) : null }, { thisWeek: briefing?.items.map(({ heading, url }) => ({ heading, url })) ?? [] }),
             };
           }, playlistUnavailable),
       );

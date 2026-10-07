@@ -52,6 +52,7 @@ const STATUS: Record<string, string> = {
   show_playlists: "Opening your playlists…",
   remove_from_playlist: "Removing the song…",
   delete_playlist: "Deleting the playlist…",
+  read_article: "Opening the article…",
 };
 
 // The model reads structuredContent verbatim; these are only for drawing the card, so they go in _meta (hidden

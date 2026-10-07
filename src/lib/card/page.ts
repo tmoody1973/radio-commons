@@ -97,6 +97,7 @@ blockquote{margin:0;font-size:40px;line-height:1.1;font-weight:700}blockquote.q-
 // ChatGPT door only: Save calls save_find, and Places calls get_station_story, from the card (no extra ChatGPT turn). Anything but a clean "ok" (signed out,
 // song not found, an error) falls back to the chat message, so ChatGPT explains or shows its sign-in screen.
 const CHAT_SAVE = `const ask = (b) => app.sendMessage({ role: "user", content: [{ type: "text", text: b.dataset.ask }] }).catch(() => {});
+  if (button.dataset.chatAsk) { app.sendMessage({ role: "user", content: [{ type: "text", text: button.dataset.chatAsk }] }).catch(() => {}); return; }
   if (button.dataset.call) {
     const call = JSON.parse(button.dataset.call);
     button.disabled = true;

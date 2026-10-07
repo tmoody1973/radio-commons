@@ -234,3 +234,50 @@ describe("station home header", () => {
     expect(html.indexOf("Try asking")).toBeLessThan(html.indexOf("On air now"));
   });
 });
+
+describe("article card (newsletter Read, in ChatGPT)", () => {
+  const article = {
+    id: "g-s921-1", title: "Weekend guide: <spooks>", teaser: "Oktoberfests wrap up.", publishedAt: Date.parse("2026-10-01T12:00:00Z"),
+    url: "https://radiomilwaukee.org/events-festivals/x", image: { url: "https://npr.brightspotcdn.com/w.jpg", caption: "Dance Fest", credit: "Nō Studios" },
+    blocks: [
+      { kind: "para", lines: ["Every week, Milwaukee With Kids answers a simple question for families across the area: what are we going to do this weekend?"], lead: false },
+      { kind: "heading", text: "Featured pick" },
+      { kind: "para", lines: ["Milwaukee Oktoberfest", "Henry Maier Festival Park", "Oct. 2-4"], lead: true },
+      ...Array.from({ length: 6 }, (_, i) => ({ kind: "para", lines: [`Paragraph ${i} `.repeat(20)], lead: false })),
+      { kind: "heading", text: "Animals in action" },
+      { kind: "para", lines: ["Family Free Day", "Milwaukee County Zoo", "Oct 3"], lead: true },
+    ],
+  };
+  const inline = renderView({ view: "article", article } as never);
+  const full = renderView({ view: "article", article, full: true } as never);
+
+  it("inline: photo, date, escaped headline, teaser, the opening, and two actions", () => {
+    expect(inline).toContain('src="https://npr.brightspotcdn.com/w.jpg"');
+    expect(inline).toContain("October 1");
+    expect(inline).toContain("Weekend guide: &lt;spooks&gt;");
+    expect(inline).toContain("Oktoberfests wrap up.");
+    expect(inline).toContain("Every week, Milwaukee With Kids");
+    expect(inline).not.toContain("Family Free Day");
+    expect(inline).toContain('class="primary fullscreen"');
+    expect(inline).toContain('class="secondary details" data-url="https://radiomilwaukee.org/events-festivals/x"');
+  });
+  it("inline never ends on a heading", () => {
+    expect(inline.trimEnd()).not.toMatch(/<h3[^>]*>[^<]*<\/h3><\/div><div class="actions">/);
+  });
+  it("full screen: every block, headings, event lines kept apart, caption and credit, and the site link", () => {
+    expect(full).toContain("Animals in action");
+    expect(full).toContain("<b>Family Free Day</b><br>Milwaukee County Zoo<br>Oct 3");
+    expect(full).toContain("Dance Fest");
+    expect(full).toContain("Nō Studios");
+    expect(full).toContain('data-url="https://radiomilwaukee.org/events-festivals/x"');
+    expect(full).not.toContain("fullscreen");
+  });
+});
+
+describe("newsletter Read in ChatGPT", () => {
+  it("a page item asks ChatGPT to open the article here (chat only); Alexa still opens the link", () => {
+    const html = renderView({ view: "briefing", date: "Oct. 1", items: [{ heading: "Weekend guide", url: "https://radiomilwaukee.org/x", summary: "s", action: { kind: "page", url: "https://radiomilwaukee.org/x" } }] } as never);
+    expect(html).toContain('class="secondary details" data-url="https://radiomilwaukee.org/x"');
+    expect(html).toContain('data-chat-ask="Open the newsletter article &quot;Weekend guide&quot; here"');
+  });
+});

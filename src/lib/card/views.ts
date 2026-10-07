@@ -2,6 +2,7 @@ import type { Passage, Story, StoryCardMatch } from "@/lib/backstory";
 import type { PlaylistItem, PlaylistSummary } from "@/lib/playlist";
 import type { StationRequest } from "@/lib/requests";
 import type { BriefingItem } from "@/lib/briefing";
+import type { Article, ArticleBlock } from "@/lib/article";
 import type { PublicEvent } from "@/lib/fieldGuide";
 import type { Badge } from "@/lib/map/geo";
 import type { Digest, DigestItem, FindRow, HostCard, RecentSong, SavedFind, ScheduleProgram, ScheduleSlot, Station, StationShow } from "@/lib/playlist";
@@ -56,7 +57,9 @@ export type CardView =
   | { view: "home"; tiles: OnAirTile[]; episodes?: StoryCardMatch[] | null; briefing: { date: string; items: BriefingItem[] } | null; finds: FindRow[] | null }
   /** ChatGPT door only: one listener playlist, and the list of them (rm-playlist-v2 #69). */
   | { view: "playlist"; playlistId: string; name: string; items: PlaylistItem[] }
-  | { view: "playlists"; playlists: PlaylistSummary[] };
+  | { view: "playlists"; playlists: PlaylistSummary[] }
+  /** ChatGPT door only: a radiomilwaukee.org article (the newsletter's Read); full is the fullscreen version. */
+  | { view: "article"; article: Article; full?: boolean };
 
 const escape = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
@@ -448,7 +451,7 @@ function briefingView(date: string, items: BriefingItem[]): string {
       ? `<button type="button" class="primary ask" data-ask="${escape(`Tell me about the story "${action.title}"`)}">${PLAY} Play</button>`
       : action.kind === "picks"
         ? '<button type="button" class="secondary ask" data-ask="What is Radio Milwaukee recommending?">Picks</button>'
-        : `<button type="button" class="secondary details" data-url="${escape(action.url)}">Read</button>`;
+        : `<button type="button" class="secondary details" data-url="${escape(action.url)}" data-chat-ask="${escape(`Open the newsletter article "${item.heading}" here`)}">Read</button>`;
     return `<div class="row-wrap"><div class="row"><span class="num">${i + 1}</span><span class="what"><b>${escape(item.heading)}</b><small>${escape(item.summary)}</small></span></div>${button}</div>`;
   }).join("");
   return `<article class="card briefing">${LOGO}<span class="meta">From the ${escape(date)} newsletter</span><div class="list">${rows}</div></article>`;
@@ -507,6 +510,35 @@ function playlistsView(playlists: PlaylistSummary[]): string {
 }
 
 /** The station home: what's on, this week, and your Finds, stacked; each section is the card it already is elsewhere. */
+const blockHtml = (b: ArticleBlock) => b.kind === "heading"
+  ? `<h3 class="sub">${escape(b.text)}</h3>`
+  : `<p${b.lead ? ' class="lead"' : ""}>${b.lines.map((line, i) => (i === 0 && b.lead ? `<b>${escape(line)}</b>` : escape(line))).join("<br>")}</p>`;
+// ponytail: the inline card shows about 400 characters of the opening; fullscreen has the rest.
+const OPENING_CHARS = 400;
+function opening(blocks: ArticleBlock[]): ArticleBlock[] {
+  const shown: ArticleBlock[] = [];
+  let chars = 0;
+  for (const b of blocks) {
+    if (chars >= OPENING_CHARS) break;
+    shown.push(b);
+    chars += b.kind === "heading" ? b.text.length : b.lines.join(" ").length;
+  }
+  while (shown.length > 1 && shown[shown.length - 1].kind === "heading") shown.pop();
+  return shown;
+}
+
+/** A station article: inline, the opening with Read the whole article (fullscreen); fullscreen, all of it. */
+function stationArticleView(a: Article, full: boolean): string {
+  const site = `<button type="button" class="secondary details" data-url="${escape(a.url)}">Open on radiomilwaukee.org ↗</button>`;
+  const photo = a.image ? `<img class="hero" src="${escape(a.image.url)}" alt="${escape(a.image.caption)}">` : "";
+  const credit = full && a.image && (a.image.caption || a.image.credit)
+    ? `<p class="caption">${escape([a.image.caption, a.image.credit].filter(Boolean).join(" · "))}</p>` : "";
+  const head = `${photo}${credit}<p class="meta">${escape(dayMonth(a.publishedAt))} · radiomilwaukee.org</p><h2>${escape(a.title)}</h2>${a.teaser ? `<p class="teaser">${escape(a.teaser)}</p>` : ""}`;
+  const body = (full ? a.blocks : opening(a.blocks)).map(blockHtml).join("");
+  const actions = full ? site : `<button type="button" class="primary fullscreen">Read the whole article</button>${site}`;
+  return `<article class="card article${full ? " full" : ""}">${head}<div class="body">${body}</div><div class="actions">${actions}</div></article>`;
+}
+
 const STATION_SITE = "https://radiomilwaukee.org";
 // Tapping one sends it as the listener's own message: the home teaches the app by using it.
 const TRY_ASKING: [label: string, ask: string][] = [
@@ -575,5 +607,6 @@ export function renderView(card: CardView): string {
     case "home": return homeView(card.tiles, card.episodes ?? null, card.briefing, card.finds);
     case "playlist": return playlistView(card.playlistId, card.name, card.items);
     case "playlists": return playlistsView(card.playlists);
+    case "article": return stationArticleView(card.article, card.full === true);
   }
 }
