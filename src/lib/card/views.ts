@@ -507,13 +507,30 @@ function playlistsView(playlists: PlaylistSummary[]): string {
 }
 
 /** The station home: what's on, this week, and your Finds, stacked; each section is the card it already is elsewhere. */
+const STATION_SITE = "https://radiomilwaukee.org";
+// Tapping one sends it as the listener's own message: the home teaches the app by using it.
+const TRY_ASKING: [label: string, ask: string][] = [
+  ["What's on HYFIN?", "What's on HYFIN right now?"],
+  ["Request a song", "I'd like to request a song"],
+  ["What played 10 to 10:30?", "What played on 88Nine between 10 and 10:30 this morning?"],
+  ["New from Uniquely Milwaukee", "What's new from Uniquely Milwaukee?"],
+];
+
+/** No logo (ChatGPT shows it above the card) and no donate link (OpenAI's apps can't link to checkout): the site has Give. */
+function homeHeader(): string {
+  const chips = TRY_ASKING.map(([label, ask]) => `<button type="button" class="chip ask" data-ask="${escape(ask)}">${escape(label)}</button>`).join("");
+  return `<header class="home-head"><b class="home-name">Radio Milwaukee</b><button type="button" class="link details" data-url="${STATION_SITE}">radiomilwaukee.org ↗</button></header>`
+    + `<p class="home-support">Listener-supported. Support us at radiomilwaukee.org.</p>`
+    + `<section class="home-section"><h3 class="home-title">Try asking</h3><div class="chips">${chips}</div></section>`;
+}
+
 function homeView(tiles: OnAirTile[], episodes: StoryCardMatch[] | null, briefing: { date: string; items: BriefingItem[] } | null, finds: FindRow[] | null): string {
   const section = (title: string, body: string) => `<section class="home-section"><h3 class="home-title">${escape(title)}</h3>${body}</section>`;
   const yours = finds === null
     ? `<article class="card home-hint"><p class="line">Sign in to see your Finds here: ask "What's in my Finds?"</p></article>`
     : finds.length ? findsView(finds) : `<article class="card home-hint"><p class="line">No Finds yet. Save songs from any song card.</p></article>`;
   // ponytail: storiesView shows the 5 newest, so of 6 shows the one with the oldest episode waits for its next one.
-  return `<div class="home">${section("On air now", onAirView(tiles))}${episodes && episodes.length ? section("New episodes", storiesView(episodes)) : ""}${briefing && briefing.items.length ? section("This week", briefingView(briefing.date, briefing.items)) : ""}${section("Your Finds", yours)}</div>`;
+  return `<div class="home">${homeHeader()}${section("On air now", onAirView(tiles))}${episodes && episodes.length ? section("New episodes", storiesView(episodes)) : ""}${briefing && briefing.items.length ? section("This week", briefingView(briefing.date, briefing.items)) : ""}${section("Your Finds", yours)}</div>`;
 }
 
 const REQUEST_KIND: Record<StationRequest["kind"], string> = { song_request: "Song request", five_oclock_shadow: "5 O'Clock Shadow suggestion" };

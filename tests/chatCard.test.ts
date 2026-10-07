@@ -218,3 +218,19 @@ describe("playlist cards", () => {
     expect(renderView({ view: "playlist", playlistId: "pl1", name: "<img src=x onerror=1>", items: [] } as never)).not.toContain("<img src=x");
   });
 });
+
+describe("station home header", () => {
+  const html = renderView({ view: "home", tiles: [], episodes: null, briefing: null, finds: null } as never);
+  it("has the station name and a link to the site, and says where to support, with no logo and no donate button", () => {
+    expect(html).toContain("Radio Milwaukee");
+    expect(html).toContain('class="link details" data-url="https://radiomilwaukee.org"');
+    expect(html).toContain("Support us at radiomilwaukee.org");
+    expect(html).not.toMatch(/donat/i);
+    expect(html.split("On air now")[0]).not.toContain("<img");
+  });
+  it("has four Try asking questions that send as the listener's message", () => {
+    const asks = [...html.matchAll(/class="chip ask" data-ask="([^"]+)"/g)].map((m) => m[1]);
+    expect(asks).toHaveLength(4);
+    expect(html.indexOf("Try asking")).toBeLessThan(html.indexOf("On air now"));
+  });
+});
