@@ -46,6 +46,46 @@ exports[`Alexa+ door (/api/mcp) is frozen > resources/list 1`] = `
 }
 `;
 
+exports[`Alexa+ door (/api/mcp) is frozen > resources/read of the card (its _meta, CSP included) 1`] = `
+{
+  "contents": [
+    {
+      "_meta": {
+        "ui": {
+          "csp": {
+            "connectDomains": [
+              "https://maps.geo.us-east-1.amazonaws.com",
+              "https://unpkg.com",
+            ],
+            "resourceDomains": [
+              "https://f.prxu.org",
+              "https://dovetail.prxu.org",
+              "https://dovetail-cdn.prxu.org",
+              "https://radio-commons.vercel.app",
+              "https://fonts.googleapis.com",
+              "https://fonts.gstatic.com",
+              "https://unpkg.com",
+              "https://*.mzstatic.com",
+              "https://audio-ssl.itunes.apple.com",
+              "https://rm-playlist-v2-embed.pages.dev",
+              "https://wyms.streamguys1.com",
+              "https://s1.ticketm.net",
+              "https://images.discovery-prod.axs.com",
+              "https://npr.brightspotcdn.com",
+            ],
+          },
+        },
+      },
+      "mimeType": "text/html;profile=mcp-app",
+      "text": "<!doctype html><title>card</title>",
+      "uri": "ui://radio-commons/story-card.html",
+    },
+  ],
+}
+`;
+
+exports[`Alexa+ door (/api/mcp) is frozen > the real card page Alexa+ renders, byte for byte (fingerprint) 1`] = `"6136af596321a23d42676de3d3f964214b39f80bf6ac845b4acd001a5ba1d36b"`;
+
 exports[`Alexa+ door (/api/mcp) is frozen > tools/list, every field 1`] = `
 {
   "tools": [
