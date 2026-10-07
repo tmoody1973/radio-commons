@@ -242,7 +242,7 @@ function songsView(songs: SongCard[]): string {
   const tiles = songs.slice(0, 10).map((song, i) => {
     const number = i + 1;
     const preview = song.previewUrl ? `<button type="button" class="secondary row-play" data-audio="${escape(song.previewUrl)}">${PLAY} Preview</button>` : "";
-    const save = `<button type="button" class="secondary ask" data-ask="${escape(`Save number ${number}, "${song.title}" by ${song.artist}`)}">Save</button>`;
+    const save = `<button type="button" class="secondary ask" data-ask="${escape(`Save number ${number}, "${song.title}" by ${song.artist}`)}" data-save="${escape(JSON.stringify({ title: song.title, artist: song.artist }))}">Save</button>`;
     return `<article class="tile song">${art(song.artworkUrl, song.artist, "tile-art")}<span class="badge">${number}</span>`
       + `<span class="tile-title">${escape(song.title)}</span><span class="tile-date">${escape(song.artist)}${song.meta ? ` · ${escape(song.meta)}` : ""}</span>`
       + `<span class="tile-actions">${preview}${save}</span></article>`;
@@ -358,7 +358,7 @@ const listenLive = (station: Station, cls: string) =>
   `<button type="button" class="${cls} row-play live" data-audio="${escape(LIVE_STREAMS[station])}" data-playing="❚❚ Stop">▶ Listen live</button>`;
 // The station rides along so save_find reads that station's current song instead of searching every play.
 const saveSong = (song: RecentSong, station: Station) =>
-  `<button type="button" class="secondary ask" data-ask="${escape(`Save "${song.title}" by ${song.artist} from ${STATION_NAMES[station]}`)}">Save this song</button>`;
+  `<button type="button" class="secondary ask" data-ask="${escape(`Save "${song.title}" by ${song.artist} from ${STATION_NAMES[station]}`)}" data-save="${escape(JSON.stringify({ title: song.title, artist: song.artist, station }))}">Save this song</button>`;
 
 /** One station, large: the song on air (or just "Live now"), Listen live and Save. */
 function onAirStationView({ station, song, show }: OnAirTile): string {

@@ -94,6 +94,22 @@ blockquote{margin:0;font-size:40px;line-height:1.1;font-weight:700}blockquote.q-
 /* Map pins live inside the unscaled map, so they size from --z directly (CSS zoom would shift their position). */
 .mappin{min-width:calc(30px * var(--z));height:calc(30px * var(--z));padding:0 calc(8px * var(--z));box-sizing:border-box;border-radius:9999px;background:${TOKENS.accent};color:${TOKENS.onAccent};border:calc(2px * var(--z)) solid #fff;font:700 calc(15px * var(--z)) Figtree,system-ui,sans-serif;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.35)}`;
 
+// ChatGPT door only: Save calls save_find from the card (no extra ChatGPT turn). Anything but a clean "ok" (signed out,
+// song not found, an error) falls back to the chat message, so ChatGPT explains or shows its sign-in screen.
+const CHAT_SAVE = `const ask = (b) => app.sendMessage({ role: "user", content: [{ type: "text", text: b.dataset.ask }] }).catch(() => {});
+  if (button.dataset.save) {
+    const label = button.textContent;
+    button.textContent = "Saving…";
+    app.callServerTool({ name: "save_find", arguments: JSON.parse(button.dataset.save) }).then((r) => {
+      const ok = r && !r.isError && r.structuredContent && r.structuredContent.status === "ok";
+      if (!ok) { button.textContent = label; return ask(button); } // includes account_linking_required
+      button.textContent = "Saved ✓";
+      button.disabled = true;
+    }).catch(() => { button.textContent = label; ask(button); });
+    return;
+  }
+  `;
+
 // chat: the ChatGPT door's page. It reads card HTML from the result's _meta (hidden from the model), never zooms
 // (cards fit their content), and adds the chat-only button behaviors below. Alexa's page is chat = false, unchanged.
 const script = (mapKey: string, chat = false) => `
@@ -224,7 +240,7 @@ root.addEventListener("click", (event) => {
   if (!button) return;
   const has = (name) => button.classList.contains(name);
   // The card asks; the host decides: a follow-up turn, a map link, or a bigger view.
-  if (has("ask")) { app.sendMessage({ role: "user", content: [{ type: "text", text: button.dataset.ask }] }).catch(() => {}); return; }
+  ${chat ? CHAT_SAVE : ""}if (has("ask")) { app.sendMessage({ role: "user", content: [{ type: "text", text: button.dataset.ask }] }).catch(() => {}); return; }
   if (has("calendar") || has("details") || has("reserve") || has("tickets")) { app.openLink({ url: button.dataset.url }).catch(() => {}); return; }
   if (has("directions")) { app.openLink({ url: button.dataset.url }).catch(() => { button.textContent = "Can't open maps here"; }); return; }
   if (has("fullscreen")) { app.requestDisplayMode({ mode: "fullscreen" }).then(applyContext).catch(() => {}); return; }

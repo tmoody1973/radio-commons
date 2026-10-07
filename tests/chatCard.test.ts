@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chatCardPage, storyCardPage } from "@/lib/card";
+import { chatCardPage, renderView, storyCardPage } from "@/lib/card";
 
 // The ChatGPT door's card page (approved mockups, 2026-10-07). Alexa's page is pinned by tests/alexaDoor.test.ts.
 describe("chat card page", () => {
@@ -27,5 +27,40 @@ describe("chat card page", () => {
     const alexa = storyCardPage("k");
     expect(alexa).toContain("fonts.googleapis.com");
     expect(alexa).toContain("const z = width / 768;");
+  });
+});
+
+// Save from the card calls save_find directly (no extra ChatGPT turn); sign-in or any failure falls back to the
+// chat message, so ChatGPT can show its sign-in screen. Alexa's card keeps the chat-message path only.
+describe("Save from the card", () => {
+  const saveArgs = (html: string) => html.match(/data-save="([^"]+)"/g)!.map((m) => JSON.parse(m.slice(11, -1).replace(/&quot;/g, '"').replace(/&amp;/g, "&").replace(/&#39;/g, "'")));
+
+  it("song list Save buttons carry the save_find arguments", () => {
+    const html = renderView({ view: "songs", songs: [{ title: "No ID", artist: "Tank and the Bangas", meta: "", artworkUrl: null, previewUrl: null, lines: [] }] });
+    expect(saveArgs(html)).toEqual([{ title: "No ID", artist: "Tank and the Bangas" }]);
+  });
+
+  it("on-air Save carries the station too, and survives quotes in titles", () => {
+    const song = { playId: "p1", artist: "Tank & the Bangas", title: `"Quotes" & 'more'`, playedAt: 0, when: "now", artworkUrl: null, previewUrl: null };
+    const html = renderView({ view: "on-air", tiles: [{ station: "hyfin", song, show: null }] } as never);
+    expect(saveArgs(html)).toEqual([{ title: `"Quotes" & 'more'`, artist: "Tank & the Bangas", station: "hyfin" }]);
+  });
+
+  it("the chat page calls save_find and falls back to the chat message on sign-in or failure", () => {
+    const page = chatCardPage("k");
+    expect(page).toContain('name: "save_find"');
+    expect(page).toContain("account_linking_required");
+    expect(page).toContain("return ask(button)");
+  });
+
+  it("only shows Saved when save_find says ok (not_found is not an error, so it must fall back too)", () => {
+    expect(chatCardPage("k")).toContain('r.structuredContent.status === "ok"');
+  });
+
+  // Only our script: the embedded MCP Apps library itself defines callServerTool.
+  const ownScript = (page: string) => page.split("const App = ")[1];
+  it("the Alexa page never calls tools from the card", () => {
+    expect(ownScript(storyCardPage("k"))).not.toContain("callServerTool");
+    expect(ownScript(chatCardPage("k"))).toContain("callServerTool");
   });
 });
