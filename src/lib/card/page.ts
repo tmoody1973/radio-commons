@@ -124,7 +124,7 @@ const CHAT_SAVE = `const ask = (b) => app.sendMessage({ role: "user", content: [
 
 // ChatGPT door only: the live stream floats in picture-in-picture while the listener keeps chatting, and audio the card
 // isn't allowed to play opens in a new tab instead of reading "Can't play here".
-const CHAT_PIP_ON = ` if (button.classList.contains("live")) app.requestDisplayMode({ mode: "pip" }).catch(() => {});`;
+const CHAT_PIP_ON = ` if (button.classList.contains("live")) { app.requestDisplayMode({ mode: "pip" }).catch(() => {}); startLiveRefresh(); }`;
 const CHAT_PIP_OFF = ` if (button.classList.contains("live")) app.requestDisplayMode({ mode: "inline" }).catch(() => {});`;
 const CHAT_OPEN_AUDIO = `if (e && e.name === "AbortError") return; app.openLink({ url: button.dataset.audio }).catch(() => {}); return; `;
 // ChatGPT door only: redraws (picture-in-picture, theme, size) rebuild the card, so put back the playing button and the
@@ -135,6 +135,17 @@ function restoreChatState() {
   if (!audio || audio.paused) return;
   const row = audio.dataset.row && [...root.querySelectorAll("button[data-audio]")].find((b) => b.dataset.audio === audio.dataset.row);
   if (row) rowLabel(row, true); else if (mainButton()) showPlaying(true);
+}
+// While a live stream plays, keep "what's on" current: one on_air_now call a minute, same stations as the card.
+let liveTimer = null;
+function startLiveRefresh() { if (!liveTimer) liveTimer = setInterval(refreshOnAir, 60000); }
+function refreshOnAir() {
+  if (!current || current.view !== "on-air" || !audio || audio.paused) { clearInterval(liveTimer); liveTimer = null; return; }
+  const stations = current.stations || [];
+  app.callServerTool({ name: "on_air_now", arguments: stations.length === 1 ? { station: stations[0].station } : {} }).then((r) => {
+    const next = r && !r.isError && { ...r.structuredContent, ...r._meta };
+    if (next && typeof next.cardHtml === "string") { current = next; applyContext(); } // restoreChatState keeps "Stop"
+  }).catch(() => {});
 }
 function chatMapPadding() {
   const side = root.querySelector(".side");

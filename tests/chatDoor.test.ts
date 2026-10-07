@@ -208,3 +208,8 @@ it("card tools declare picture-in-picture to ChatGPT (openai/ui.availableDisplay
   expect(tools.find((t) => t.name === "on_air_now")!._meta["openai/ui"]!.availableDisplayModes).toEqual(["inline", "fullscreen", "pip"]);
   expect(tools.find((t) => t.name === "delete_my_finds")!._meta["openai/ui"]).toBeUndefined();
 });
+
+it("on_air_now is callable from the card (the live refresh)", async () => {
+  const tools: { name: string; _meta: Record<string, unknown> }[] = (await mcpPost(chatHandler(), { method: "tools/list" })).message.result.tools;
+  expect(tools.find((t) => t.name === "on_air_now")!._meta["openai/widgetAccessible"]).toBe(true);
+});

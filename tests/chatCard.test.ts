@@ -154,3 +154,12 @@ it("the chat card declares it supports inline, fullscreen and picture-in-picture
   expect(own(chatCardPage("k"))).toContain('{ availableDisplayModes: ["inline", "fullscreen", "pip"] }');
   expect(own(storyCardPage("k"))).toContain('new App({ name: "radio-commons-story-card", version: "0.2.0" }, {});');
 });
+
+it("while a live stream plays, the chat on-air card refreshes what's on every minute; Alexa's never does", () => {
+  const own = (page: string) => page.split("const App = ")[1];
+  const chat = own(chatCardPage("k"));
+  expect(chat).toContain('name: "on_air_now"');
+  expect(chat).toContain("setInterval(refreshOnAir, 60000)");
+  expect(chat).toContain("startLiveRefresh()");
+  expect(own(storyCardPage("k"))).not.toContain("refreshOnAir");
+});
