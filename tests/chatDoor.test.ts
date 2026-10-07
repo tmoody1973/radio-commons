@@ -323,3 +323,10 @@ describe("ChatGPT door: send_station_request", () => {
     expect(message.result.structuredContent.view).toBeUndefined();
   });
 });
+
+it("send_station_request asks ChatGPT to get the name the DJ should use", async () => {
+  const tools: { name: string; description: string; inputSchema: { properties: Record<string, unknown> } }[] = (await mcpPost(chatHandler(), { method: "tools/list" })).message.result.tools;
+  const tool = tools.find((t) => t.name === "send_station_request")!;
+  expect(tool.inputSchema.properties.fromName).toBeDefined();
+  expect(tool.description).toContain("fromName");
+});

@@ -487,6 +487,7 @@ function requestView(r: StationRequest, token: string): string {
   return `<article class="card story request"><div class="info"><p class="meta">${escape(REQUEST_KIND[r.kind])} · to Radio Milwaukee</p><h2>${escape(r.song)}</h2>`
     + lines.map((line) => `<p class="line">${escape(line)}</p>`).join("")
     + (r.note ? `<p class="line note">“${escape(r.note)}”</p>` : "")
+    + `<p class="line from">From: ${escape(r.fromName ?? "name not given")}</p>`
     + `<div class="actions">${send}</div></div></article>`;
 }
 

@@ -186,3 +186,8 @@ describe("request cards", () => {
     expect(renderView({ view: "request-status", ok: true, title: "Sent to Radio Milwaukee ✓", detail: "Song request: No ID" } as never)).toContain("Sent to Radio Milwaukee ✓");
   });
 });
+
+it("the request preview shows who it's from, or that no name is given", () => {
+  expect(renderView({ view: "request", request: { kind: "song_request", song: "No ID", artist: "Tank", fromName: "Tarik from Bay View" }, token: "t" } as never)).toContain("From: Tarik from Bay View");
+  expect(renderView({ view: "request", request: { kind: "song_request", song: "No ID", artist: "Tank" }, token: "t" } as never)).toContain("From: name not given");
+});

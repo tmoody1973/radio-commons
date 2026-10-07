@@ -962,19 +962,20 @@ export function buildMcpHandler(deps: Deps) {
         "send_station_request",
         {
           title: "Send Radio Milwaukee a request",
-          description: "Send Radio Milwaukee's DJs a song request, or a suggestion for 5 O'Clock Shadow, 88Nine's daily 5 pm cover song. Call with the details to show a preview card; the listener sends it by tapping Send on the card, which is the only way it is sent, so never say it was sent unless a card says so. For 5 O'Clock Shadow pass song (the song's title), artist (the original artist) and coverArtist (who performs the cover). Sign-in required; up to 3 requests a day.",
+          description: "Send Radio Milwaukee's DJs a song request, or a suggestion for 5 O'Clock Shadow, 88Nine's daily 5 pm cover song. Call with the details to show a preview card; the listener sends it by tapping Send on the card, which is the only way it is sent, so never say it was sent unless a card says so. For 5 O'Clock Shadow pass song (the song's title), artist (the original artist) and coverArtist (who performs the cover). Before the preview, ask the listener what name the DJ should use (for example \"Tarik from Bay View\") and pass it as fromName; if they'd rather not say, leave it out. Sign-in required; up to 3 requests a day.",
           inputSchema: z.object({
             kind: z.enum(["song_request", "five_oclock_shadow"]).optional(),
             song: z.string().max(200).optional(),
             artist: z.string().max(200).optional(),
             coverArtist: z.string().max(200).optional(),
             note: z.string().max(400).optional(),
+            fromName: z.string().max(100).optional(),
             token: z.string().max(2000).optional(),
           }),
           annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
           ...CARD,
         },
-        async ({ kind, song, artist, coverArtist, note, token }, context) => {
+        async ({ kind, song, artist, coverArtist, note, fromName, token }, context) => {
           const listenerId = listenerIdFrom(context.http ?? {});
           if (!listenerId) return signInRequired();
           const setup = (deps.requests ?? requestsFromEnv)();
@@ -995,7 +996,7 @@ export function buildMcpHandler(deps: Deps) {
               console.log(JSON.stringify({ event: "station_request_sent", kind: request.kind }));
               return status(true, "Sent to Radio Milwaukee ✓", email.subject);
             }
-            const request = cleanRequest({ kind: kind ?? "song_request", song, artist, coverArtist, note });
+            const request = cleanRequest({ kind: kind ?? "song_request", song, artist, coverArtist, note, fromName });
             if ("error" in request) return { content: text(REQUEST_QUESTIONS[request.error]), structuredContent: { status: request.error } };
             const sealed = sealRequest(listenerId, request, setup.secret, at.getTime());
             return { content: text(REQUEST_PREVIEW), structuredContent: card({ view: "request", request, token: sealed }, { request }) };

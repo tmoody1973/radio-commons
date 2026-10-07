@@ -32,6 +32,19 @@ describe("cleanRequest", () => {
   });
 });
 
+describe("the listener's name (what they typed, optional)", () => {
+  it("is cleaned like the other fields and capped at 60", () => {
+    const r = cleanRequest({ kind: "song_request", song: "No ID", artist: "Tank", fromName: "  Tarik\nfrom Bay View " }) as { fromName: string };
+    expect(r.fromName).toBe("Tarik from Bay View");
+    expect((cleanRequest({ kind: "song_request", song: "s", artist: "a", fromName: "x".repeat(90) }) as { fromName: string }).fromName).toHaveLength(60);
+  });
+  it("goes in the email, or says it wasn't given", () => {
+    const at = new Date("2026-10-07T22:00:00Z");
+    expect(requestEmail({ kind: "song_request", song: "No ID", artist: "Tank", fromName: "Tarik from Bay View" }, at).text).toContain("From: Tarik from Bay View");
+    expect(requestEmail({ kind: "song_request", song: "No ID", artist: "Tank" }, at).text).toContain("From: name not given");
+  });
+});
+
 describe("requestEmail", () => {
   const at = new Date("2026-10-07T22:00:00Z");
 
