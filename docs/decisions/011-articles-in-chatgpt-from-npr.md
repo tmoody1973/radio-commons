@@ -13,7 +13,7 @@
 
 **What we gave up:**
 - A second secret to manage (`NPR_CDS_TOKEN` in Radio Commons, the same key Backstory uses).
-- Pages that aren't articles (show pages, forms) still open as links.
+- Pages that aren't articles (show pages, forms) still open as links, and so do some station pages NPR doesn't carry: on 2026-10-07 the Cinebuds film festival page named NPR story `g-s921-16671`, but NPR answered "not found". In the first week's newsletter, 1 of 2 Read items opened in chat.
 - Links inside the article (each event's own site) become plain text in the card; "Open on radiomilwaukee.org" is the way to them.
 - Read opens the article as a new card below the newsletter, which costs a ChatGPT turn (a few seconds) instead of swapping the card in place. We chose this so the newsletter list stays visible and ChatGPT can read the article to answer follow-ups.
 
