@@ -129,14 +129,37 @@ const CHAT_SAVE = `const ask = (b) => say(b.dataset.chatAsk || b.dataset.ask, b)
   }
   `;
 
-// ChatGPT door only: the live stream floats in picture-in-picture while the listener keeps chatting, and audio the card
+// ChatGPT door only: while the live stream plays the card keeps "what's on" current, and the browser's own media
+// controls get the audio (ChatGPT has no picture-in-picture: openai/mcp-extensions Display Modes). Audio the card
 // isn't allowed to play opens in a new tab instead of reading "Can't play here".
-const CHAT_PIP_ON = ` if (button.classList.contains("live")) { app.requestDisplayMode({ mode: "pip" }).catch(() => {}); startLiveRefresh(); }`;
-const CHAT_PIP_OFF = ` if (button.classList.contains("live")) app.requestDisplayMode({ mode: "inline" }).catch(() => {});`;
+const CHAT_PLAYING = ` nowPlaying(button); if (button.classList.contains("live")) startLiveRefresh();`;
 const CHAT_OPEN_AUDIO = `if (e && e.name === "AbortError") return; app.openLink({ url: button.dataset.audio }).catch(() => {}); return; `;
 // ChatGPT door only: redraws (picture-in-picture, theme, size) rebuild the card, so put back the playing button and the
 // Saved marks; and on phones the fullscreen map's side list is a bottom sheet, so the map frames the pins above it.
 const CHAT_HELPERS = `const savedKeys = new Set();
+// A hidden card keeps playing (the sidebar app is hidden, not closed, when the listener leaves it: 2026-10-08), so the
+// browser's media controls (Chrome's toolbar media button, the Mac's Now Playing and play/pause keys) get the title,
+// artwork and play, pause and stop. What's playing is read from the card around the button that started it.
+function nowPlaying(button) {
+  if (!("mediaSession" in navigator) || !audio) return;
+  const box = button.closest("article, .row-wrap, .row, .hf-station, .tile") || root;
+  const text = (selector) => { const el = box.querySelector(selector); return el ? el.textContent.trim() : ""; };
+  const img = box.querySelector("img");
+  const player = audio;
+  try {
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: text("h2, .hf-title, .tile-title, .what b") || "Radio Milwaukee",
+      artist: text(".hf-sub, .what small, .line, .tile-date") || "Radio Milwaukee",
+      album: "Radio Milwaukee",
+      artwork: img && img.src ? [{ src: img.src, sizes: "512x512" }] : [],
+    });
+    navigator.mediaSession.setActionHandler("play", () => { player.play().catch(() => {}); });
+    navigator.mediaSession.setActionHandler("pause", () => player.pause());
+    navigator.mediaSession.setActionHandler("stop", () => player.pause());
+  } catch (e) {}
+}
+// ChatGPT closing the card stops its sound.
+app.onteardown = async () => { if (audio) audio.pause(); return {}; };
 // Cards opened from a card (a story from the home, a map from a story): where to go Back to. A new answer clears it.
 let cardHistory = [];
 const BACK = '<button type="button" class="back">← Back</button>';
@@ -198,7 +221,7 @@ function chatMapPadding() {
 // (cards fit their content), and adds the chat-only button behaviors below. Alexa's page is chat = false, unchanged.
 const script = (mapKey: string, chat = false) => `
 const root = document.getElementById("root");
-const app = new App({ name: "radio-commons-story-card", version: "0.2.0" }, ${chat ? '{ availableDisplayModes: ["inline", "fullscreen", "pip"] }' : "{}"});
+const app = new App({ name: "radio-commons-story-card", version: "0.2.0" }, ${chat ? '{ availableDisplayModes: ["inline", "fullscreen"] }' : "{}"});
 const MAP_STYLE = ${JSON.stringify(`${MAP_STYLE}?key=${encodeURIComponent(mapKey)}`)};
 const MAPLIBRE = ${JSON.stringify(MAPLIBRE)};
 let current = null;
@@ -288,7 +311,7 @@ function play(button) {
   else if (button.classList.contains("secondary")) audio.currentTime = 0; // "Whole episode" starts at the top
   if (!audio.paused) { showPlaying(true); return; } // already playing: that was a jump
   audio.play().then(() => {
-    showPlaying(true);
+    showPlaying(true);${chat ? " nowPlaying(button);" : ""}
     window.parent.postMessage({ type: "radio-commons:playing" }, "*"); // lets a host stop its own voice
   }).catch((${chat ? "e" : ""}) => { ${chat ? CHAT_OPEN_AUDIO : ""}button.lastChild.textContent = " Can't play here"; });
 }
@@ -301,7 +324,7 @@ function rowLabel(button, playing) {
 function playRow(button) {
   const same = audio && audio.dataset.row === button.dataset.audio;
   if (same && !audio.paused) {
-    audio.pause();${chat ? CHAT_PIP_OFF : ""}
+    audio.pause();
     if (button.classList.contains("live")) audio = null; // a live stream restarts fresh, never from a stale buffer
     return;
   }
@@ -309,7 +332,7 @@ function playRow(button) {
   if (!same) { audio = new Audio(button.dataset.audio); audio.dataset.row = button.dataset.audio; }
   audio.onpause = () => rowLabel(button, false);
   audio.play().then(() => {
-    rowLabel(button, true);${chat ? CHAT_PIP_ON : ""}
+    rowLabel(button, true);${chat ? CHAT_PLAYING : ""}
     window.parent.postMessage({ type: "radio-commons:playing" }, "*");
   }).catch((${chat ? "e" : ""}) => { ${chat ? CHAT_OPEN_AUDIO : ""}button.lastChild.textContent = " Can't play here"; });
 }

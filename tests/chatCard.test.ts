@@ -67,20 +67,31 @@ describe("Save from the card", () => {
   });
 });
 
-// Listen live keeps playing while the listener chats (picture-in-picture); audio the card can't play opens instead.
+// ChatGPT has no picture-in-picture (openai/mcp-extensions Display Modes: inline and fullscreen only), and a hidden
+// card keeps playing with its controls out of sight (2026-10-08): the browser's own media controls get the audio.
 describe("Listen in the chat card", () => {
   const ownScript = (page: string) => page.split("const App = ")[1];
-  it("Listen live asks for picture-in-picture and returns inline when it stops", () => {
+  it("never asks for picture-in-picture; Listen live still keeps what's on current while it plays", () => {
     const chat = ownScript(chatCardPage("k"));
-    expect(chat).toContain('requestDisplayMode({ mode: "pip" })');
-    expect(chat).toContain('requestDisplayMode({ mode: "inline" })');
+    expect(chat).not.toContain('"pip"');
+    expect(chat).toContain('if (button.classList.contains("live")) startLiveRefresh();');
+  });
+  it("tells the browser what's playing, with play, pause and stop (Chrome's media button, the Mac's Now Playing)", () => {
+    const chat = ownScript(chatCardPage("k"));
+    expect(chat).toContain("navigator.mediaSession.metadata = new MediaMetadata(");
+    for (const action of ["play", "pause", "stop"]) expect(chat).toContain(`setActionHandler("${action}"`);
+    expect(chat.split("nowPlaying(button);").length - 1).toBe(2); // the main player and list rows
+  });
+  it("pauses when ChatGPT closes the card", () => {
+    expect(ownScript(chatCardPage("k"))).toContain("app.onteardown = async () => { if (audio) audio.pause(); return {}; };");
   });
   it("opens the audio in a new tab when the card isn't allowed to play it", () => {
     expect(ownScript(chatCardPage("k"))).toContain("app.openLink({ url: button.dataset.audio })");
   });
   it("Alexa's card does neither", () => {
     const alexa = ownScript(storyCardPage("k"));
-    expect(alexa).not.toContain('mode: "pip"');
+    expect(alexa).not.toContain("mediaSession");
+    expect(alexa).not.toContain("onteardown");
     expect(alexa).not.toContain("url: button.dataset.audio");
   });
 });
@@ -149,9 +160,9 @@ describe("Places from the story card", () => {
   });
 });
 
-it("the chat card declares it supports inline, fullscreen and picture-in-picture at startup; Alexa's declares nothing", () => {
+it("the chat card declares inline and fullscreen at startup (ChatGPT has no picture-in-picture); Alexa's declares nothing", () => {
   const own = (page: string) => page.split("const App = ")[1];
-  expect(own(chatCardPage("k"))).toContain('{ availableDisplayModes: ["inline", "fullscreen", "pip"] }');
+  expect(own(chatCardPage("k"))).toContain('{ availableDisplayModes: ["inline", "fullscreen"] }');
   expect(own(storyCardPage("k"))).toContain('new App({ name: "radio-commons-story-card", version: "0.2.0" }, {});');
 });
 

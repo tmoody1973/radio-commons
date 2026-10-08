@@ -240,9 +240,9 @@ describe("ChatGPT door: places come with the map", () => {
   });
 });
 
-it("card tools declare picture-in-picture to ChatGPT (openai/ui.availableDisplayModes); tools without a card don't", async () => {
+it("card tools declare inline and fullscreen to ChatGPT (openai/ui.availableDisplayModes; it has no picture-in-picture); tools without a card don't", async () => {
   const tools: { name: string; _meta: Record<string, { availableDisplayModes?: string[] } | undefined> }[] = (await mcpPost(chatHandler(), { method: "tools/list" })).message.result.tools;
-  expect(tools.find((t) => t.name === "on_air_now")!._meta["openai/ui"]!.availableDisplayModes).toEqual(["inline", "fullscreen", "pip"]);
+  expect(tools.find((t) => t.name === "on_air_now")!._meta["openai/ui"]!.availableDisplayModes).toEqual(["inline", "fullscreen"]);
   expect(tools.find((t) => t.name === "delete_my_finds")!._meta["openai/ui"]).toBeUndefined();
 });
 
@@ -456,7 +456,7 @@ describe("ChatGPT door: station home", () => {
     expect(home._meta["openai/ui"].entrypoints).toEqual([{ type: "global" }, { type: "thread" }]);
     expect(home.icons?.[0].mimeType).toBe("image/svg+xml");
     expect(decodeURIComponent(home.icons![0].src)).toContain("currentColor");
-    expect(home._meta["openai/ui"].availableDisplayModes).toEqual(["inline", "fullscreen", "pip"]);
+    expect(home._meta["openai/ui"].availableDisplayModes).toEqual(["inline", "fullscreen"]);
     expect(home.title).not.toBe("Radio Milwaukee");
     const alexa = buildMcpHandler({ backstory: () => fakeBackstory(), fieldGuide: () => fakeFieldGuide(), playlist: () => fakePlaylist(), cardHtml: () => "" });
     expect((await mcpPost(alexa, { method: "tools/list" })).message.result.tools.map((t: T) => t.name)).not.toContain("station_home");

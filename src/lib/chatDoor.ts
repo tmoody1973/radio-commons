@@ -158,8 +158,8 @@ export function patchChatServer(server: McpServerLike, cardUri?: string) {
           ...(STATUS[name] ? { "openai/toolInvocation/invoking": STATUS[name] } : {}),
           // OpenAI: must be true for any tool the card calls itself (Save from the card).
           ...(CARD_CALLABLE.has(name) ? { "openai/widgetAccessible": true } : {}),
-          // The live stream floats in picture-in-picture; ChatGPT wants the modes declared before the card loads.
-          ...(hasCard(config) ? { "openai/ui": { ...(config._meta?.["openai/ui"] as Record<string, unknown> | undefined), availableDisplayModes: ["inline", "fullscreen", "pip"] } } : {}),
+          // ChatGPT wants the modes declared before the card loads; it has no picture-in-picture (openai/mcp-extensions).
+          ...(hasCard(config) ? { "openai/ui": { ...(config._meta?.["openai/ui"] as Record<string, unknown> | undefined), availableDisplayModes: ["inline", "fullscreen"] } } : {}),
         },
       } as never,
       (async (...args: unknown[]) => chatResult(await callback(...args))) as never,
