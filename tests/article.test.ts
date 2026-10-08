@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { renderView } from "@/lib/card";
 import { ArticleUnavailable, articleIdFromPage, createArticleReader, isStationPage, parseArticle } from "@/lib/article";
 
 // Shapes copied from NPR CDS document g-s921-16741 (radiomilwaukee.org, 2026-10-01).
@@ -91,7 +92,36 @@ describe("createArticleReader", () => {
   it("a page NPR doesn't have (404, e.g. some podcast pages) is null, not a failure", async () => {
     expect(await createArticleReader({ token: "t", fetch: fake(page, 404) as unknown as typeof globalThis.fetch }).read("https://radiomilwaukee.org/x")).toBeNull();
   });
+  // 2026-10-08: the newsletter's Cinebuds and This Bites links (podcast pages NPR doesn't carry) read "can't open".
+  // The page's own episode data (JSON-LD, which it already sends) makes a summary card instead.
+  const EPISODE_LD = `<script type="application/ld+json">${JSON.stringify({ "@context": "http://schema.org", "@type": "PodcastEpisode",
+    name: "Rice in Mequon, a visit with Three Brothers", description: "Grains are growing in Mequon.",
+    image: { "@type": "ImageObject", url: "https://npr.brightspotcdn.com/f2/this-bites-oct-2.jpg" },
+    partOfSeries: { "@type": "PodcastSeries", name: "This Bites" } })}</script>`;
+  const PODCAST_URL = "https://radiomilwaukee.org/podcast/this-bites/2026-10-02/milwaukee-restaurant-food-news";
+  it("a podcast page NPR doesn't carry becomes a summary from the page's own episode data", async () => {
+    const article = await createArticleReader({ token: "t", fetch: fake(page + EPISODE_LD, 404) as unknown as typeof globalThis.fetch }).read(PODCAST_URL);
+    expect(article).toMatchObject({ title: "Rice in Mequon, a visit with Three Brothers", teaser: "Grains are growing in Mequon.", url: PODCAST_URL, blocks: [] });
+    expect(article?.image?.url).toBe("https://npr.brightspotcdn.com/f2/this-bites-oct-2.jpg");
+    expect(article?.image?.caption).toBe("This Bites");
+    expect(article?.publishedAt).toBe(Date.parse("2026-10-02T12:00:00Z"));
+  });
+  it("a page with neither NPR's copy nor episode data is still null", async () => {
+    expect(await createArticleReader({ token: "t", fetch: fake("<html></html>", 404) as unknown as typeof globalThis.fetch }).read(PODCAST_URL)).toBeNull();
+  });
+  it("broken page data is ignored, not a failure", async () => {
+    const broken = '<script type="application/ld+json">{ not json</script>';
+    expect(await createArticleReader({ token: "t", fetch: fake(page + broken, 404) as unknown as typeof globalThis.fetch }).read(PODCAST_URL)).toBeNull();
+  });
   it("NPR refusing is ArticleUnavailable, so the tool falls back to the link", async () => {
     await expect(createArticleReader({ token: "t", fetch: fake(page, 500) as unknown as typeof globalThis.fetch }).read("https://radiomilwaukee.org/x")).rejects.toBeInstanceOf(ArticleUnavailable);
+  });
+});
+
+describe("an article with only a summary (no body)", () => {
+  it("offers the site, not Read the whole article", () => {
+    const html = renderView({ view: "article", article: { id: "x", title: "Rice in Mequon", teaser: "Grains.", publishedAt: Date.parse("2026-10-02T12:00:00Z"), url: "https://radiomilwaukee.org/podcast/this-bites/x", image: null, blocks: [] } });
+    expect(html).not.toContain("Read the whole article");
+    expect(html).toContain("Open on radiomilwaukee.org");
   });
 });

@@ -552,7 +552,8 @@ function stationArticleView(a: Article, full: boolean, audioUrl: string | null =
     ? `<p class="caption">${escape([a.image.caption, a.image.credit].filter(Boolean).join(" · "))}</p>` : "";
   const head = `${photo}${credit}<p class="meta">${escape(dayMonth(a.publishedAt))} · radiomilwaukee.org</p><h2>${escape(a.title)}</h2>${a.teaser ? `<p class="teaser">${escape(a.teaser)}</p>` : ""}`;
   const body = (full ? a.blocks : opening(a.blocks)).map(blockHtml).join("");
-  const actions = full ? `${play}${site}` : play ? `${play}<button type="button" class="secondary fullscreen">Read the whole article</button>` : `<button type="button" class="primary fullscreen">Read the whole article</button>${site}`;
+  // A summary with no body (a podcast page NPR doesn't carry) has nothing more to read here: the site, and Play if any.
+  const actions = !a.blocks.length || full ? `${play}${site}` : play ? `${play}<button type="button" class="secondary fullscreen">Read the whole article</button>` : `<button type="button" class="primary fullscreen">Read the whole article</button>${site}`;
   return `<article class="card article${full ? " full" : ""}">${head}<div class="article-body">${body}</div><div class="actions">${actions}</div></article>`;
 }
 

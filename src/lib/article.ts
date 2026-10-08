@@ -76,6 +76,35 @@ export function parseArticle(doc: CdsArticle): Article {
 }
 
 /** Null when the page isn't an article (a show page, a form); throws ArticleUnavailable when the site or NPR fails. */
+type LdItem = { "@type"?: string; name?: string; headline?: string; description?: string; datePublished?: string | null;
+  image?: string | { url?: string } | null; partOfSeries?: { name?: string } | null };
+/**
+ * A page NPR doesn't carry (podcast episode pages, 2026-10-08) as a summary from its own structured data (JSON-LD,
+ * which the site sends for search engines): headline, description, photo and show. No body: the card links the site.
+ */
+export function summaryFromPage(html: string, url: string): Article | null {
+  const items = [...html.matchAll(/<script[^>]+application\/ld\+json[^>]*>([\s\S]*?)<\/script>/g)].flatMap(([, json]) => {
+    try {
+      const data = JSON.parse(json) as LdItem | LdItem[] | { "@graph"?: LdItem[] };
+      return Array.isArray(data) ? data : "@graph" in data && Array.isArray(data["@graph"]) ? data["@graph"] : [data as LdItem];
+    } catch {
+      return []; // broken page data is ignored
+    }
+  });
+  const item = items.find((i) => i["@type"] === "PodcastEpisode") ?? items.find((i) => i["@type"] === "NewsArticle" && i.description);
+  const title = item?.name ?? item?.headline;
+  if (!item || !title) return null;
+  const imageUrl = typeof item.image === "string" ? item.image : item.image?.url;
+  // Pages put their date in the path (/podcast/this-bites/2026-10-02/...); noon keeps it on that day in Milwaukee.
+  const day = url.match(/\/(\d{4}-\d{2}-\d{2})\//)?.[1];
+  const publishedAt = item.datePublished ? Date.parse(item.datePublished) : day ? Date.parse(`${day}T12:00:00Z`) : NaN;
+  return {
+    id: `page:${url}`, title, teaser: item.description ?? "", publishedAt: Number.isFinite(publishedAt) ? publishedAt : Date.now(), url,
+    image: imageUrl?.startsWith("https://") ? { url: imageUrl, caption: item.partOfSeries?.name ?? "", credit: "" } : null,
+    blocks: [],
+  };
+}
+
 export function createArticleReader(opts: { token: string; fetch?: typeof fetch; timeoutMs?: number }): ArticleReader {
   const fetchImpl = opts.fetch ?? fetch;
   // A 404 is an answer (no such page, or NPR doesn't carry it), not an outage: null, and the listener gets the link.
@@ -91,11 +120,12 @@ export function createArticleReader(opts: { token: string; fetch?: typeof fetch;
       if (!isStationPage(url)) return null;
       const page = await get(url);
       if (!page || !isStationPage(page.url || url)) return null; // missing, or a redirect off the site
-      const id = articleIdFromPage(await page.text());
+      const html = await page.text();
+      const id = articleIdFromPage(html);
       if (!id) return null;
       const cds = await get(CDS_DOCUMENTS + encodeURIComponent(id), { Authorization: `Bearer ${opts.token}` });
       const doc = cds && ((await cds.json()) as { resources?: CdsArticle[] }).resources?.[0];
-      return doc ? parseArticle(doc) : null;
+      return doc ? parseArticle(doc) : summaryFromPage(html, url);
     },
   };
 }
