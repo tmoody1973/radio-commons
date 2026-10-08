@@ -138,6 +138,8 @@ function withPlacesBehindTheMap<T extends ToolResultLike>(result: T): T {
  * The ChatGPT card's address, versioned by its content: ChatGPT keeps its own copy of a card page by address and
  * didn't refetch it on Refresh tools (2026-10-08), so a changed card needs a new address. Alexa keeps CARD_URI.
  */
+/** Every versioned chat-card address, as an MCP resource template (the versions a deploy leaves behind). */
+export const CHAT_CARD_ADDRESSES = "ui://radio-commons/chat-card-{version}.html";
 export const chatCardUri = (html: string) => `ui://radio-commons/chat-card-${createHash("sha256").update(html).digest("hex").slice(0, 10)}.html`;
 
 export function patchChatServer(server: McpServerLike, cardUri?: string) {

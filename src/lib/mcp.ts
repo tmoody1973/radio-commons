@@ -1,10 +1,11 @@
 import { registerAppResource, registerAppTool, RESOURCE_MIME_TYPE } from "@modelcontextprotocol/ext-apps/server";
+import { ResourceTemplate } from "@modelcontextprotocol/server";
 import { createMcpHandler } from "mcp-handler";
 import { z } from "zod";
 import { BackstoryUnavailable, type BackstoryClient, type Story } from "@/lib/backstory";
 import { PlaylistUnavailable, type Digest, type PlaylistClient, type RecallMatch, type RecentSong, type SavedFind, type Station } from "@/lib/playlist";
 import { listenerIdFrom } from "@/lib/listenerAuth";
-import { chatCardUri, chatWidgetMeta, patchChatServer } from "@/lib/chatDoor";
+import { CHAT_CARD_ADDRESSES, chatCardUri, chatWidgetMeta, patchChatServer } from "@/lib/chatDoor";
 import { registerPlaylistTools } from "@/lib/playlistTools";
 import { registerArticleTool } from "@/lib/articleTool";
 import { articleReaderFromEnv, type ArticleReader } from "@/lib/article";
@@ -1099,6 +1100,14 @@ export function buildMcpHandler(deps: Deps) {
       registerAppResource(server, "Story card", cardUri, { description: chat ? "A Radio Milwaukee card: a story, quote, song list, events, a map or what's on the air." : "A Radio Milwaukee story, quote, list or map, in Alexa+ style." }, async () => ({
         contents: [{ uri: cardUri, mimeType: RESOURCE_MIME_TYPE, text: deps.cardHtml(), _meta: { ui: { csp: CARD_CSP }, ...(chat ? chatWidgetMeta(CARD_CSP) : {}) } }],
       }));
+      // ChatGPT keeps the card address from its last tool refresh; after a deploy that address would be "Resource
+      // not found" and every card read "Couldn't open" (2026-10-08). Any earlier chat-card address reads as today's
+      // card; only the current address is listed.
+      if (chat) {
+        server.registerResource("Earlier card addresses", new ResourceTemplate(CHAT_CARD_ADDRESSES, { list: undefined }), { mimeType: RESOURCE_MIME_TYPE }, async (uri) => ({
+          contents: [{ uri: uri.href, mimeType: RESOURCE_MIME_TYPE, text: deps.cardHtml(), _meta: chatWidgetMeta(CARD_CSP) }],
+        }));
+      }
     },
     { serverInfo: { name: "radio-commons", version: "0.2.0" } },
   );

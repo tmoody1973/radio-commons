@@ -521,6 +521,19 @@ describe("ChatGPT door: the card's address changes whenever the card does", () =
     expect((await mcpPost(handler, { method: "resources/read", params: { uri } })).message.result.contents[0].text).toBe("<p>a</p>");
   });
 
+  // 2026-10-08: a deploy changed the card, and ChatGPT, still holding the last address, showed "Couldn't open":
+  // the old address was "Resource not found". Every earlier address now reads as the current card.
+  it("an earlier address still reads, as the current card; only the current one is listed", async () => {
+    const handler = door("<p>now</p>");
+    const old = "ui://radio-commons/chat-card-0123456789.html";
+    const { message } = await mcpPost(handler, { method: "resources/read", params: { uri: old } });
+    expect(message.error).toBeUndefined();
+    expect(message.result.contents[0]).toMatchObject({ uri: old, text: "<p>now</p>" });
+    expect(message.result.contents[0]._meta["openai/widgetCSP"]).toBeDefined();
+    const listed = (await mcpPost(handler, { method: "resources/list" })).message.result.resources;
+    expect(listed).toHaveLength(1);
+  });
+
   it("Alexa keeps the fixed address", async () => {
     const alexa = buildMcpHandler({ backstory: () => fakeBackstory(), fieldGuide: () => fakeFieldGuide(), playlist: () => fakePlaylist(), cardHtml: () => "<p>a</p>" });
     expect(await chatCardUri(alexa)).toBe(CARD_URI);
