@@ -110,3 +110,28 @@ describe("music stories", () => {
     expect(off.message.result.structuredContent.story.audioUrl).toBe("");
   });
 });
+
+// 2026-10-08: "Read the premiere" opened radiomilwaukee.org in a new tab, out of ChatGPT. The chat card now opens the
+// page as an article card in place (read_article, called from the card); Alexa's page ignores data-call and keeps
+// opening the site. A session's video still plays only on the site.
+describe("Read opens the article in the chat", () => {
+  const readCall = (url: string) => `data-call="{&quot;name&quot;:&quot;read_article&quot;,&quot;arguments&quot;:{&quot;url&quot;:&quot;${url}&quot;}}"`;
+  it("a premiere's Read the premiere calls read_article, keeping the site link for Alexa", () => {
+    const html = renderView({ view: "story", story: PREMIERE });
+    expect(html).toContain(readCall(PREMIERE.permalink!));
+    expect(html).toContain(`data-url="${PREMIERE.permalink}"`);
+  });
+  it("an article story's Read does the same; a session's Watch stays on the site", () => {
+    expect(renderView({ view: "story", story: { ...PREMIERE, song: null } })).toContain(readCall(PREMIERE.permalink!));
+    expect(renderView({ view: "story", story: SESSION })).not.toContain("read_article");
+  });
+  it("the newsletter's Read calls read_article too", () => {
+    const url = "https://radiomilwaukee.org/events-festivals/2026-10-01/what-to-do-milwaukee-weekend";
+    expect(renderView({ view: "briefing", date: "Oct. 1", items: [{ heading: "Move your feet", url, summary: "s", action: { kind: "page", url } }] })).toContain(readCall(url));
+  });
+  it("read_article may be called from the card (openai/widgetAccessible)", async () => {
+    const handler = buildMcpHandler({ backstory: () => fakeBackstory(), fieldGuide: () => fakeFieldGuide(), playlist: () => fakePlaylist(), cardHtml: () => "", surface: "chat" });
+    const tools: { name: string; _meta: Record<string, unknown> }[] = (await mcpPost(handler, { method: "tools/list" })).message.result.tools;
+    expect(tools.find((t) => t.name === "read_article")!._meta["openai/widgetAccessible"]).toBe(true);
+  });
+});

@@ -366,3 +366,21 @@ describe("a card the listener opened from another card", () => {
     expect(html).toContain("&quot;storyId&quot;:&quot;s1&quot;");
   });
 });
+
+describe("a direct call comes before the chat message", () => {
+  it("a button with both data-call and data-chat-ask calls the tool first; the message is the fallback", () => {
+    const chat = chatCardPage("k").split("const App = ")[1];
+    expect(chat.indexOf("if (button.dataset.call)")).toBeLessThan(chat.indexOf("if (button.dataset.chatAsk)"));
+    expect(chat).toContain("say(b.dataset.chatAsk || b.dataset.ask, b)");
+  });
+});
+
+// 2026-10-08: in the sidebar app (always fullscreen) the map's Close asked for inline mode, ChatGPT refused, and
+// nothing happened. Close goes back to the card the map was opened from; only a first card asks to leave fullscreen.
+describe("Close on a card opened from another card", () => {
+  it("goes back instead of asking ChatGPT to leave fullscreen", () => {
+    const chat = chatCardPage("k").split("const App = ")[1];
+    expect(chat).toContain('if ((has("back") || has("close")) && cardHistory.length)');
+    expect(chat.indexOf('(has("back") || has("close"))')).toBeLessThan(chat.indexOf('if (has("close")) { app.requestDisplayMode'));
+  });
+});

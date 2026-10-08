@@ -70,6 +70,14 @@ const dayMonth = (ms: number) => new Intl.DateTimeFormat("en-US", { month: "long
 export const art = (url: string | null, show: string, cls: string) =>
   url ? `<img class="${cls}" src="${escape(url)}" alt="${escape(show)} artwork">` : `<div class="${cls} ph" role="img" aria-label="${escape(show)}"></div>`;
 
+/**
+ * A Read button's in-chat route: ChatGPT's card opens the page as an article card in place (read_article), and only
+ * asks in words if that fails; Alexa's page ignores both and opens the site (data-url). 2026-10-08: Read had opened
+ * radiomilwaukee.org in a new tab, out of the chat.
+ */
+const readHere = (url: string, title: string) =>
+  ` data-call="${cardCall("read_article", { url })}" data-chat-ask="${escape(`Open the Radio Milwaukee article "${title}" here`)}"`;
+
 /** "Ted's Ice Cream, El Tsunami, Bread House and 6 more places": one glanceable supporting field. */
 function placesLine(story: Story): string {
   const names = story.places.map((p) => p.name);
@@ -85,7 +93,7 @@ function premiereView(story: Story, releaseEvent: PublicEvent | null): string {
   const sub = [song.album, song.releaseDate ? `out ${longDate(song.releaseDate)}` : null].filter(Boolean).join(" · ");
   const credits = song.credits.map((c) => `${c.name} (${c.role})`).join(", ");
   const show = song.releaseShow ? `Release show: ${song.releaseShow.venue}, ${longDate(song.releaseShow.date)}` : "";
-  const read = (cls: string) => (story.permalink ? `<button type="button" class="${cls} details" data-url="${escape(story.permalink)}">Read the premiere</button>` : "");
+  const read = (cls: string) => (story.permalink ? `<button type="button" class="${cls} details" data-url="${escape(story.permalink)}"${readHere(story.permalink, story.title)}>Read the premiere</button>` : "");
   const primary = song.audioUrl ? `<button type="button" class="primary play" data-audio="${escape(song.audioUrl)}">${PLAY} Play song</button>` : read("primary");
   const secondary = releaseEvent
     ? `<button type="button" class="secondary calendar" data-url="${escape(releaseEvent.calendarUrl)}">${CAL} Add to calendar</button>`
@@ -110,7 +118,7 @@ function sessionView(story: Story): string {
 
 /** A premiere or session with no approved song record: the article, never its audio. */
 function articleView(story: Story): string {
-  const read = story.permalink ? `<button type="button" class="primary details" data-url="${escape(story.permalink)}">Read it on radiomilwaukee.org</button>` : "";
+  const read = story.permalink ? `<button type="button" class="primary details" data-url="${escape(story.permalink)}"${readHere(story.permalink, story.title)}>Read it on radiomilwaukee.org</button>` : "";
   return `<article class="card story music">${LOGO}<div class="body">${art(story.imageUrl, story.show, "art")}<div class="info">`
     + `<p class="meta">${escape(story.show)} · ${escape(monthYear(story.publishedAt))}</p><h2>${escape(story.title)}</h2>`
     + `<div class="actions">${read}</div></div></div></article>`;
@@ -453,7 +461,7 @@ export function briefingButton(item: BriefingItem): string {
     ? `<button type="button" class="primary ask" data-ask="${escape(`Tell me about the story "${action.title}"`)}" data-call="${cardCall("get_station_story", { storyId: action.storyId, view: "story" })}">${PLAY} Play</button>`
     : action.kind === "picks"
       ? `<button type="button" class="secondary ask" data-ask="What is Radio Milwaukee recommending?">Picks</button>`
-      : `<button type="button" class="secondary details" data-url="${escape(action.url)}" data-chat-ask="${escape(`Open the newsletter article "${item.heading}" here`)}">Read</button>`;
+      : `<button type="button" class="secondary details" data-url="${escape(action.url)}" data-call="${cardCall("read_article", { url: action.url })}" data-chat-ask="${escape(`Open the newsletter article "${item.heading}" here`)}">Read</button>`;
 }
 
 function briefingView(date: string, items: BriefingItem[]): string {

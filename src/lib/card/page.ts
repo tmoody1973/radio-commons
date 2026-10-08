@@ -97,9 +97,11 @@ blockquote{margin:0;font-size:40px;line-height:1.1;font-weight:700}blockquote.q-
 
 // ChatGPT door only: Save calls save_find, and Places calls get_station_story, from the card (no extra ChatGPT turn). Anything but a clean "ok" (signed out,
 // song not found, an error) falls back to the chat message, so ChatGPT explains or shows its sign-in screen.
-const CHAT_SAVE = `const ask = (b) => say(b.dataset.ask, b);
-  if (has("back")) { current = cardHistory.pop() || current; applyContext(); return; }
-  if (button.dataset.chatAsk) { say(button.dataset.chatAsk, button); return; }
+const CHAT_SAVE = `const ask = (b) => say(b.dataset.chatAsk || b.dataset.ask, b);
+  // Back, and Close on a card opened from another card (the sidebar app is always fullscreen, so ChatGPT refuses
+  // to shrink it inline): return to where the listener came from.
+  if ((has("back") || has("close")) && cardHistory.length) { current = cardHistory.pop(); applyContext(); return; }
+  // A direct call first (the card opens the next card itself); the chat message is its fallback.
   if (button.dataset.call) {
     const call = JSON.parse(button.dataset.call);
     button.disabled = true;
@@ -112,6 +114,7 @@ const CHAT_SAVE = `const ask = (b) => say(b.dataset.ask, b);
     }).catch(() => { button.disabled = false; ask(button); });
     return;
   }
+  if (button.dataset.chatAsk) { say(button.dataset.chatAsk, button); return; }
   if (button.dataset.save) {
     const label = button.textContent;
     button.textContent = "Saving…";
