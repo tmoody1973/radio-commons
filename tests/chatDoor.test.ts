@@ -449,14 +449,20 @@ describe("ChatGPT door: station home", () => {
     newsletter: () => ({ latest: async () => ({ date: "Oct. 1", title: "Weekly", items: [{ heading: "Playtime's over", url: "https://radiomilwaukee.org/x", summary: "Jeff Levering is everything." }] }) }) as never });
 
   // openai/mcp-extensions: global = the sidebar, thread = a conversation's side panel; entrypoint tools SHOULD carry
-  // a monochrome SVG icon in currentColor, or ChatGPT shows a generic one.
-  it("opens from the sidebar and a conversation's side panel, with its own icon, on the ChatGPT door only", async () => {
+  // a monochrome SVG icon in currentColor, or ChatGPT shows a generic one. The panel is the player (on_air_now).
+  it("opens from the sidebar, with its own icon, on the ChatGPT door only", async () => {
     const tools: T[] = (await mcpPost(homeDoor(), { method: "tools/list" })).message.result.tools;
     const home = tools.find((t) => t.name === "station_home")!;
-    expect(home._meta["openai/ui"].entrypoints).toEqual([{ type: "global" }, { type: "thread" }]);
+    expect(home._meta["openai/ui"].entrypoints).toEqual([{ type: "global" }]);
     expect(home.icons?.[0].mimeType).toBe("image/svg+xml");
     expect(decodeURIComponent(home.icons![0].src)).toContain("currentColor");
     expect(home._meta["openai/ui"].availableDisplayModes).toEqual(["inline", "fullscreen"]);
+    // ChatGPT has no picture-in-picture, so the player that stays beside the chat is the side panel: On air now.
+    const player = tools.find((t) => t.name === "on_air_now")!;
+    expect(player._meta["openai/ui"].entrypoints).toEqual([{ type: "thread" }]);
+    expect(player.icons?.[0].mimeType).toBe("image/svg+xml");
+    const alexaTools: T[] = (await mcpPost(buildMcpHandler({ backstory: () => fakeBackstory(), fieldGuide: () => fakeFieldGuide(), playlist: () => fakePlaylist(), cardHtml: () => "" }), { method: "tools/list" })).message.result.tools;
+    expect(alexaTools.find((t) => t.name === "on_air_now")!._meta["openai/ui"]).toBeUndefined();
     expect(home.title).not.toBe("Radio Milwaukee");
     const alexa = buildMcpHandler({ backstory: () => fakeBackstory(), fieldGuide: () => fakeFieldGuide(), playlist: () => fakePlaylist(), cardHtml: () => "" });
     expect((await mcpPost(alexa, { method: "tools/list" })).message.result.tools.map((t: T) => t.name)).not.toContain("station_home");

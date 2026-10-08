@@ -83,6 +83,13 @@ export function chatResult<T extends ToolResultLike>(input: T): T {
   return { ...result, content: [...text, { type: "text", text: CARD_SHOWN }], structuredContent: forModel, _meta: { ...result._meta, ...forCard, ...moved } };
 }
 
+// Broadcast waves, 20x20, 1.33px strokes in currentColor so ChatGPT tints it to the theme (OpenAI's sidebar template).
+const STATION_ICON = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.33" stroke-linecap="round" stroke-linejoin="round"><path d="M4.1 15.9a8.3 8.3 0 0 1 0-11.8M15.9 4.1a8.3 8.3 0 0 1 0 11.8M6.5 13.5a5 5 0 0 1 0-7M13.5 6.5a5 5 0 0 1 0 7"/><circle cx="10" cy="10" r="1.6"/></svg>')}`;
+export const STATION_ICONS = [{ src: STATION_ICON, mimeType: "image/svg+xml" }];
+// ChatGPT has no picture-in-picture (openai/mcp-extensions Display Modes), so the player that stays beside a chat is
+// the conversation side panel: On air now, with Listen live for all four stations. Chat door only (Alexa's list is fixed).
+const SIDE_PANEL = new Set(["on_air_now"]);
+
 // Tools the card calls itself (Save, Places, the live refresh): OpenAI requires openai/widgetAccessible on each.
 const CARD_CALLABLE = new Set(["save_find", "get_station_story", "on_air_now", "send_station_request", "show_playlists", "remove_from_playlist", "read_article"]);
 // Chat-only routing hints. ChatGPT answered "what restaurants were discussed" from memory instead of showing the map.
@@ -149,6 +156,7 @@ export function patchChatServer(server: McpServerLike, cardUri?: string) {
       name,
       {
         ...config,
+        ...(SIDE_PANEL.has(name) ? { icons: STATION_ICONS } : {}),
         ...(config.description ? { description: chatDescription(config.description) + (CHAT_EXTRA[name] ?? "") + (hasCard(config) ? CARD_NOTE : "") } : {}),
         _meta: {
           ...config._meta,
@@ -159,7 +167,7 @@ export function patchChatServer(server: McpServerLike, cardUri?: string) {
           // OpenAI: must be true for any tool the card calls itself (Save from the card).
           ...(CARD_CALLABLE.has(name) ? { "openai/widgetAccessible": true } : {}),
           // ChatGPT wants the modes declared before the card loads; it has no picture-in-picture (openai/mcp-extensions).
-          ...(hasCard(config) ? { "openai/ui": { ...(config._meta?.["openai/ui"] as Record<string, unknown> | undefined), availableDisplayModes: ["inline", "fullscreen"] } } : {}),
+          ...(hasCard(config) ? { "openai/ui": { ...(config._meta?.["openai/ui"] as Record<string, unknown> | undefined), availableDisplayModes: ["inline", "fullscreen"], ...(SIDE_PANEL.has(name) ? { entrypoints: [{ type: "thread" }] } : {}) } } : {}),
         },
       } as never,
       (async (...args: unknown[]) => chatResult(await callback(...args))) as never,
