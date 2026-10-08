@@ -61,13 +61,13 @@ export type CardView =
   /** ChatGPT door only: a radiomilwaukee.org article (the newsletter's Read); full is the fullscreen version. */
   | { view: "article"; article: Article; full?: boolean };
 
-const escape = (s: string) =>
+export const escape = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 const PLAY = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round" aria-hidden="true"><path d="M7 4.5v15l12-7.5z"/></svg>';
 const PIN = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>';
 const LOGO = `<img class="logo" src="${SITE}/brand/rm-logo.png" alt="Radio Milwaukee">`;
 const dayMonth = (ms: number) => new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", timeZone: "America/Chicago" }).format(ms);
-const art = (url: string | null, show: string, cls: string) =>
+export const art = (url: string | null, show: string, cls: string) =>
   url ? `<img class="${cls}" src="${escape(url)}" alt="${escape(show)} artwork">` : `<div class="${cls} ph" role="img" aria-label="${escape(show)}"></div>`;
 
 /** "Ted's Ice Cream, El Tsunami, Bread House and 6 more places": one glanceable supporting field. */
@@ -364,13 +364,13 @@ function capabilitiesView(): string {
 }
 
 /** "Midday Show with Erin Wolf": the host line under a station's name. */
-const showLine = (show: { name: string; hosts: string[] }) => `${withoutStationName(show.name)}${show.hosts.length ? ` with ${show.hosts.join(" & ")}` : ""}`;
+export const showLine = (show: { name: string; hosts: string[] }) => `${withoutStationName(show.name)}${show.hosts.length ? ` with ${show.hosts.join(" & ")}` : ""}`;
 
 /** Plays the stream in the card with the same one-at-a-time player as previews; reads "❚❚ Stop" while it plays. */
-const listenLive = (station: Station, cls: string) =>
+export const listenLive = (station: Station, cls: string) =>
   `<button type="button" class="${cls} row-play live" data-audio="${escape(LIVE_STREAMS[station])}" data-playing="❚❚ Stop">▶ Listen live</button>`;
 // The station rides along so save_find reads that station's current song instead of searching every play.
-const saveSong = (song: RecentSong, station: Station) =>
+export const saveSong = (song: RecentSong, station: Station) =>
   `<button type="button" class="secondary ask" data-ask="${escape(`Save "${song.title}" by ${song.artist} from ${STATION_NAMES[station]}`)}" data-save="${escape(JSON.stringify({ title: song.title, artist: song.artist, station }))}">Save this song</button>`;
 
 /** One station, large: the song on air (or just "Live now"), Listen live and Save. */
@@ -444,16 +444,19 @@ function scheduleView(onNow: ScheduleSlot | null, next: ScheduleSlot | null, mat
   return matches.length || !(onNow || next) ? programsView(matches) : onNowView(onNow, next);
 }
 
+/** A newsletter item's one action: play its story, open the picks, or read the article. */
+export function briefingButton(item: BriefingItem): string {
+  const { action } = item;
+  return action.kind === "story"
+    ? `<button type="button" class="primary ask" data-ask="${escape(`Tell me about the story "${action.title}"`)}">${PLAY} Play</button>`
+    : action.kind === "picks"
+      ? `<button type="button" class="secondary ask" data-ask="What is Radio Milwaukee recommending?">Picks</button>`
+      : `<button type="button" class="secondary details" data-url="${escape(action.url)}" data-chat-ask="${escape(`Open the newsletter article "${item.heading}" here`)}">Read</button>`;
+}
+
 function briefingView(date: string, items: BriefingItem[]): string {
-  const rows = items.slice(0, 6).map((item, i) => {
-    const { action } = item;
-    const button = action.kind === "story"
-      ? `<button type="button" class="primary ask" data-ask="${escape(`Tell me about the story "${action.title}"`)}">${PLAY} Play</button>`
-      : action.kind === "picks"
-        ? '<button type="button" class="secondary ask" data-ask="What is Radio Milwaukee recommending?">Picks</button>'
-        : `<button type="button" class="secondary details" data-url="${escape(action.url)}" data-chat-ask="${escape(`Open the newsletter article "${item.heading}" here`)}">Read</button>`;
-    return `<div class="row-wrap"><div class="row"><span class="num">${i + 1}</span><span class="what"><b>${escape(item.heading)}</b><small>${escape(item.summary)}</small></span></div>${button}</div>`;
-  }).join("");
+  const rows = items.slice(0, 6).map((item, i) =>
+    `<div class="row-wrap"><div class="row"><span class="num">${i + 1}</span><span class="what"><b>${escape(item.heading)}</b><small>${escape(item.summary)}</small></span></div>${briefingButton(item)}</div>`).join("");
   return `<article class="card briefing">${LOGO}<span class="meta">From the ${escape(date)} newsletter</span><div class="list">${rows}</div></article>`;
 }
 
@@ -552,7 +555,9 @@ const TRY_ASKING: [label: string, ask: string][] = [
 function homeHeader(): string {
   const chips = TRY_ASKING.map(([label, ask]) => `<button type="button" class="try ask" data-ask="${escape(ask)}">${escape(label)}</button>`).join("");
   const feedback = `<button type="button" class="link ask" data-ask="${escape("I'd like to send feedback about the Radio Milwaukee app")}">Send feedback</button>`;
+  // The full home (homeFull.ts) is this result's fullscreen page; the sidebar opens straight into it.
   return `<div class="home-top"><header class="home-head"><b class="home-name">Radio Milwaukee <span class="beta">Beta</span></b><button type="button" class="link details" data-url="${STATION_SITE}">radiomilwaukee.org ↗</button></header>`
+    + `<div class="actions"><button type="button" class="primary fullscreen">Open Radio Milwaukee</button></div>`
     + `<p class="home-support">Listener-supported. Support us at radiomilwaukee.org.</p>`
     + `<p class="home-support">This app is new. Tell us what's broken or what you'd like: ${feedback}</p></div>`
     + `<section class="home-section"><h3 class="home-title">Try asking</h3><div class="chips">${chips}</div></section>`;

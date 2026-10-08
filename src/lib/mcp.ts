@@ -11,7 +11,7 @@ import { articleReaderFromEnv, type ArticleReader } from "@/lib/article";
 import { cleanRequest, milwaukeeDay, openRequest, requestEmail, REQUESTS_PER_DAY, requestsFromEnv, sealRequest, type Requests } from "@/lib/requests";
 import { CAPABILITIES, CAPABILITIES_SPEECH } from "@/lib/capabilities";
 import { FieldGuideUnavailable, type FieldGuideClient, type PublicEvent } from "@/lib/fieldGuide";
-import { fullPlacesView, renderView, type CardView, type EventItem } from "@/lib/card";
+import { fullPlacesView, homeFullView, renderView, type CardView, type EventItem } from "@/lib/card";
 import { sizedArtwork, songCardFromFacts, songCardFromMatch, songCardFromRecent, songCardFromSearch, STATION_NAMES } from "@/lib/card/song";
 import { bestRecentMatch } from "@/lib/songMatch";
 import { SITE } from "@/lib/card/tokens";
@@ -998,7 +998,7 @@ export function buildMcpHandler(deps: Deps) {
           timed("station_home", async () => {
             const listenerId = listenerIdFrom(context.http ?? {});
             // Each part is optional: a slow or missing source drops its section, never the home.
-            const [tiles, episodes, briefing, finds] = await Promise.all([
+            const [tiles, episodes, briefing, finds, playlists] = await Promise.all([
               onAirTiles(MUSIC_STATIONS),
               // The newest episode of each show, newest first; a show whose lookup fails just drops out of the row.
               orNull("home_episodes_failed", async () => {
@@ -1011,10 +1011,16 @@ export function buildMcpHandler(deps: Deps) {
                 return issue && issue.items.length ? { date: issue.date, items: (await linkItems(issue.items, deps.backstory())).slice(0, 4) } : null;
               }),
               listenerId ? orNull("home_finds_failed", () => deps.playlist().listFinds(listenerId, 5)) : Promise.resolve(null),
+              listenerId ? orNull("home_playlists_failed", () => deps.playlist().listPlaylists(listenerId)) : Promise.resolve(null),
             ]);
+            const yours = listenerId ? (finds ?? []) : null;
             return {
               content: text("Here's Radio Milwaukee: what's on now, the newest episodes, this week's highlights and your Finds."),
-              structuredContent: card({ view: "home", tiles, episodes, briefing, finds: listenerId ? (finds ?? []) : null }, { thisWeek: briefing?.items.map(({ heading, url }) => ({ heading, url })) ?? [] }),
+              structuredContent: card({ view: "home", tiles, episodes, briefing, finds: yours }, {
+                thisWeek: briefing?.items.map(({ heading, url }) => ({ heading, url })) ?? [],
+                // The sidebar opens fullscreen: the bold home (homeFull.ts). Card-only, like cardHtml.
+                fullHtml: homeFullView({ tiles, episodes, briefing, finds: yours, playlists }),
+              }),
             };
           }, playlistUnavailable),
       );

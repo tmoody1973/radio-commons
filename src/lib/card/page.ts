@@ -1,5 +1,6 @@
 import { EXT_APPS_BUNDLE } from "@/generated/ext-apps-bundle";
 import { CHAT_STYLE } from "./chatStyle";
+import { HOME_FULL_STYLE } from "./homeFull";
 import { TOKENS } from "./tokens";
 
 const MAPLIBRE = "https://unpkg.com/maplibre-gl@4.7.1/dist/";
@@ -319,7 +320,7 @@ export function chatCardPage(mapKey = process.env.AMAZON_LOCATION_BROWSER_KEY ??
   if (chatCached?.key !== mapKey) {
     // Same skeleton as storyCardPage, minus the Google Fonts link (ChatGPT requires the system font), plus CHAT_STYLE.
     const html = `<!doctype html><html lang="en" data-theme="light"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">`
-      + `<title>Radio Milwaukee</title><style>${STYLE}${CHAT_STYLE}</style></head><body><main id="root" aria-live="polite">Loading…</main>`
+      + `<title>Radio Milwaukee</title><style>${STYLE}${CHAT_STYLE}${HOME_FULL_STYLE}</style></head><body><main id="root" aria-live="polite">Loading…</main>`
       + `<script type="module">${appBundle()}${script(mapKey, true)}</script></body></html>`;
     chatCached = { key: mapKey, html };
   }
