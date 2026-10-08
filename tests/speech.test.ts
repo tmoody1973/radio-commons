@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH, LINK_ACCOUNT_SPEECH, linkAccountSpeech } from "@/lib/speech";
 import type { Story } from "@/lib/backstory";
 import type { SavedFind } from "@/lib/playlist";
-import { EVENTS_UNAVAILABLE_SPEECH, NOT_ALLOWED_SPEECH, NO_PASSAGE_SPEECH, clock, directAudioUrl, eventTime, monthYear, spokenEvents, spokenMatches, spokenPassages, spokenPicks, spokenPlaces, spokenFollowed, spokenSaved, spokenStory, spokenUnfollowed, spokenDigest, spokenFinds, spokenRecent, spokenStationShows } from "@/lib/speech";
+import { EVENTS_UNAVAILABLE_SPEECH, NOT_ALLOWED_SPEECH, NO_PASSAGE_SPEECH, clock, directAudioUrl, eventTime, eventWhen, monthYear, spokenEvents, spokenMatches, spokenPassages, spokenPicks, spokenPlaces, spokenFollowed, spokenSaved, spokenStory, spokenUnfollowed, spokenDigest, spokenFinds, spokenRecent, spokenStationShows } from "@/lib/speech";
 import { readFileSync } from "node:fs";
 import { getStation } from "@/lib/stations";
 import { screenWords } from "@/lib/sim/evalChecks";
@@ -290,5 +290,23 @@ describe("account linking prompts", () => {
 describe("story coverage line", () => {
   it("names every show the station registry knows, so it can't drift", () => {
     for (const { name } of getStation().shows) expect(spokenMatches([])).toContain(name);
+  });
+});
+
+
+// The MKE Field Guide stores a listing with only a date as local midnight and no end (Doggy Day at the Lakefront,
+// Halloween Village, 2026-10-08): saying "at midnight" invents a time. Music keeps midnight: late shows are real.
+describe("eventWhen: a date-only listing says the day, not midnight", () => {
+  const THURSDAY_3PM = new Date("2026-10-08T20:00:00Z");
+  const doggyDay = { startAt: "2026-10-10T05:00:00.000Z", endAt: null, category: "festival" };
+  it("midnight with no end time is a date: the day, and that the time isn't listed", () => {
+    expect(eventWhen(doggyDay, THURSDAY_3PM)).toBe("Saturday, time not listed");
+    expect(eventWhen({ ...doggyDay, startAt: "2026-10-09T05:00:00.000Z" }, THURSDAY_3PM)).toBe("tomorrow, time not listed");
+    expect(eventWhen({ ...doggyDay, category: null }, THURSDAY_3PM)).toBe("Saturday, time not listed");
+  });
+  it("a real time stays: an end time, a music show at midnight, or any other hour", () => {
+    expect(eventWhen({ ...doggyDay, endAt: "2026-10-10T07:00:00.000Z" }, THURSDAY_3PM)).toBe("Saturday at midnight");
+    expect(eventWhen({ ...doggyDay, category: "music" }, THURSDAY_3PM)).toBe("Saturday at midnight");
+    expect(eventWhen({ ...doggyDay, startAt: "2026-10-10T14:00:00.000Z" }, THURSDAY_3PM)).toBe("Saturday at 9 AM");
   });
 });

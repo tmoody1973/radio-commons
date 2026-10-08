@@ -158,11 +158,26 @@ export function eventTime(startAt: string, now: Date): string {
   const time = at.hour === 0 && at.minute === 0 ? "midnight" : `${hour12}${at.minute ? `:${String(at.minute).padStart(2, "0")}` : ""} ${at.hour < 12 ? "AM" : "PM"}`;
   // Night runs past midnight: at 10 PM a 12:30 AM show is still "tonight", and so is 2 AM when it's 1:30 AM.
   const lateNight = (days === 1 && at.hour < 3 && today.hour >= 17) || (days === 0 && at.hour < 5 && today.hour < 5);
-  const day = lateNight ? "tonight" : days === 0 ? (at.hour >= 17 ? "tonight" : "today")
-    : days === 1 ? "tomorrow"
-      : days > 1 && days < 7 ? at.weekday
-        : new Intl.DateTimeFormat("en-US", { timeZone: "America/Chicago", month: "long", day: "numeric" }).format(Date.parse(startAt));
+  const day = lateNight ? "tonight" : days === 0 ? (at.hour >= 17 ? "tonight" : "today") : dayName(days, at.weekday, startAt);
   return `${day} at ${time}`;
+}
+
+/** "tomorrow", "Saturday", "October 19": a day after today, the way a person says it. */
+const dayName = (days: number, weekday: string, startAt: string) =>
+  days === 1 ? "tomorrow"
+    : days > 1 && days < 7 ? weekday
+      : new Intl.DateTimeFormat("en-US", { timeZone: "America/Chicago", month: "long", day: "numeric" }).format(Date.parse(startAt));
+
+/**
+ * When an event happens, as eventTime says it, except a listing the MKE Field Guide has only a date for: it stores those
+ * as local midnight with no end (Doggy Day at the Lakefront, 2026-10-08), so "at midnight" would invent a time.
+ * ponytail: music keeps "midnight" (late shows really start then); a guide-side "time unknown" flag would replace this guess.
+ */
+export function eventWhen(event: Pick<PublicEvent, "startAt" | "endAt" | "category">, now: Date): string {
+  const at = chicago(Date.parse(event.startAt));
+  if (event.endAt !== null || event.category === "music" || at.hour !== 0 || at.minute !== 0) return eventTime(event.startAt, now);
+  const days = Math.round((at.day - chicago(now.getTime()).day) / 86_400_000);
+  return `${days === 0 ? "today" : dayName(days, at.weekday, event.startAt)}, time not listed`;
 }
 
 const WHEN_PHRASE: Record<When, string> = { tonight: " tonight", today: " today", tomorrow: " tomorrow", "this-weekend": " this weekend", "this-week": " this week" };
@@ -178,7 +193,7 @@ export function spokenEvents(events: PublicEvent[], { now, near, widened, when, 
   if (said.length === 0) return "That's all I found.";
   const lead = start > 0 ? "More from Radio Milwaukee's event guide: "
     : near ? (widened ? `Nothing within a mile of ${near}, but within three miles: ` : `Near ${near}: `) : "From Radio Milwaukee's event guide: ";
-  const list = numbered(said.map((e) => `${e.title}${where(e)}, ${eventTime(e.startAt, now)}`), start);
+  const list = numbered(said.map((e) => `${e.title}${where(e)}, ${eventWhen(e, now)}`), start);
   return `${lead}${list}.${left ? nextOffer(left) : ` ${CALENDAR_OFFER}`}`;
 }
 
@@ -186,7 +201,7 @@ export function spokenEvents(events: PublicEvent[], { now, near, widened, when, 
 export function spokenPicks(events: PublicEvent[], now: Date): string {
   if (events.length === 0) return "Radio Milwaukee doesn't have picks posted right now.";
   const lines = events.slice(0, MAX_SPOKEN_EVENTS).map((e) => {
-    const base = `${e.title}${where(e)}, ${eventTime(e.startAt, now)}`;
+    const base = `${e.title}${where(e)}, ${eventWhen(e, now)}`;
     // The Field Guide's Concert Picks import gives listed shows without a write-up this stock blurb: say the source instead.
     if (e.pick && e.pick.blurb.startsWith("On Radio Milwaukee's MKE Concert Picks")) return `${e.pick.curator} picks ${base}, from Radio Milwaukee's MKE Concert Picks`;
     if (e.pick) return `${e.pick.curator} picks ${base}: "${firstSentenceOf(e.pick.blurb)}"`;

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { buildMcpHandler, CARD_URI, CHAT_SIGN_IN_TEXT } from "@/lib/mcp";
 import { SITE } from "@/lib/card/tokens";
 import { chatCardPage, storyCardPage } from "@/lib/card";
-import { fakeBackstory, fakeFieldGuide, fakePlaylist, STORY } from "./fixtures";
+import { EVENT, fakeBackstory, fakeFieldGuide, fakePlaylist, STORY } from "./fixtures";
 import { mcpPost, mcpPostAs, mcpRequest, send } from "./mcp-wire";
 
 const chatHandler = () =>
@@ -130,6 +130,15 @@ describe("ChatGPT door: what the model reads", () => {
     expect(message.result.content.at(-1).text).toMatch(/card above already shows/);
     const noCard = await mcpPost(chatHandler(), { method: "tools/call", params: { name: "delete_my_finds", arguments: {} } });
     expect(JSON.stringify(noCard.message.result.content)).not.toMatch(/card above/);
+  });
+
+  it("an event listed by date only shows its day on the card and in the reply, never 'midnight'", async () => {
+    const dateOnly = { ...EVENT, title: "Doggy Day at the Lakefront", startAt: "2026-10-10T05:00:00.000Z", endAt: null, category: "festival" };
+    const handler = buildMcpHandler({ backstory: () => fakeBackstory(), fieldGuide: () => fakeFieldGuide({ events: async () => [dateOnly] }), playlist: () => fakePlaylist(), cardHtml: () => "", surface: "chat" });
+    const { message } = await mcpPost(handler, { method: "tools/call", params: { name: "find_events", arguments: {} } });
+    expect(message.result._meta.cardHtml).toContain("time not listed");
+    expect(message.result._meta.cardHtml).not.toContain("midnight");
+    expect(message.result.content[0].text).toContain("time not listed");
   });
 
   it("keeps a sign-in challenge in _meta when there is no card", async () => {
