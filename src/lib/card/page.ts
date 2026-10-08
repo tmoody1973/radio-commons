@@ -97,8 +97,8 @@ blockquote{margin:0;font-size:40px;line-height:1.1;font-weight:700}blockquote.q-
 
 // ChatGPT door only: Save calls save_find, and Places calls get_station_story, from the card (no extra ChatGPT turn). Anything but a clean "ok" (signed out,
 // song not found, an error) falls back to the chat message, so ChatGPT explains or shows its sign-in screen.
-const CHAT_SAVE = `const ask = (b) => app.sendMessage({ role: "user", content: [{ type: "text", text: b.dataset.ask }] }).catch(() => {});
-  if (button.dataset.chatAsk) { app.sendMessage({ role: "user", content: [{ type: "text", text: button.dataset.chatAsk }] }).catch(() => {}); return; }
+const CHAT_SAVE = `const ask = (b) => say(b.dataset.ask, b);
+  if (button.dataset.chatAsk) { say(button.dataset.chatAsk, button); return; }
   if (button.dataset.call) {
     const call = JSON.parse(button.dataset.call);
     button.disabled = true;
@@ -132,6 +132,20 @@ const CHAT_OPEN_AUDIO = `if (e && e.name === "AbortError") return; app.openLink(
 // ChatGPT door only: redraws (picture-in-picture, theme, size) rebuild the card, so put back the playing button and the
 // Saved marks; and on phones the fullscreen map's side list is a bottom sheet, so the map frames the pins above it.
 const CHAT_HELPERS = `const savedKeys = new Set();
+// Every prompt the card sends. The tapped button dims with a spinner at once (ChatGPT can take a while to start).
+// From fullscreen (the sidebar home) the answer would land in the thread hidden behind the app, so it opens a new chat
+// instead: openai/mcp-extensions ui/message target "new", desktop and web only, sent only when ChatGPT says it supports it.
+function say(text, button) {
+  const ctx = app.getHostContext() || {};
+  const caps = app.getHostCapabilities() || {};
+  const fresh = ctx.displayMode === "fullscreen" && caps.experimental && caps.experimental["openai/message"] && ctx.platform !== "mobile";
+  if (button) {
+    button.classList.add("sending");
+    button.setAttribute("aria-busy", "true");
+    setTimeout(() => { button.classList.remove("sending"); button.removeAttribute("aria-busy"); }, 6000);
+  }
+  return app.sendMessage({ role: "user", content: [{ type: "text", text }], ...(fresh ? { _meta: { "openai/message": { target: "new" } } } : {}) }).catch(() => {});
+}
 function restoreChatState() {
   root.querySelectorAll("button[data-save]").forEach((b) => { if (savedKeys.has(b.dataset.save)) { b.textContent = "Saved ✓"; b.disabled = true; } });
   if (!audio || audio.paused) return;
@@ -286,7 +300,7 @@ root.addEventListener("click", (event) => {
   if (!button) return;
   const has = (name) => button.classList.contains(name);
   // The card asks; the host decides: a follow-up turn, a map link, or a bigger view.
-  ${chat ? CHAT_SAVE : ""}if (has("ask")) { app.sendMessage({ role: "user", content: [{ type: "text", text: button.dataset.ask }] }).catch(() => {}); return; }
+  ${chat ? `${CHAT_SAVE}if (has("ask")) { say(button.dataset.ask, button); return; }` : 'if (has("ask")) { app.sendMessage({ role: "user", content: [{ type: "text", text: button.dataset.ask }] }).catch(() => {}); return; }'}
   if (has("calendar") || has("details") || has("reserve") || has("tickets")) { app.openLink({ url: button.dataset.url }).catch(() => {}); return; }
   if (has("directions")) { app.openLink({ url: button.dataset.url }).catch(() => { button.textContent = "Can't open maps here"; }); return; }
   if (has("fullscreen")) { app.requestDisplayMode({ mode: "fullscreen" }).then(applyContext).catch(() => {}); return; }

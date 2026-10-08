@@ -117,4 +117,9 @@ button svg{width:16px;height:16px}
 .article.full .hero{border-radius:0}
 .beta{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:9999px;border:1px solid var(--divider);color:var(--text-2);font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;vertical-align:2px}
 .home-support .link{font-size:13px}
+/* A tapped button that sent a prompt: dimmed with a small spinner until ChatGPT picks it up (page.ts say()). */
+button.sending{opacity:.6;cursor:progress}
+button.sending::after{content:"";display:inline-block;width:12px;height:12px;margin-left:8px;box-sizing:border-box;border:2px solid currentColor;border-right-color:transparent;border-radius:9999px;animation:rc-spin .8s linear infinite;vertical-align:-1px;flex:none}
+@keyframes rc-spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){button.sending::after{animation:none;border-right-color:currentColor;opacity:.5}}
 `;

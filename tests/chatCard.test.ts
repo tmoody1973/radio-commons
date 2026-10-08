@@ -301,3 +301,30 @@ describe("beta label and feedback", () => {
     expect(html).toContain('data-ask="Send my feedback to Radio Milwaukee"');
   });
 });
+
+// 2026-10-08: from the fullscreen home, a tap sent its prompt to the thread hidden behind the app ("Working for 14s",
+// then nothing in view). openai/mcp-extensions ui/message: target "new" opens a new chat (desktop and web only).
+describe("a tap's answer lands where the listener can see it", () => {
+  const ownScript = (page: string) => page.split("const App = ")[1];
+  const chat = ownScript(chatCardPage("k"));
+
+  it("from fullscreen it opens a new chat, when ChatGPT supports it and it isn't a phone", () => {
+    expect(chat).toContain('"openai/message": { target: "new" }');
+    expect(chat).toContain('ctx.displayMode === "fullscreen"');
+    expect(chat).toContain('caps.experimental["openai/message"]');
+    expect(chat).toContain('ctx.platform !== "mobile"');
+  });
+
+  it("every prompt from the card goes through that one path", () => {
+    expect(chat.split("app.sendMessage(").length - 1).toBe(1);
+  });
+
+  it("the tapped button shows it's working right away", () => {
+    expect(chat).toContain('button.classList.add("sending")');
+    expect(CHAT_STYLE).toContain("button.sending");
+  });
+
+  it("Alexa's card is unchanged", () => {
+    expect(ownScript(storyCardPage("k"))).not.toContain("openai/message");
+  });
+});
