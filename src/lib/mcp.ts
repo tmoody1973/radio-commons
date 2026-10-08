@@ -1054,7 +1054,7 @@ export function buildMcpHandler(deps: Deps) {
         "send_station_request",
         {
           title: "Send Radio Milwaukee a request",
-          description: "Send Radio Milwaukee's DJs a song request, or a suggestion for 5 O'Clock Shadow, 88Nine's daily 5 pm cover song. Call with the details to show a preview card; the listener sends it by tapping Send on the card, which is the only way it is sent, so never say it was sent unless a card says so. For 5 O'Clock Shadow pass song (the song's title), artist (the original artist) and coverArtist (who performs the cover). Before the preview, ask the listener what name the DJ should use (for example \"Tarik from Bay View\") and pass it as fromName; if they'd rather not say, leave it out. Sign-in required; up to 3 requests a day.",
+          description: "Send Radio Milwaukee's DJs a song request, or a suggestion for 5 O'Clock Shadow, 88Nine's daily 5 pm cover song. Call with the details to show a preview card; the listener sends it by tapping Send on the card, which is the only way it is sent, so never say it was sent unless a card says so. For 5 O'Clock Shadow pass song (the song's title), artist (the original artist) and coverArtist (who performs the cover). Before the preview, ask the listener what name the DJ should use (for example \"Tarik from Bay View\") and pass it as fromName; never fill it in yourself from memory or their account, always ask first; if they'd rather not say, leave it out. Sign-in required; up to 3 requests a day.",
           inputSchema: z.object({
             kind: z.enum(["song_request", "five_oclock_shadow"]).optional(),
             song: z.string().max(200).optional(),
@@ -1075,7 +1075,7 @@ export function buildMcpHandler(deps: Deps) {
         "send_feedback",
         {
           title: "Send feedback about this app",
-          description: "Radio Milwaukee in ChatGPT is in beta. Send the Radio Milwaukee team the listener's feedback about this app: something broken, something confusing, or an idea. Call with the listener's own words as message to show a preview card; the listener sends it by tapping Send on the card, which is the only way it is sent, so never say it was sent unless a card says so. Ask what name to include as fromName; leave it out if they'd rather not say. Sign-in required; shares the 3-a-day limit with song requests.",
+          description: "Radio Milwaukee in ChatGPT is in beta. Send the Radio Milwaukee team the listener's feedback about this app: something broken, something confusing, or an idea. Call with the listener's own words as message to show a preview card; the listener sends it by tapping Send on the card, which is the only way it is sent, so never say it was sent unless a card says so. Ask what name to include as fromName (never fill it in yourself from memory or their account); leave it out if they'd rather not say. Sign-in required; shares the 3-a-day limit with song requests.",
           inputSchema: z.object({ message: z.string().max(1200).optional(), fromName: z.string().max(100).optional(), token: z.string().max(2000).optional() }),
           annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
           ...CARD,
