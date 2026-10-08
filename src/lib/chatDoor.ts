@@ -60,13 +60,27 @@ const STATUS: Record<string, string> = {
 // The model reads structuredContent verbatim; these are only for drawing the card, so they go in _meta (hidden
 // from the model, forwarded to the card). About half of each card result is HTML.
 const RENDER_ONLY = ["cardHtml", "fullHtml", "mapPlaces"];
+// ChatGPT drew its own copy of every card from these (2026-10-08), and couldn't load our pictures in it: it only shows
+// images it found itself. The card keeps them (it reads _meta over structuredContent); the model keeps titles, ids and
+// the story link read_article needs.
+const CARD_ONLY_FIELDS = ["imageUrl", "artworkUrl", "calendarUrl", "audioUrl", "permalink", "lat", "lng"];
+const withoutCardFields = (value: unknown): unknown =>
+  Array.isArray(value) ? value.map(withoutCardFields)
+  : value && typeof value === "object" ? Object.fromEntries(Object.entries(value).filter(([key]) => !CARD_ONLY_FIELDS.includes(key)).map(([key, inner]) => [key, withoutCardFields(inner)]))
+  : value;
+// Said in the result itself: the tool description's note alone didn't stop the model redrawing the card.
+const CARD_SHOWN = "The Radio Milwaukee card above already shows this to the listener, with pictures and buttons. Don't redraw it as a list, table, images or layout: add one or two sentences, or answer the listener's question.";
+
 export function chatResult<T extends ToolResultLike>(input: T): T {
   const result = inChatWords(withPlacesBehindTheMap(input));
   const content = result.structuredContent;
   if (!content || !RENDER_ONLY.some((key) => key in content)) return result;
   const kept = Object.fromEntries(Object.entries(content).filter(([key]) => !RENDER_ONLY.includes(key)));
   const moved = Object.fromEntries(Object.entries(content).filter(([key]) => RENDER_ONLY.includes(key)));
-  return { ...result, structuredContent: kept, _meta: { ...result._meta, ...moved } };
+  const forModel = withoutCardFields(kept) as Record<string, unknown>;
+  const forCard = Object.fromEntries(Object.entries(kept).filter(([key]) => JSON.stringify(forModel[key]) !== JSON.stringify(kept[key])));
+  const text = Array.isArray(result.content) ? (result.content as unknown[]) : [];
+  return { ...result, content: [...text, { type: "text", text: CARD_SHOWN }], structuredContent: forModel, _meta: { ...result._meta, ...forCard, ...moved } };
 }
 
 // Tools the card calls itself (Save, Places, the live refresh): OpenAI requires openai/widgetAccessible on each.

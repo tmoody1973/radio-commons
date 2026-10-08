@@ -111,6 +111,27 @@ describe("ChatGPT door: what the model reads", () => {
     expect(typeof message.result._meta.cardHtml).toBe("string");
   });
 
+  // ChatGPT drew its own copy of every card from these fields, and its copy couldn't load our pictures (2026-10-08).
+  it("keeps pictures, calendar links and map points for the card only; the model keeps titles, ids and the story link", async () => {
+    const { message } = await mcpPost(chatHandler(), { method: "tools/call", params: { name: "find_events", arguments: {} } });
+    const [forModel] = message.result.structuredContent.events;
+    const [forCard] = message.result._meta.events;
+    expect(forModel.title).toBe(forCard.title);
+    expect(forModel.id).toBe(forCard.id);
+    expect(forModel).not.toHaveProperty("imageUrl");
+    expect(forModel).not.toHaveProperty("calendarUrl");
+    expect(forModel.venue).not.toHaveProperty("lat");
+    expect(forCard).toHaveProperty("calendarUrl");
+    expect(forModel).toHaveProperty("url");
+  });
+
+  it("tells the model, in the result itself, that the card above already shows it", async () => {
+    const { message } = await mcpPost(chatHandler(), { method: "tools/call", params: { name: "find_events", arguments: {} } });
+    expect(message.result.content.at(-1).text).toMatch(/card above already shows/);
+    const noCard = await mcpPost(chatHandler(), { method: "tools/call", params: { name: "delete_my_finds", arguments: {} } });
+    expect(JSON.stringify(noCard.message.result.content)).not.toMatch(/card above/);
+  });
+
   it("keeps a sign-in challenge in _meta when there is no card", async () => {
     const { message } = await mcpPost(chatHandler(), { method: "tools/call", params: { name: "list_finds", arguments: {} } });
     expect(message.result._meta["mcp/www_authenticate"]).toHaveLength(1);
