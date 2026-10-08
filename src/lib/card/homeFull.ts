@@ -4,7 +4,7 @@ import type { FindRow, PlaylistSummary, Station } from "@/lib/playlist";
 import { withoutStationName } from "@/lib/speech";
 import { sizedArtwork, STATION_NAMES } from "./song";
 import { SITE } from "./tokens";
-import { art, briefingButton, escape, listenLive, saveSong, showLine, type OnAirTile } from "./views";
+import { art, briefingButton, cardCall, escape, listenLive, saveSong, showLine, type OnAirTile } from "./views";
 
 /**
  * The station home as a fullscreen page: what ChatGPT's sidebar (and "Open Radio Milwaukee") shows. Board A of the
@@ -114,8 +114,11 @@ const STORY_ASKS: [label: string, prompt: string][] = [
 
 function latestStories(episodes: StoryCardMatch[]): string {
   const asks = STORY_ASKS.map(([label, prompt]) => ask("secondary", prompt, escape(label))).join("");
-  const cards = episodes.slice(0, 6).map((m) => ask("hf-story", `Tell me about the story "${m.title}"`,
-    `${art(m.imageUrl, m.show, "hf-cover")}<b class="hf-kicker">${escape(showLabel(m.show))} · ${escape(shortDate(m.publishedAt))}</b><span class="hf-title">${escape(m.title)}</span>`)).join("");
+  // A tap opens the story straight from our server (the card calls get_station_story): asked in words, ChatGPT
+  // searched the web for the headline instead (2026-10-08). The message is the fallback if the call fails.
+  const cards = episodes.slice(0, 6).map((m) =>
+    `<button type="button" class="hf-story ask" data-ask="${escape(`Tell me about the Radio Milwaukee story "${m.title}"`)}" data-call="${cardCall("get_station_story", { storyId: m.storyId, view: "story" })}">`
+    + `${art(m.imageUrl, m.show, "hf-cover")}<b class="hf-kicker">${escape(showLabel(m.show))} · ${escape(shortDate(m.publishedAt))}</b><span class="hf-title">${escape(m.title)}</span></button>`).join("");
   return `<section class="hf-section" id="stories"><div class="hf-head"><h2>Latest stories</h2><div class="hf-actions">${asks}</div></div><div class="hf-row">${cards}</div></section>`;
 }
 

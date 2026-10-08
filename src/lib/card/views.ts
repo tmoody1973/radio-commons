@@ -448,7 +448,9 @@ function scheduleView(onNow: ScheduleSlot | null, next: ScheduleSlot | null, mat
 export function briefingButton(item: BriefingItem): string {
   const { action } = item;
   return action.kind === "story"
-    ? `<button type="button" class="primary ask" data-ask="${escape(`Tell me about the story "${action.title}"`)}">${PLAY} Play</button>`
+    // In ChatGPT the card opens the story straight from our server (data-call): asked in words, ChatGPT searched the
+    // web for the headline (2026-10-08). Alexa's page ignores data-call and keeps the spoken ask.
+    ? `<button type="button" class="primary ask" data-ask="${escape(`Tell me about the story "${action.title}"`)}" data-call="${cardCall("get_station_story", { storyId: action.storyId, view: "story" })}">${PLAY} Play</button>`
     : action.kind === "picks"
       ? `<button type="button" class="secondary ask" data-ask="What is Radio Milwaukee recommending?">Picks</button>`
       : `<button type="button" class="secondary details" data-url="${escape(action.url)}" data-chat-ask="${escape(`Open the newsletter article "${item.heading}" here`)}">Read</button>`;
@@ -491,7 +493,7 @@ function membershipView(m: MembershipFacts): string {
 }
 
 const songCount = (n: number) => `${n} song${n === 1 ? "" : "s"}`;
-const cardCall = (name: string, args: Record<string, unknown>) => escape(JSON.stringify({ name, arguments: args }));
+export const cardCall = (name: string, args: Record<string, unknown>) => escape(JSON.stringify({ name, arguments: args }));
 
 /** One playlist: each song can be removed from the card (no ChatGPT turn); the chat message is the fallback. */
 function playlistView(playlistId: string, name: string, items: PlaylistItem[]): string {

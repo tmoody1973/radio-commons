@@ -98,6 +98,7 @@ blockquote{margin:0;font-size:40px;line-height:1.1;font-weight:700}blockquote.q-
 // ChatGPT door only: Save calls save_find, and Places calls get_station_story, from the card (no extra ChatGPT turn). Anything but a clean "ok" (signed out,
 // song not found, an error) falls back to the chat message, so ChatGPT explains or shows its sign-in screen.
 const CHAT_SAVE = `const ask = (b) => say(b.dataset.ask, b);
+  if (has("back")) { current = cardHistory.pop() || current; applyContext(); return; }
   if (button.dataset.chatAsk) { say(button.dataset.chatAsk, button); return; }
   if (button.dataset.call) {
     const call = JSON.parse(button.dataset.call);
@@ -105,6 +106,7 @@ const CHAT_SAVE = `const ask = (b) => say(b.dataset.ask, b);
     app.callServerTool({ name: call.name, arguments: call.arguments }).then((r) => {
       const next = r && !r.isError && { ...r.structuredContent, ...r._meta };
       if (!next || typeof next.cardHtml !== "string") { button.disabled = false; return ask(button); }
+      cardHistory.push(current); // Back returns here
       current = next; // e.g. the story card becomes its map card, in place
       applyContext();
     }).catch(() => { button.disabled = false; ask(button); });
@@ -132,6 +134,9 @@ const CHAT_OPEN_AUDIO = `if (e && e.name === "AbortError") return; app.openLink(
 // ChatGPT door only: redraws (picture-in-picture, theme, size) rebuild the card, so put back the playing button and the
 // Saved marks; and on phones the fullscreen map's side list is a bottom sheet, so the map frames the pins above it.
 const CHAT_HELPERS = `const savedKeys = new Set();
+// Cards opened from a card (a story from the home, a map from a story): where to go Back to. A new answer clears it.
+let cardHistory = [];
+const BACK = '<button type="button" class="back">← Back</button>';
 // Every prompt the card sends. The tapped button dims with a spinner at once (ChatGPT can take a while to start).
 // From fullscreen (the sidebar home) the answer would land in the thread hidden behind the app, so it opens a new chat
 // instead: openai/mcp-extensions ui/message target "new", desktop and web only, sent only when ChatGPT says it supports it.
@@ -211,7 +216,7 @@ function applyContext() {
 
 ${chat ? CHAT_HELPERS : ""}function render(full) {
   if (!current) return;
-  root.innerHTML = full ? current.fullHtml : current.cardHtml;
+  root.innerHTML = ${chat ? '(cardHistory.length ? BACK : "") + (full ? current.fullHtml : current.cardHtml)' : "full ? current.fullHtml : current.cardHtml"};
   // The map picture follows the theme: Amazon draws light and dark versions.
   const dark = document.documentElement.dataset.theme === "dark";
   root.querySelectorAll("img[data-themed]").forEach((img) => { img.src = img.src.replace(/theme=(light|dark)/, dark ? "theme=dark" : "theme=light"); });
@@ -221,7 +226,7 @@ ${chat ? CHAT_HELPERS : ""}function render(full) {
 app.ontoolresult = (result) => {
   const data = ${chat ? "result && { ...result.structuredContent, ...result._meta }" : "result && result.structuredContent"};
   if (!data || typeof data.cardHtml !== "string") { root.textContent = ${chat ? '""' : '"Story unavailable."'}; return; }
-  current = data;
+  current = data;${chat ? "\n  cardHistory = [];" : ""}
   if (audio) audio.pause(); // a new answer replaces the card, so its sound stops too
   audio = null;
   applyContext();

@@ -86,9 +86,13 @@ export function chatResult<T extends ToolResultLike>(input: T): T {
 // Tools the card calls itself (Save, Places, the live refresh): OpenAI requires openai/widgetAccessible on each.
 const CARD_CALLABLE = new Set(["save_find", "get_station_story", "on_air_now", "send_station_request", "show_playlists", "remove_from_playlist"]);
 // Chat-only routing hints. ChatGPT answered "what restaurants were discussed" from memory instead of showing the map.
+// ChatGPT web-searched "Tell me about the story <headline>" instead of calling our tools (2026-10-08).
+const OWN_STORIES = " These are Radio Milwaukee's own stories, episodes and interviews: for any Radio Milwaukee story, use these tools, not a web search.";
 const CHAT_EXTRA: Record<string, string> = {
+  find_station_story: OWN_STORIES,
+  latest_station_stories: OWN_STORIES,
   find_song_played: " Here, without cues it lists every song played in the window (up to 12, newest first) on a card the listener can save from.",
-  get_station_story: ' When the listener asks about the places, restaurants, venues or stops in a story (what they were or where they are), call this with view "places"; the card maps them. Don\'t list them from memory.',
+  get_station_story: ' When the listener asks about the places, restaurants, venues or stops in a story (what they were or where they are), call this with view "places"; the card maps them. Don\'t list them from memory.' + OWN_STORIES,
 };
 // On card tools, per-tool guidance against re-listing what the card shows (ChatGPT repeated events as a table).
 const CARD_NOTE = " The card shows these results; reply in one or two sentences and don't list them again.";

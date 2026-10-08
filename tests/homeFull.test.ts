@@ -40,7 +40,7 @@ describe("station home, fullscreen (the sidebar app)", () => {
     const html: string = (await home())._meta.fullHtml;
     expect(html.indexOf("From the broadcast booth")).toBeLessThan(html.indexOf("A path forward"));
     expect(html.indexOf("A path forward")).toBeLessThan(html.indexOf("Turkey talk"));
-    expect(html).toContain('data-ask="Tell me about the story &quot;A path forward&quot;"');
+    expect(html).toContain('data-ask="Tell me about the Radio Milwaukee story &quot;A path forward&quot;"');
     expect(html).toContain("https://f.prxu.org/um.jpg");
     expect(html).toContain(">Artist Interviews · ");
     expect(html).not.toContain("Radio Milwaukee Artist Interviews ·");
@@ -88,5 +88,14 @@ describe("deep links into the home", () => {
   it("every link lands on a part of the page that's there", async () => {
     const html: string = (await home(door(), "user_1"))._meta.fullHtml;
     for (const id of Object.values(DEEP_LINKS)) expect(html, id).toContain(`id="${id}"`);
+  });
+});
+
+// 2026-10-08: "Tell me about the story ..." from the sidebar home made ChatGPT search the web, not use our tool.
+describe("tapping a story opens it straight from our server", () => {
+  it("each Latest stories tile calls get_station_story, with a Radio Milwaukee message as the fallback", async () => {
+    const html: string = (await home())._meta.fullHtml;
+    expect(html).toContain('data-call="{&quot;name&quot;:&quot;get_station_story&quot;,&quot;arguments&quot;:{&quot;storyId&quot;:&quot;um&quot;,&quot;view&quot;:&quot;story&quot;}}"');
+    expect(html).toContain('data-ask="Tell me about the Radio Milwaukee story &quot;A path forward&quot;"');
   });
 });

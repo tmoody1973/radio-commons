@@ -122,4 +122,7 @@ button.sending{opacity:.6;cursor:progress}
 button.sending::after{content:"";display:inline-block;width:12px;height:12px;margin-left:8px;box-sizing:border-box;border:2px solid currentColor;border-right-color:transparent;border-radius:9999px;animation:rc-spin .8s linear infinite;vertical-align:-1px;flex:none}
 @keyframes rc-spin{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){button.sending::after{animation:none;border-right-color:currentColor;opacity:.5}}
+/* Back from a card opened from another card (page.ts cardHistory). */
+.back{display:inline-flex;align-items:center;gap:4px;margin:0 0 8px;padding:6px 2px;background:none;color:var(--text-2);font-size:14px;font-weight:500}
+.back:hover{color:var(--text)}
 `;

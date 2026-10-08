@@ -200,6 +200,11 @@ it("card tools tell ChatGPT the card already lists the results; tools without a 
   expect(tools.find((t) => t.name === "delete_my_finds")!.description).not.toContain(note);
 });
 
+it("story tools tell ChatGPT they are Radio Milwaukee's own stories, to use instead of a web search", async () => {
+  const tools: { name: string; description: string }[] = (await mcpPost(chatHandler(), { method: "tools/list" })).message.result.tools;
+  for (const name of ["find_station_story", "latest_station_stories", "get_station_story"]) expect(tools.find((t) => t.name === name)!.description, name).toContain("not a web search");
+});
+
 it("get_station_story: 'what restaurants were discussed' goes to the map view, and the card may call it", async () => {
   const tools: { name: string; description: string; _meta: Record<string, unknown> }[] = (await mcpPost(chatHandler(), { method: "tools/list" })).message.result.tools;
   const story = tools.find((t) => t.name === "get_station_story")!;

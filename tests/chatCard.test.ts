@@ -351,3 +351,18 @@ describe("the card pages' scripts are valid JavaScript", () => {
     expect(() => new AsyncFunction(ownScript(page))).not.toThrow();
   });
 });
+
+describe("a card the listener opened from another card", () => {
+  const ownScript = (page: string) => page.split("const App = ")[1];
+  it("keeps where they came from and shows Back to it (story from the home, map from the story)", () => {
+    const chat = ownScript(chatCardPage("k"));
+    expect(chat).toContain("cardHistory.push(current)");
+    expect(chat).toContain('has("back")');
+    expect(chat).toContain("cardHistory = []");
+  });
+  it("the newsletter's story Play opens the story the same way", () => {
+    const html = renderView({ view: "briefing", date: "Oct. 1", items: [{ heading: "Playtime's over", url: "https://radiomilwaukee.org/x", summary: "s", action: { kind: "story", storyId: "s1", title: "Brewers" } }] });
+    expect(html).toContain("&quot;get_station_story&quot;");
+    expect(html).toContain("&quot;storyId&quot;:&quot;s1&quot;");
+  });
+});
