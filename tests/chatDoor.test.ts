@@ -430,14 +430,18 @@ describe("ChatGPT door: songs in a time window", () => {
 
 // Slice 6: the station home — a global entrypoint ChatGPT can list in its sidebar (openai/mcp-extensions).
 describe("ChatGPT door: station home", () => {
-  type T = { name: string; title: string; _meta: Record<string, { entrypoints?: unknown; availableDisplayModes?: string[] }> };
+  type T = { name: string; title: string; icons?: { src: string; mimeType?: string }[]; _meta: Record<string, { entrypoints?: unknown; availableDisplayModes?: string[] }> };
   const homeDoor = () => buildMcpHandler({ backstory: () => fakeBackstory(), fieldGuide: () => fakeFieldGuide(), playlist: () => fakePlaylist(), cardHtml: () => "", surface: "chat",
     newsletter: () => ({ latest: async () => ({ date: "Oct. 1", title: "Weekly", items: [{ heading: "Playtime's over", url: "https://radiomilwaukee.org/x", summary: "Jeff Levering is everything." }] }) }) as never });
 
-  it("is a global entrypoint on the ChatGPT door only, and still declares picture-in-picture", async () => {
+  // openai/mcp-extensions: global = the sidebar, thread = a conversation's side panel; entrypoint tools SHOULD carry
+  // a monochrome SVG icon in currentColor, or ChatGPT shows a generic one.
+  it("opens from the sidebar and a conversation's side panel, with its own icon, on the ChatGPT door only", async () => {
     const tools: T[] = (await mcpPost(homeDoor(), { method: "tools/list" })).message.result.tools;
     const home = tools.find((t) => t.name === "station_home")!;
-    expect(home._meta["openai/ui"].entrypoints).toEqual([{ type: "global" }]);
+    expect(home._meta["openai/ui"].entrypoints).toEqual([{ type: "global" }, { type: "thread" }]);
+    expect(home.icons?.[0].mimeType).toBe("image/svg+xml");
+    expect(decodeURIComponent(home.icons![0].src)).toContain("currentColor");
     expect(home._meta["openai/ui"].availableDisplayModes).toEqual(["inline", "fullscreen", "pip"]);
     expect(home.title).not.toBe("Radio Milwaukee");
     const alexa = buildMcpHandler({ backstory: () => fakeBackstory(), fieldGuide: () => fakeFieldGuide(), playlist: () => fakePlaylist(), cardHtml: () => "" });

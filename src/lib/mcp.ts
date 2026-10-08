@@ -74,6 +74,10 @@ const LIST_PAGE = 3;
 const PAGE = z.number().int().min(1).max(4).optional();
 const PAGING = " Speaks three at a time; when the reply offers the next ones and the listener says yes, more, the next ones or keep going, call this tool again with the same arguments and page 2 (then 3). Numbers keep counting across pages.";
 const CARD = { _meta: { ui: { resourceUri: CARD_URI } } };
+// Broadcast waves, 20x20, 1.33px strokes in currentColor so ChatGPT tints it to the theme.
+const HOME_ICON = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.33" stroke-linecap="round" stroke-linejoin="round"><path d="M4.1 15.9a8.3 8.3 0 0 1 0-11.8M15.9 4.1a8.3 8.3 0 0 1 0 11.8M6.5 13.5a5 5 0 0 1 0-7M13.5 6.5a5 5 0 0 1 0 7"/><circle cx="10" cy="10" r="1.6"/></svg>')}`;
+// ponytail: spread in because ext-apps' McpUiAppToolConfig type has no icons yet; the server passes them through.
+const HOME_ICONS = { icons: [{ src: HOME_ICON, mimeType: "image/svg+xml" }] };
 // "Thanks for being a member" is a nicety: past this, the digest goes out without it.
 const MEMBER_LINE_BUDGET_MS = 300;
 const LEVEL_SLUG = z.enum(LEVELS.map((level) => level.slug) as [string, ...string[]]);
@@ -986,7 +990,9 @@ export function buildMcpHandler(deps: Deps) {
           description: "Radio Milwaukee's home: what's on all four stations now with Listen live, the newest episode of each show (This Bites, Uniquely Milwaukee and more), this week's highlights from the newsletter, and the listener's Finds when signed in. Use for \"open Radio Milwaukee\", \"Radio Milwaukee home\", \"show me the station\". Takes no arguments.",
           inputSchema: z.object({}),
           annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
-          _meta: { ui: { resourceUri: CARD_URI }, "openai/ui": { entrypoints: [{ type: "global" }] } },
+          // The sidebar (global) and a conversation's side panel (thread); the icon follows OpenAI's sidebar template.
+          ...HOME_ICONS,
+          _meta: { ui: { resourceUri: CARD_URI }, "openai/ui": { entrypoints: [{ type: "global" }, { type: "thread" }] } },
         },
         async (_args, context) =>
           timed("station_home", async () => {
