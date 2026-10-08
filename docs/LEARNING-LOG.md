@@ -121,3 +121,19 @@
 **What we now believe:** test the real host before designing for it: an hour in ChatGPT changed more of the plan than the documentation did. Decide what the model is allowed to know, because it will answer from whatever you send it. And treat production as shared even from a laptop: a test harness is traffic too.
 
 **In Tarik's words:**
+
+
+## 2026-10-08: Recording the ChatGPT feature tour (what a rehearsal finds that tests don't)
+
+**What we expected:** the 767 tests and yesterday's hand checks meant the app was ready to film; recording would just be pointing a camera at it.
+
+**What happened:**
+- The first rehearsal found three bugs no test caught, all visual: the home's Try asking chips piled into a corner, and the newsletter article ran in side-by-side columns. Both were name clashes: the new ChatGPT styles reused class names (`chip`, `body`) that the shared Alexa card style already gave a fixed position or a row layout. The tests checked the HTML, which was correct; only looking at it showed the problem.
+- ChatGPT kept showing an old copy of the card page even after "Refresh tools": it caches a card by its address. The ChatGPT card now gets a new address whenever it changes (`chat-card-<content hash>.html`), and after one Refresh tools the fixes appeared. Without this, beta testers would never have seen a visual fix.
+- ChatGPT filled "From: Tarik Moody, Milwaukee" on a request from its memory of Tarik instead of asking which name to give the DJ. One sentence in the tool description ("never fill it in yourself… always ask first") fixed it; the next take asked.
+- Uniquely Milwaukee is set to summary-only, so detail questions about its episodes return "Detailed answers aren't available." That is the editorial setting doing its job (reentry after incarceration is sensitive), so the demo's quote moment moved to This Bites.
+- Filming ChatGPT took more engineering than expected. Its cards run two frames deep in a sandbox from another site, where the browser tool can read buttons but not press them; tapping became "click the card's corner, Tab to the button, press Enter." ChatGPT also asked "Allow ChatGPT to use Radio Milwaukee?" before the first feedback send, and showed upsell banners mid-take.
+
+**What we now believe:** a rehearsal is a test suite for what people see: look at every screen before calling it done, and keep shared style names out of new components. When a host caches by address, version the address. And the model will fill gaps from memory unless told not to.
+
+**In Tarik's words:**
