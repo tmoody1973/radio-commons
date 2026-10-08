@@ -328,3 +328,26 @@ describe("a tap's answer lands where the listener can see it", () => {
     expect(ownScript(storyCardPage("k"))).not.toContain("openai/message");
   });
 });
+
+describe("deep links", () => {
+  const ownScript = (page: string) => page.split("const App = ")[1];
+  it("the chat card follows openai/deepLink to a section, once per link", () => {
+    const chat = ownScript(chatCardPage("k"));
+    expect(chat).toContain('["openai/deepLink"]');
+    expect(chat).toContain('"/on-air/hyfin":"on-air-hyfin"');
+    expect(chat).toContain("scrollIntoView");
+  });
+  it("Alexa's card doesn't", () => {
+    expect(ownScript(storyCardPage("k"))).not.toContain("openai/deepLink");
+  });
+});
+
+// 2026-10-08: a regex written inside the page's template string came out as "//" (a comment) and would have broken
+// every button; checks on the script's text didn't notice. Parse the page's own script (the part after the bundle).
+describe("the card pages' scripts are valid JavaScript", () => {
+  const AsyncFunction = Object.getPrototypeOf(async () => {}).constructor as new (body: string) => unknown;
+  const ownScript = (page: string) => `const App = ${page.split("const App = ")[1].split("</script>")[0]}`;
+  it.each([["ChatGPT", chatCardPage("k")], ["Alexa", storyCardPage("k")]])("%s", (_name, page) => {
+    expect(() => new AsyncFunction(ownScript(page))).not.toThrow();
+  });
+});

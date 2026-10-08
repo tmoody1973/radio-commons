@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { buildMcpHandler } from "@/lib/mcp";
 import type { PlaylistClient } from "@/lib/playlist";
+import { DEEP_LINKS } from "@/lib/card/homeFull";
 import { fakeBackstory, fakeFieldGuide, fakePlaylist } from "./fixtures";
 import { mcpPost, mcpPostAs } from "./mcp-wire";
 
@@ -75,5 +76,17 @@ describe("station home, fullscreen (the sidebar app)", () => {
 
   it("the inline home has a button that opens it", async () => {
     expect((await home())._meta.cardHtml).toContain('class="primary fullscreen"');
+  });
+});
+
+// openai/mcp-extensions deep links: chatgpt.com/plugins/<id>/app/station_home?path=/on-air/hyfin opens the home there.
+describe("deep links into the home", () => {
+  it("cover the sections and each station", () => {
+    expect(Object.keys(DEEP_LINKS)).toEqual(expect.arrayContaining(["/on-air", "/on-air/hyfin", "/on-air/88nine", "/on-air/rhythmlab", "/on-air/414music", "/stories", "/this-week", "/finds", "/explore"]));
+  });
+
+  it("every link lands on a part of the page that's there", async () => {
+    const html: string = (await home(door(), "user_1"))._meta.fullHtml;
+    for (const id of Object.values(DEEP_LINKS)) expect(html, id).toContain(`id="${id}"`);
   });
 });

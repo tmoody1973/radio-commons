@@ -1,6 +1,6 @@
 import { EXT_APPS_BUNDLE } from "@/generated/ext-apps-bundle";
 import { CHAT_STYLE } from "./chatStyle";
-import { HOME_FULL_STYLE } from "./homeFull";
+import { DEEP_LINKS, HOME_FULL_STYLE } from "./homeFull";
 import { TOKENS } from "./tokens";
 
 const MAPLIBRE = "https://unpkg.com/maplibre-gl@4.7.1/dist/";
@@ -163,6 +163,22 @@ function refreshOnAir() {
     if (next && typeof next.cardHtml === "string") { current = next; applyContext(); } // restoreChatState keeps "Stop"
   }).catch(() => {});
 }
+// Deep links: ChatGPT passes the link's path in host context ("openai/deepLink"), on open and when a new link is
+// clicked. Scroll to that part of the home and flash it, once per link, after the part has rendered.
+const DEEP_LINKS = ${JSON.stringify(DEEP_LINKS)};
+let followedLink = null;
+function followDeepLink() {
+  const link = (app.getHostContext() || {})["openai/deepLink"];
+  const url = link && link.url;
+  if (!url || url === followedLink) return;
+  const id = DEEP_LINKS[url.split("?")[0].replace(/\\/+$/, "")];
+  const target = id && document.getElementById(id);
+  if (!target) return;
+  followedLink = url;
+  target.scrollIntoView({ block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  target.classList.add("hf-target");
+  setTimeout(() => target.classList.remove("hf-target"), 2400);
+}
 function chatMapPadding() {
   const side = root.querySelector(".side");
   if (window.innerWidth < 600) return { top: 80, left: 20, right: 20, bottom: (side ? side.offsetHeight : 0) + 30 };
@@ -199,7 +215,7 @@ ${chat ? CHAT_HELPERS : ""}function render(full) {
   // The map picture follows the theme: Amazon draws light and dark versions.
   const dark = document.documentElement.dataset.theme === "dark";
   root.querySelectorAll("img[data-themed]").forEach((img) => { img.src = img.src.replace(/theme=(light|dark)/, dark ? "theme=dark" : "theme=light"); });
-  ${chat ? "restoreChatState();\n  " : ""}if (full) startMap();
+  ${chat ? "restoreChatState();\n  followDeepLink();\n  " : ""}if (full) startMap();
 }
 
 app.ontoolresult = (result) => {

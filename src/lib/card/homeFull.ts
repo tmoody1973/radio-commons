@@ -20,6 +20,19 @@ export interface HomeData {
   playlists: PlaylistSummary[] | null;
 }
 
+/**
+ * Deep links (openai/mcp-extensions): chatgpt.com/plugins/<plugin id>/app/station_home?path=/on-air/hyfin opens the
+ * sidebar home and scrolls to that part of it. Path → element id; the card page (page.ts) follows them.
+ */
+export const DEEP_LINKS: Record<string, string> = {
+  "/on-air": "on-air",
+  ...Object.fromEntries(Object.keys(STATION_NAMES).map((station) => [`/on-air/${station}`, `on-air-${station}`])),
+  "/stories": "stories",
+  "/this-week": "this-week",
+  "/finds": "finds",
+  "/explore": "explore",
+};
+
 const icon = (paths: string, size = 16) =>
   `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
 const WAVES = '<path d="M4.9 19.1a10 10 0 0 1 0-14.2M19.1 4.9a10 10 0 0 1 0 14.2M7.8 16.2a6 6 0 0 1 0-8.4M16.2 7.8a6 6 0 0 1 0 8.4"/><circle cx="12" cy="12" r="2"/>';
@@ -85,12 +98,12 @@ function startHere(tiles: OnAirTile[], episodes: StoryCardMatch[], finds: FindRo
 function onAir(tiles: OnAirTile[]): string {
   const cards = tiles.map(({ station, song, show }) => {
     const name = stationName(station);
-    return `<article class="hf-station">${art(sizedArtwork(song?.artworkUrl ?? null), song?.artist ?? name, "hf-cover")}`
+    return `<article class="hf-station" id="on-air-${escape(station)}">${art(sizedArtwork(song?.artworkUrl ?? null), song?.artist ?? name, "hf-cover")}`
       + `<b class="hf-kicker">${escape(name)}${show ? ` · ${escape(showLine(show))}` : ""}</b>`
       + `<span class="hf-title">${escape(song?.title ?? "Live now")}</span>${song ? `<span class="hf-sub">${escape(song.artist)}</span>` : ""}`
       + `<div class="hf-actions">${listenLive(station, "secondary")}${song ? saveSong(song, station) : ""}</div></article>`;
   }).join("");
-  return `<section class="hf-section"><div class="hf-head"><h2>On air now</h2><span class="hf-live"><i></i>Live</span></div><div class="hf-grid">${cards}</div></section>`;
+  return `<section class="hf-section" id="on-air"><div class="hf-head"><h2>On air now</h2><span class="hf-live"><i></i>Live</span></div><div class="hf-grid">${cards}</div></section>`;
 }
 
 const STORY_ASKS: [label: string, prompt: string][] = [
@@ -103,19 +116,19 @@ function latestStories(episodes: StoryCardMatch[]): string {
   const asks = STORY_ASKS.map(([label, prompt]) => ask("secondary", prompt, escape(label))).join("");
   const cards = episodes.slice(0, 6).map((m) => ask("hf-story", `Tell me about the story "${m.title}"`,
     `${art(m.imageUrl, m.show, "hf-cover")}<b class="hf-kicker">${escape(showLabel(m.show))} · ${escape(shortDate(m.publishedAt))}</b><span class="hf-title">${escape(m.title)}</span>`)).join("");
-  return `<section class="hf-section"><div class="hf-head"><h2>Latest stories</h2><div class="hf-actions">${asks}</div></div><div class="hf-row">${cards}</div></section>`;
+  return `<section class="hf-section" id="stories"><div class="hf-head"><h2>Latest stories</h2><div class="hf-actions">${asks}</div></div><div class="hf-row">${cards}</div></section>`;
 }
 
 function thisWeek(briefing: NonNullable<HomeData["briefing"]>): string {
   const rows = briefing.items.slice(0, 4).map((item, i) =>
     `<div class="hf-week-row"><span class="hf-num">${i + 1}</span><span class="hf-what"><b>${escape(item.heading)}</b><span>${escape(item.summary)}</span></span>${briefingButton(item)}</div>`).join("");
-  return `<section class="hf-week"><div class="hf-head"><h2>This week</h2><span>From the ${escape(briefing.date)} newsletter</span></div>${rows}</section>`;
+  return `<section class="hf-week" id="this-week"><div class="hf-head"><h2>This week</h2><span>From the ${escape(briefing.date)} newsletter</span></div>${rows}</section>`;
 }
 
 function yourFinds(finds: FindRow[] | null, playlists: PlaylistSummary[] | null): string {
   const head = `<div class="hf-head"><h2>Your Finds</h2>${finds?.length ? ask("hf-link", "What's in my Finds?", "See all") : ""}</div>`;
   if (finds === null) {
-    return `<section class="hf-finds">${head}<p>Sign in to see your Finds and playlists: the songs you save from any station.</p>${ask("secondary", "What's in my Finds?", "Sign in")}</section>`;
+    return `<section class="hf-finds" id="finds">${head}<p>Sign in to see your Finds and playlists: the songs you save from any station.</p>${ask("secondary", "What's in my Finds?", "Sign in")}</section>`;
   }
   const rows = finds.length
     ? finds.slice(0, 4).map((f) => `<div class="hf-find">${art(sizedArtwork(f.artworkUrl), f.artist, "hf-thumb")}`
@@ -126,7 +139,7 @@ function yourFinds(finds: FindRow[] | null, playlists: PlaylistSummary[] | null)
     ? playlists.slice(0, 3).map((pl) => ask("hf-playlist", `Show my playlist ${pl.name}`,
       `<span class="hf-pl-icon">${icon(PLAYLIST, 22)}</span><span class="hf-what"><b>${escape(pl.name)}</b><span>Playlist · ${pl.itemCount} song${pl.itemCount === 1 ? "" : "s"}</span></span>`)).join("")
     : ask("hf-playlist", "I'd like to make a playlist", `<span class="hf-pl-icon">${icon(PLAYLIST, 22)}</span><span class="hf-what"><b>Make a playlist</b><span>From songs you've heard</span></span>`);
-  return `<section class="hf-finds">${head}${rows}${lists}</section>`;
+  return `<section class="hf-finds" id="finds">${head}${rows}${lists}</section>`;
 }
 
 const EXPLORE: [label: string, prompt: string, paths: string][] = [
@@ -140,7 +153,7 @@ const EXPLORE: [label: string, prompt: string, paths: string][] = [
 
 function explore(): string {
   const tiles = EXPLORE.map(([label, prompt, paths]) => ask("hf-tile", prompt, `${escape(label)}<span class="hf-badge">${icon(paths, 24)}</span>`)).join("");
-  return `<section class="hf-section"><h2>Explore</h2><div class="hf-explore">${tiles}</div></section>`;
+  return `<section class="hf-section" id="explore"><h2>Explore</h2><div class="hf-explore">${tiles}</div></section>`;
 }
 
 const footer = () =>
@@ -174,6 +187,10 @@ html[data-theme=dark] .hf-logo{filter:invert(1);mix-blend-mode:screen}
 .hf-chip{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 16px;border-radius:9999px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:14px;font-weight:500;white-space:nowrap}
 .hf-chip:hover{background:var(--soft)}
 .hf-section{display:flex;flex-direction:column;gap:18px;min-width:0}
+.hf [id]{scroll-margin-top:24px}
+.hf-target{animation:hf-flash 2.4s ease-out}
+@keyframes hf-flash{0%,35%{box-shadow:0 0 0 3px var(--accent);border-radius:16px}100%{box-shadow:0 0 0 3px transparent;border-radius:16px}}
+@media (prefers-reduced-motion:reduce){.hf-target{animation:none;box-shadow:0 0 0 3px var(--accent);border-radius:16px}}
 .hf-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .hf h2{font-weight:600;font-size:32px;line-height:36px}
 .hf-row{display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;padding-bottom:4px}
