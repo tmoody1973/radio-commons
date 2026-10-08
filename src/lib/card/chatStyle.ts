@@ -97,7 +97,8 @@ button svg{width:16px;height:16px}
 .home-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:4px 2px 0}
 .home-name{font-size:17px;font-weight:600}
 .link{background:none;padding:0;color:var(--text-2);font-size:13px;text-decoration:underline;text-underline-offset:2px}
-.home-support{margin:2px 2px 4px;color:var(--text-2);font-size:13px}
+.home-support{margin:2px 2px 0;color:var(--text-2);font-size:13px;line-height:18px}
+.home-top .home-head{margin-bottom:4px}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 /* not .chip: the shared card style pins .chip to a tile's corner */
 .try{background:transparent;color:var(--text);border:1px solid var(--divider);border-radius:9999px;padding:6px 12px;font-size:13px;line-height:18px}

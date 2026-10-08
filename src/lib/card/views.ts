@@ -552,9 +552,9 @@ const TRY_ASKING: [label: string, ask: string][] = [
 function homeHeader(): string {
   const chips = TRY_ASKING.map(([label, ask]) => `<button type="button" class="try ask" data-ask="${escape(ask)}">${escape(label)}</button>`).join("");
   const feedback = `<button type="button" class="link ask" data-ask="${escape("I'd like to send feedback about the Radio Milwaukee app")}">Send feedback</button>`;
-  return `<header class="home-head"><b class="home-name">Radio Milwaukee <span class="beta">Beta</span></b><button type="button" class="link details" data-url="${STATION_SITE}">radiomilwaukee.org ↗</button></header>`
+  return `<div class="home-top"><header class="home-head"><b class="home-name">Radio Milwaukee <span class="beta">Beta</span></b><button type="button" class="link details" data-url="${STATION_SITE}">radiomilwaukee.org ↗</button></header>`
     + `<p class="home-support">Listener-supported. Support us at radiomilwaukee.org.</p>`
-    + `<p class="home-support">This app is new. Tell us what's broken or what you'd like: ${feedback}</p>`
+    + `<p class="home-support">This app is new. Tell us what's broken or what you'd like: ${feedback}</p></div>`
     + `<section class="home-section"><h3 class="home-title">Try asking</h3><div class="chips">${chips}</div></section>`;
 }
 
