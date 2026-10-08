@@ -59,7 +59,7 @@ export type CardView =
   | { view: "playlist"; playlistId: string; name: string; items: PlaylistItem[] }
   | { view: "playlists"; playlists: PlaylistSummary[] }
   /** ChatGPT door only: a radiomilwaukee.org article (the newsletter's Read); full is the fullscreen version. */
-  | { view: "article"; article: Article; full?: boolean };
+  | { view: "article"; article: Article; full?: boolean; audioUrl?: string | null };
 
 export const escape = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
@@ -530,15 +530,19 @@ function opening(blocks: ArticleBlock[]): ArticleBlock[] {
   return shown;
 }
 
-/** A station article: inline, the opening with Read the whole article (fullscreen); fullscreen, all of it. */
-function stationArticleView(a: Article, full: boolean): string {
+/**
+ * A station article: inline, the opening with Read the whole article (fullscreen); fullscreen, all of it. An article
+ * that is also an episode (an artist interview) plays first, so the two inline actions are Play and Read.
+ */
+function stationArticleView(a: Article, full: boolean, audioUrl: string | null = null): string {
   const site = `<button type="button" class="secondary details" data-url="${escape(a.url)}">Open on radiomilwaukee.org ↗</button>`;
+  const play = audioUrl ? `<button type="button" class="primary play" data-audio="${escape(audioUrl)}">${PLAY} Play episode</button>` : "";
   const photo = a.image ? `<img class="hero" src="${escape(a.image.url)}" alt="${escape(a.image.caption)}">` : "";
   const credit = full && a.image && (a.image.caption || a.image.credit)
     ? `<p class="caption">${escape([a.image.caption, a.image.credit].filter(Boolean).join(" · "))}</p>` : "";
   const head = `${photo}${credit}<p class="meta">${escape(dayMonth(a.publishedAt))} · radiomilwaukee.org</p><h2>${escape(a.title)}</h2>${a.teaser ? `<p class="teaser">${escape(a.teaser)}</p>` : ""}`;
   const body = (full ? a.blocks : opening(a.blocks)).map(blockHtml).join("");
-  const actions = full ? site : `<button type="button" class="primary fullscreen">Read the whole article</button>${site}`;
+  const actions = full ? `${play}${site}` : play ? `${play}<button type="button" class="secondary fullscreen">Read the whole article</button>` : `<button type="button" class="primary fullscreen">Read the whole article</button>${site}`;
   return `<article class="card article${full ? " full" : ""}">${head}<div class="article-body">${body}</div><div class="actions">${actions}</div></article>`;
 }
 
@@ -617,6 +621,6 @@ export function renderView(card: CardView): string {
     case "home": return homeView(card.tiles, card.episodes ?? null, card.briefing, card.finds);
     case "playlist": return playlistView(card.playlistId, card.name, card.items);
     case "playlists": return playlistsView(card.playlists);
-    case "article": return stationArticleView(card.article, card.full === true);
+    case "article": return stationArticleView(card.article, card.full === true, card.audioUrl ?? null);
   }
 }

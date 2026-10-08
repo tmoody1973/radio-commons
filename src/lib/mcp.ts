@@ -346,7 +346,7 @@ export function buildMcpHandler(deps: Deps) {
       const cardUri = chat ? chatCardUri(deps.cardHtml()) : CARD_URI;
       if (chat) patchChatServer(server, cardUri);
       if (chat) registerPlaylistTools(server, { playlist: deps.playlist, card, signInRequired, timed, cardMeta: CARD });
-      if (chat) registerArticleTool(server, { reader: deps.articles ?? articleReaderFromEnv, card, cardMeta: CARD });
+      if (chat) registerArticleTool(server, { reader: deps.articles ?? articleReaderFromEnv, backstory: deps.backstory, card, cardMeta: CARD });
       registerAppTool(
         server,
         "find_station_story",
