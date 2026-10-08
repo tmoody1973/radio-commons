@@ -137,3 +137,19 @@
 **What we now believe:** a rehearsal is a test suite for what people see: look at every screen before calling it done, and keep shared style names out of new components. When a host caches by address, version the address. And the model will fill gaps from memory unless told not to.
 
 **In Tarik's words:**
+
+
+## 2026-10-08: ChatGPT redrew every card, and its copy had no pictures
+
+**What we expected:** a card plus a one-line "the card shows these results, don't list them again" note (in the tool description and the card's description) would keep ChatGPT's reply short.
+
+**What happened:**
+- Every answer showed twice: our card, then the model's own layout of the same list, built with ChatGPT's built-in layout tags (`<row>`, `<AsyncImage>`). The stored conversation showed it plainly; the share link didn't, because shared copies drop the cards.
+- The gray picture boxes were only in ChatGPT's copy. Our card loaded the same podcast art fine. ChatGPT draws only images it found through its own image search, so our image addresses (and Field Guide events with no image at all) came out blank. Some pictures that did load were image-search guesses, not our artwork.
+- Even "now playing," which gave the model only a title and artist, got a second block with a searched-for album cover.
+- Taking the pictures and links away from the model, and saying "the card above already shows this" inside each result, fixed it: episodes, weekend events and HYFIN now playing each showed one card and a sentence or two (decision 013).
+- Separately, the playlist tools had been visible in ChatGPT for days while their backend wasn't deployed, so ChatGPT advertised "Create playlists" and then refused. Anything the model can see, it will offer.
+
+**What we now believe:** the model renders whatever we give it, so "don't repeat this" works by not giving it the thing to repeat, not by asking. Look at the stored conversation, not the share link, when diagnosing what users saw. And a tool that isn't ready shouldn't be on the list at all.
+
+**In Tarik's words:**
