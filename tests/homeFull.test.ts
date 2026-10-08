@@ -41,6 +41,8 @@ describe("station home, fullscreen (the sidebar app)", () => {
     expect(html.indexOf("A path forward")).toBeLessThan(html.indexOf("Turkey talk"));
     expect(html).toContain('data-ask="Tell me about the story &quot;A path forward&quot;"');
     expect(html).toContain("https://f.prxu.org/um.jpg");
+    expect(html).toContain(">Artist Interviews · ");
+    expect(html).not.toContain("Radio Milwaukee Artist Interviews ·");
   });
 
   it("shows this week's newsletter items", async () => {

@@ -35,6 +35,8 @@ const PLUS = '<path d="M12 5v14M5 12h14"/>';
 const ask = (cls: string, prompt: string, label: string) => `<button type="button" class="${cls} ask" data-ask="${escape(prompt)}">${label}</button>`;
 const shortDate = (ms: number) => new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "America/Chicago" }).format(ms);
 const stationName = (slug: string) => STATION_NAMES[slug as Station] ?? slug;
+// "Radio Milwaukee Artist Interviews" reads as "Artist Interviews" on a Radio Milwaukee page.
+const showLabel = (show: string) => withoutStationName(show).replace(/^Radio Milwaukee /, "");
 
 const PROMPTS: [paths: string, label: string, prompt: string][] = [
   [HELP, "What can I do here?", "What can I do with the Radio Milwaukee app?"],
@@ -66,7 +68,7 @@ function startHere(tiles: OnAirTile[], episodes: StoryCardMatch[], finds: FindRo
   const other = tiles.find((t) => t !== live && t.song?.artworkUrl);
   const savedArt = saved ? art(sizedArtwork(saved.artworkUrl), saved.artist, "hf-cover") : art(sizedArtwork(other?.song?.artworkUrl ?? null), other?.song?.artist ?? "Radio Milwaukee", "hf-cover");
   const story = episodes.find((m) => m.imageUrl) ?? episodes[0];
-  return `<section class="hf-section"><h2>Start here</h2><div class="hf-row">`
+  return `<section class="hf-section"><h2>Start here</h2><div class="hf-row hf-starts">`
     + startCard(WAVES, "Hear what's on, right now.", "Four stations, one tap. The stream keeps playing in a mini player while you chat.",
       live ? listenLive(live.station, "primary") : "", `${liveArt}${liveCaption}`)
     + startCard(BOOKMARK, "Save the song you just heard.", "Say “save that song.” It lands in your Finds and your Apple Music library, ready for any playlist you make.",
@@ -76,7 +78,7 @@ function startHere(tiles: OnAirTile[], episodes: StoryCardMatch[], finds: FindRo
       `<div class="hf-weekend"><b>This weekend</b><span>Concerts, festivals and free things to do</span>${icon(CALENDAR, 28)}</div>`)
     + (story ? startCard(HEADPHONES, "Go deeper on a story.", "Ask what was said in an episode, even half-remembered, and see every place it mentions on a map.",
       ask("primary", "What are the newest Radio Milwaukee stories?", "New stories"),
-      `${art(story.imageUrl, story.show, "hf-cover")}${caption(`${withoutStationName(story.show)} · ${shortDate(story.publishedAt)}`, story.title)}`) : "")
+      `${art(story.imageUrl, story.show, "hf-cover")}${caption(`${showLabel(story.show)} · ${shortDate(story.publishedAt)}`, story.title)}`) : "")
     + `</div></section>`;
 }
 
@@ -100,7 +102,7 @@ const STORY_ASKS: [label: string, prompt: string][] = [
 function latestStories(episodes: StoryCardMatch[]): string {
   const asks = STORY_ASKS.map(([label, prompt]) => ask("secondary", prompt, escape(label))).join("");
   const cards = episodes.slice(0, 6).map((m) => ask("hf-story", `Tell me about the story "${m.title}"`,
-    `${art(m.imageUrl, m.show, "hf-cover")}<b class="hf-kicker">${escape(withoutStationName(m.show))} · ${escape(shortDate(m.publishedAt))}</b><span class="hf-title">${escape(m.title)}</span>`)).join("");
+    `${art(m.imageUrl, m.show, "hf-cover")}<b class="hf-kicker">${escape(showLabel(m.show))} · ${escape(shortDate(m.publishedAt))}</b><span class="hf-title">${escape(m.title)}</span>`)).join("");
   return `<section class="hf-section"><div class="hf-head"><h2>Latest stories</h2><div class="hf-actions">${asks}</div></div><div class="hf-row">${cards}</div></section>`;
 }
 
@@ -202,7 +204,7 @@ html[data-theme=dark] .hf-logo{filter:invert(1);mix-blend-mode:screen}
 .hf-story{all:unset;cursor:pointer;flex:none;width:220px;scroll-snap-align:start;display:flex;flex-direction:column;gap:8px}
 .hf-story .hf-cover{width:220px;height:220px}
 .hf-story:focus-visible,.hf-playlist:focus-visible,.hf-tile:focus-visible{outline:2px solid var(--focus);outline-offset:4px;border-radius:16px}
-.hf-split{display:flex;flex-wrap:wrap;gap:16px;align-items:stretch}
+.hf-split{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start}
 .hf-week{flex:999 1 560px;min-width:0;box-sizing:border-box;padding:28px;border-radius:24px;background:var(--accent);color:#14181E;display:flex;flex-direction:column;gap:4px}
 .hf-week h2{font-weight:700;font-size:40px;line-height:42px}
 .hf-week .hf-head span{font-size:13px;font-weight:600}
@@ -230,6 +232,7 @@ html[data-theme=dark] .hf-logo{filter:invert(1);mix-blend-mode:screen}
 .hf-tile .hf-badge{width:56px;height:56px;border-radius:12px}
 .hf-foot{display:flex;flex-wrap:wrap;justify-content:center;gap:8px 20px;font-size:13px;line-height:20px;color:var(--text-2);text-align:center}
 .hf-foot button{background:none;padding:0;color:var(--accent-text);font-size:13px;text-decoration:underline}
+@media (min-width:901px){.hf-starts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));overflow:visible}.hf-starts .hf-start{width:auto}}
 @media (max-width:600px){
 .hf{padding:28px 16px 48px;gap:40px}
 .hf h2{font-size:28px;line-height:32px}
@@ -240,6 +243,8 @@ html[data-theme=dark] .hf-logo{filter:invert(1);mix-blend-mode:screen}
 .hf-story{width:168px}.hf-story .hf-cover{width:168px;height:168px}
 .hf-week{padding:20px}.hf-week h2{font-size:32px;line-height:34px}
 .hf-week-row{flex-wrap:wrap}
+.hf-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.hf-station .hf-title{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:15px;line-height:20px}
 .hf-explore{grid-template-columns:repeat(2,minmax(0,1fr))}
 .hf-tile{height:72px;padding:0 14px;font-size:15px}.hf-tile .hf-badge{display:none}
 }`;
