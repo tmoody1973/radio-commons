@@ -1,3 +1,4 @@
+import { CLIENT_CAPABILITIES_META_KEY, CLIENT_INFO_META_KEY, PROTOCOL_VERSION_META_KEY } from "@modelcontextprotocol/server";
 type Handler = (request: Request) => Promise<Response>;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- JSON-RPC results are free-form; tests assert on their fields
@@ -33,3 +34,14 @@ export const INITIALIZE = {
   method: "initialize",
   params: { protocolVersion: "2025-11-25", capabilities: {}, clientInfo: { name: "alexa-plus-test", version: "1" } },
 };
+
+/**
+ * One tools/call the way a 2026-07-28 client (ChatGPT) sends it: protocol version, client info and capabilities ride
+ * the request's _meta, and a multi-round-trip retry carries inputResponses. Signed in as userId when given.
+ */
+export async function mcpModernCall(handler: Handler, params: Record<string, unknown>, capabilities: Record<string, unknown>, userId?: string): Promise<{ status: number; message: RpcMessage }> {
+  const meta = { [PROTOCOL_VERSION_META_KEY]: "2026-07-28", [CLIENT_INFO_META_KEY]: { name: "chatgpt-test", version: "1" }, [CLIENT_CAPABILITIES_META_KEY]: capabilities };
+  const request = mcpRequest({ method: "tools/call", params: { ...params, _meta: meta } }, 1, { "mcp-protocol-version": "2026-07-28", "mcp-method": "tools/call", "mcp-name": String(params.name) });
+  if (userId) Object.assign(request, { auth: { token: "t", clientId: "chatgpt", scopes: [], extra: { userId } } });
+  return send(handler, request);
+}

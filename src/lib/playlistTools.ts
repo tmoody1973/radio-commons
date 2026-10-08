@@ -1,5 +1,7 @@
 import { registerAppTool } from "@modelcontextprotocol/ext-apps/server";
+import { acceptedContent, CLIENT_CAPABILITIES_META_KEY, inputRequired, inputResponse } from "@modelcontextprotocol/server";
 import { z } from "zod";
+import { sizedArtwork } from "@/lib/card/song";
 import type { CardView } from "@/lib/card";
 import { listenerIdFrom } from "@/lib/listenerAuth";
 import type { PlaylistClient, PlaylistSummary } from "@/lib/playlist";
@@ -25,6 +27,19 @@ const PLAY_ID = z.string().regex(/^[a-z0-9_]{6,64}$/);
 const UNAVAILABLE = "Playlists aren't available yet. They're coming soon to Radio Milwaukee.";
 const unavailable = (): ToolResult => ({ content: text(UNAVAILABLE), isError: true });
 
+// The playlist picker (openai/mcp-extensions form elicitation, over MCP 2026-07-28 multi-round-trip requests).
+type RequestContext = { http?: Parameters<typeof listenerIdFrom>[0]; mcpReq?: { envelope?: Record<string, unknown>; inputResponses?: Record<string, unknown> } };
+/** ChatGPT sends its capabilities with every 2026-07-28 request; only then can a tool ask with a form. */
+function formSupport(context: RequestContext) {
+  const caps = context.mcpReq?.envelope?.[CLIENT_CAPABILITIES_META_KEY] as { elicitation?: unknown; extensions?: Record<string, unknown> } | undefined;
+  return { forms: Boolean(caps?.elicitation), thumbnails: Boolean(caps?.extensions?.["openai/elicitation"]) };
+}
+const NEW_PLAYLIST = "new";
+const PICKED = z.object({ playlist: z.string().min(1).max(100), name: z.string().max(60).optional() });
+// "+" on Radio Milwaukee orange: a picker shows images for every option once any has one.
+const NEW_THUMBNAIL = `data:image/svg+xml;base64,${Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="#F7941D"/><path d="M32 18v28M18 32h28" stroke="#1E2124" stroke-width="5" stroke-linecap="round"/></svg>').toString("base64")}`;
+const MAX_CHOICES = 10;
+
 /** By id (the card), then exact name ignoring case, then a single partial match. */
 function findPlaylist(all: PlaylistSummary[], wanted: string): PlaylistSummary | undefined {
   const name = wanted.trim().toLowerCase();
@@ -34,6 +49,52 @@ function findPlaylist(all: PlaylistSummary[], wanted: string): PlaylistSummary |
 
 export function registerPlaylistTools(server: Server, deps: PlaylistToolDeps) {
   const { playlist, card, signInRequired, timed, cardMeta } = deps;
+
+  /** "Add <song> to which playlist?": the listener's playlists with album art, and New playlist with a name box. */
+  async function playlistPicker(listenerId: string, all: PlaylistSummary[], song: string, thumbnails: boolean): Promise<ToolResult> {
+    const shown = all.slice(0, MAX_CHOICES);
+    // The first song's artwork stands for each playlist; a playlist that can't be read just has no picture.
+    const art = thumbnails
+      ? await Promise.all(shown.map(async (pl) => {
+        const got = await playlist().getPlaylist(listenerId, pl.playlistId).catch(() => null);
+        return got?.status === "ok" ? sizedArtwork(got.items.find((item) => item.artworkUrl)?.artworkUrl ?? null) : null;
+      }))
+      : [];
+    const thumbnail = (src: string | null | undefined) => (thumbnails && src ? { "x-openai-thumbnail": { src } } : {});
+    const choices = [
+      ...shown.map((pl, i) => ({ const: pl.playlistId, title: pl.name, description: `${pl.itemCount} song${pl.itemCount === 1 ? "" : "s"}`, ...thumbnail(art[i]) })),
+      { const: NEW_PLAYLIST, title: "New playlist", description: "Name it below", ...thumbnail(NEW_THUMBNAIL) },
+    ];
+    const requestedSchema = {
+      type: "object",
+      properties: {
+        playlist: { type: "string", title: "Playlist", oneOf: choices },
+        name: { type: "string", title: "New playlist name", description: "Only if you picked New playlist", maxLength: 60 },
+      },
+      required: ["playlist"],
+    };
+    return inputRequired({ inputRequests: { playlist: inputRequired.elicit({ mode: "form", message: `Add ${song} to which playlist?`, requestedSchema } as never) } }) as unknown as ToolResult;
+  }
+
+  /** The playlist the listener meant when they didn't name one: their form answer, a form to ask, or a question in chat. */
+  async function whichPlaylist(listenerId: string, context: RequestContext, song: string): Promise<{ wanted: string } | { reply: ToolResult }> {
+    const all = await playlist().listPlaylists(listenerId);
+    const answer = inputResponse(context.mcpReq?.inputResponses, "playlist");
+    if (answer.kind === "elicit" && answer.action !== "accept") return { reply: { content: text("Okay, I didn't add it to a playlist.") } };
+    const picked = acceptedContent(context.mcpReq?.inputResponses, "playlist", PICKED);
+    if (picked?.playlist === NEW_PLAYLIST && picked.name?.trim()) return { wanted: picked.name.trim() };
+    // Only one of the listener's own playlists counts; anything else is asked again in chat.
+    if (picked && all.some((pl) => pl.playlistId === picked.playlist)) return { wanted: picked.playlist };
+    if (!picked) {
+      const support = formSupport(context);
+      if (support.forms) return { reply: await playlistPicker(listenerId, all, song, support.thumbnails) };
+    }
+    const names = all.map((pl) => pl.name);
+    return { reply: {
+      content: text(names.length ? `Which playlist should ${song} go in? Your playlists: ${names.join(", ")}. Or name a new one.` : `What should the new playlist be called?`),
+      structuredContent: { status: "which_playlist", playlists: names },
+    } };
+  }
   const listener = (context: { http?: Parameters<typeof listenerIdFrom>[0] }) => listenerIdFrom(context.http ?? {});
   const notFound = (wanted: string, all: PlaylistSummary[]): ToolResult =>
     ({ content: text(`I can't find a playlist called "${wanted}".${all.length ? ` Your playlists: ${all.map((p) => p.name).join(", ")}.` : ""}`), structuredContent: { status: "not_found" } });
@@ -76,14 +137,18 @@ export function registerPlaylistTools(server: Server, deps: PlaylistToolDeps) {
 
   registerAppTool(server, "add_to_playlist", {
     title: "Add a song to a playlist",
-    description: "Add a song Radio Milwaukee played to one of the listener's playlists, by the playlist's name; makes the playlist if it doesn't exist yet. Identify the song like save_find: playId from a song list if you have it, or number for 'number 3', and always also the title and artist (and station if known).",
-    inputSchema: z.object({ playlist: z.string().min(1).max(100), playId: PLAY_ID.optional(), number: z.number().int().min(1).max(12).optional(), title: z.string().max(200).optional(), artist: z.string().max(200).optional(), station: STATION.optional() }),
+    description: "Add a song Radio Milwaukee played to one of the listener's playlists, by the playlist's name; makes the playlist if it doesn't exist yet. If the listener didn't say which playlist, leave playlist out: they pick one, or name a new one, in a form. Identify the song like save_find: playId from a song list if you have it, or number for 'number 3', and always also the title and artist (and station if known).",
+    inputSchema: z.object({ playlist: z.string().min(1).max(100).optional(), playId: PLAY_ID.optional(), number: z.number().int().min(1).max(12).optional(), title: z.string().max(200).optional(), artist: z.string().max(200).optional(), station: STATION.optional() }),
     ...cardMeta,
-  }, async ({ playlist: wanted, ...song }, context) => timed("add_to_playlist", async () => {
+  }, async ({ playlist: named, ...song }, context) => timed("add_to_playlist", async () => {
     const listenerId = listener(context);
     if (!listenerId) return signInRequired();
     const playId = await resolvePlay(listenerId, song);
-    if (!playId) return { content: text(`Which song should I add to ${wanted}?`), structuredContent: { status: "which_song" } };
+    if (!playId) return { content: text(`Which song should I add${named ? ` to ${named}` : ""}?`), structuredContent: { status: "which_song" } };
+    const label = song.title ? `"${song.title}"` : "that song";
+    const chosen = named ? { wanted: named } : await whichPlaylist(listenerId, context as RequestContext, label);
+    if ("reply" in chosen) return chosen.reply;
+    const { wanted } = chosen;
     let target = findPlaylist(await playlist().listPlaylists(listenerId), wanted);
     if (!target) {
       const made = await playlist().createPlaylist(listenerId, wanted);
