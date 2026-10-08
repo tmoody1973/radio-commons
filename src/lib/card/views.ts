@@ -536,7 +536,7 @@ function stationArticleView(a: Article, full: boolean): string {
   const head = `${photo}${credit}<p class="meta">${escape(dayMonth(a.publishedAt))} · radiomilwaukee.org</p><h2>${escape(a.title)}</h2>${a.teaser ? `<p class="teaser">${escape(a.teaser)}</p>` : ""}`;
   const body = (full ? a.blocks : opening(a.blocks)).map(blockHtml).join("");
   const actions = full ? site : `<button type="button" class="primary fullscreen">Read the whole article</button>${site}`;
-  return `<article class="card article${full ? " full" : ""}">${head}<div class="body">${body}</div><div class="actions">${actions}</div></article>`;
+  return `<article class="card article${full ? " full" : ""}">${head}<div class="article-body">${body}</div><div class="actions">${actions}</div></article>`;
 }
 
 const STATION_SITE = "https://radiomilwaukee.org";

@@ -261,6 +261,10 @@ describe("article card (newsletter Read, in ChatGPT)", () => {
     expect(inline).toContain('class="primary fullscreen"');
     expect(inline).toContain('class="secondary details" data-url="https://radiomilwaukee.org/events-festivals/x"');
   });
+  it("the article text isn't in a .body block (the shared style makes .body a side-by-side row)", () => {
+    expect(inline).not.toContain('class="body"');
+    expect(full).not.toContain('class="body"');
+  });
   it("inline never ends on a heading", () => {
     expect(inline.trimEnd()).not.toMatch(/<h3[^>]*>[^<]*<\/h3><\/div><div class="actions">/);
   });
