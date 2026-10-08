@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { createMcpHandler } from "mcp-handler";
 import { AUTH_TOOLS, OAUTH_SCOPES } from "@/lib/listenerAuth";
 
@@ -115,7 +116,13 @@ function withPlacesBehindTheMap<T extends ToolResultLike>(result: T): T {
  * results with the card HTML moved to _meta. ponytail: patches this request's server instance (mcp-handler builds one
  * per request), so the 24 registrations in mcp.ts stay shared with Alexa+ untouched.
  */
-export function patchChatServer(server: McpServerLike) {
+/**
+ * The ChatGPT card's address, versioned by its content: ChatGPT keeps its own copy of a card page by address and
+ * didn't refetch it on Refresh tools (2026-10-08), so a changed card needs a new address. Alexa keeps CARD_URI.
+ */
+export const chatCardUri = (html: string) => `ui://radio-commons/chat-card-${createHash("sha256").update(html).digest("hex").slice(0, 10)}.html`;
+
+export function patchChatServer(server: McpServerLike, cardUri?: string) {
   const register = server.registerTool.bind(server);
   server.registerTool = ((name: string, config: { description?: string; _meta?: Record<string, unknown> }, callback: (...args: unknown[]) => Promise<ToolResultLike>) =>
     register(
@@ -125,6 +132,8 @@ export function patchChatServer(server: McpServerLike) {
         ...(config.description ? { description: chatDescription(config.description) + (CHAT_EXTRA[name] ?? "") + (hasCard(config) ? CARD_NOTE : "") } : {}),
         _meta: {
           ...config._meta,
+          // Every card tool points at the versioned card, under both keys the Apps library writes.
+          ...(cardUri && hasCard(config) ? { ui: { ...(config._meta?.ui as object), resourceUri: cardUri }, "ui/resourceUri": cardUri } : {}),
           securitySchemes: SIGNED_IN_TOOLS.has(name) ? SIGNED_IN : EITHER,
           ...(STATUS[name] ? { "openai/toolInvocation/invoking": STATUS[name] } : {}),
           // OpenAI: must be true for any tool the card calls itself (Save from the card).

@@ -8,6 +8,8 @@ import { mcpPost, mcpPostAs, mcpRequest, send } from "./mcp-wire";
 const chatHandler = () =>
   buildMcpHandler({ backstory: () => fakeBackstory(), fieldGuide: () => fakeFieldGuide(), playlist: () => fakePlaylist(), cardHtml: () => "<!doctype html><title>card</title>", surface: "chat" });
 const names = (result: { tools: { name: string }[] }) => result.tools.map((t) => t.name);
+// The chat card's address carries a version (ChatGPT caches cards by address), so tests read it from the list.
+const chatCardUri = async (handler = chatHandler()) => (await mcpPost(handler, { method: "resources/list" })).message.result.resources[0].uri as string;
 const MEMBERSHIP = ["support_radio_milwaukee", "my_membership", "cancel_membership"];
 
 describe("ChatGPT door: tool list", () => {
@@ -41,7 +43,7 @@ describe("ChatGPT door: sign-in", () => {
 
   it("keeps the card on card tools after adding securitySchemes", async () => {
     const story = (await tools()).find((t) => t.name === "find_station_story")!;
-    expect(story._meta!.ui!.resourceUri).toBe(CARD_URI);
+    expect(story._meta!.ui!.resourceUri).toBe(await chatCardUri());
   });
 
   it("answers a signed-out save with a tool error that makes ChatGPT show its sign-in screen", async () => {
@@ -130,7 +132,7 @@ describe("ChatGPT door: what the model reads", () => {
   });
 
   it("declares the card's allowed sites under ChatGPT's key too, and tells the model the card shows the details", async () => {
-    const { message } = await mcpPost(chatHandler(), { method: "resources/read", params: { uri: CARD_URI } });
+    const { message } = await mcpPost(chatHandler(), { method: "resources/read", params: { uri: await chatCardUri() } });
     const meta = message.result.contents[0]._meta;
     expect(meta.ui.csp.resourceDomains).toContain("https://*.mzstatic.com");
     expect(meta["openai/widgetCSP"].resource_domains).toEqual(meta.ui.csp.resourceDomains);
@@ -177,7 +179,7 @@ it("get_station_story: 'what restaurants were discussed' goes to the map view, a
 });
 
 it("the chat card may load NPR-hosted episode audio (cpa.ds.npr.org) once ChatGPT enforces the allowed-sites list", async () => {
-  const { message } = await mcpPost(chatHandler(), { method: "resources/read", params: { uri: CARD_URI } });
+  const { message } = await mcpPost(chatHandler(), { method: "resources/read", params: { uri: await chatCardUri() } });
   const meta = message.result.contents[0]._meta;
   expect(meta.ui.csp.resourceDomains).toContain("https://cpa.ds.npr.org");
   expect(meta["openai/widgetCSP"].resource_domains).toContain("https://cpa.ds.npr.org");
@@ -453,5 +455,35 @@ describe("ChatGPT door: station home", () => {
   it("signed in, it includes your Finds", async () => {
     const { message } = await mcpPostAs(homeDoor(), { method: "tools/call", params: { name: "station_home", arguments: {} } }, "user_1");
     expect(message.result._meta.cardHtml).toContain("tile song find");
+  });
+});
+
+describe("ChatGPT door: the card's address changes whenever the card does", () => {
+  // ChatGPT keeps its own copy of a card page by address and ignores Refresh tools for it (seen 2026-10-08).
+  const door = (html: string) => buildMcpHandler({ backstory: () => fakeBackstory(), fieldGuide: () => fakeFieldGuide(), playlist: () => fakePlaylist(), cardHtml: () => html, surface: "chat" });
+
+  it("is versioned by the card's content", async () => {
+    const a = await chatCardUri(door("<p>a</p>"));
+    expect(a).toMatch(/^ui:\/\/radio-commons\/chat-card-[0-9a-f]{10}\.html$/);
+    expect(a).toBe(await chatCardUri(door("<p>a</p>")));
+    expect(a).not.toBe(await chatCardUri(door("<p>b</p>")));
+  });
+
+  it("every card tool points at it, under both keys, and it reads back", async () => {
+    const handler = door("<p>a</p>");
+    const uri = await chatCardUri(handler);
+    const tools: { name: string; _meta?: Record<string, unknown> & { ui?: { resourceUri?: string } } }[] = (await mcpPost(handler, { method: "tools/list" })).message.result.tools;
+    const withCard = tools.filter((t) => t._meta?.ui?.resourceUri);
+    expect(withCard.length).toBeGreaterThan(20);
+    for (const t of withCard) {
+      expect(t._meta!.ui!.resourceUri, t.name).toBe(uri);
+      expect(t._meta!["ui/resourceUri"], t.name).toBe(uri);
+    }
+    expect((await mcpPost(handler, { method: "resources/read", params: { uri } })).message.result.contents[0].text).toBe("<p>a</p>");
+  });
+
+  it("Alexa keeps the fixed address", async () => {
+    const alexa = buildMcpHandler({ backstory: () => fakeBackstory(), fieldGuide: () => fakeFieldGuide(), playlist: () => fakePlaylist(), cardHtml: () => "<p>a</p>" });
+    expect(await chatCardUri(alexa)).toBe(CARD_URI);
   });
 });

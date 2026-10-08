@@ -4,7 +4,7 @@ import { z } from "zod";
 import { BackstoryUnavailable, type BackstoryClient, type Story } from "@/lib/backstory";
 import { PlaylistUnavailable, type Digest, type PlaylistClient, type RecallMatch, type RecentSong, type SavedFind, type Station } from "@/lib/playlist";
 import { listenerIdFrom } from "@/lib/listenerAuth";
-import { chatWidgetMeta, patchChatServer } from "@/lib/chatDoor";
+import { chatCardUri, chatWidgetMeta, patchChatServer } from "@/lib/chatDoor";
 import { registerPlaylistTools } from "@/lib/playlistTools";
 import { registerArticleTool } from "@/lib/articleTool";
 import { articleReaderFromEnv, type ArticleReader } from "@/lib/article";
@@ -339,7 +339,8 @@ export function buildMcpHandler(deps: Deps) {
   };
   return createMcpHandler(
     (server) => {
-      if (chat) patchChatServer(server);
+      const cardUri = chat ? chatCardUri(deps.cardHtml()) : CARD_URI;
+      if (chat) patchChatServer(server, cardUri);
       if (chat) registerPlaylistTools(server, { playlist: deps.playlist, card, signInRequired, timed, cardMeta: CARD });
       if (chat) registerArticleTool(server, { reader: deps.articles ?? articleReaderFromEnv, card, cardMeta: CARD });
       registerAppTool(
@@ -1083,8 +1084,8 @@ export function buildMcpHandler(deps: Deps) {
       );
       }
 
-      registerAppResource(server, "Story card", CARD_URI, { description: chat ? "A Radio Milwaukee card: a story, quote, song list, events, a map or what's on the air." : "A Radio Milwaukee story, quote, list or map, in Alexa+ style." }, async () => ({
-        contents: [{ uri: CARD_URI, mimeType: RESOURCE_MIME_TYPE, text: deps.cardHtml(), _meta: { ui: { csp: CARD_CSP }, ...(chat ? chatWidgetMeta(CARD_CSP) : {}) } }],
+      registerAppResource(server, "Story card", cardUri, { description: chat ? "A Radio Milwaukee card: a story, quote, song list, events, a map or what's on the air." : "A Radio Milwaukee story, quote, list or map, in Alexa+ style." }, async () => ({
+        contents: [{ uri: cardUri, mimeType: RESOURCE_MIME_TYPE, text: deps.cardHtml(), _meta: { ui: { csp: CARD_CSP }, ...(chat ? chatWidgetMeta(CARD_CSP) : {}) } }],
       }));
     },
     { serverInfo: { name: "radio-commons", version: "0.2.0" } },
