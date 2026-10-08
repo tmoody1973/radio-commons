@@ -332,7 +332,7 @@ function digestView(artists: Digest["artists"], items: DigestItem[]): string {
     const ask = story ? `<button type="button" class="secondary ask" data-ask="${escape(`Play the ${story.show} story about ${artist.name}`)}">Play story</button>` : "";
     const actions = ask + (show ? ticketsButton(show.ticketUrl, show.venue) + showCalendarButton(show) : "");
     // The show's photo says "they're coming" better than the album cover does.
-    return [`<article class="tile digest">${art(show?.imageUrl ?? artist.artworkUrl, artist.name, "tile-art")}<span class="tile-title">${escape(artist.name)}</span>`
+    return [`<article class="tile digest">${art(show?.imageUrl ?? sizedArtwork(artist.artworkUrl), artist.name, "tile-art")}<span class="tile-title">${escape(artist.name)}</span>`
       + `<span class="tile-date">${mine.map((item) => escape(digestLine(item))).join("<br>")}</span>${actions ? `<span class="tile-actions">${actions}</span>` : ""}</article>`];
   }).join("");
   const apple = items.flatMap((item) => (item.kind === "apple" ? [

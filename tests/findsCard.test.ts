@@ -148,6 +148,12 @@ describe("digest show with a photo and tickets", () => {
     expect(html).toContain('class="secondary calendar small"');
     expect(html).toContain('aria-label="Add Tank and the Bangas at Majestic Theatre to calendar"');
   });
+  it("sizes Apple's template artwork (a {w}x{h} address loads nothing)", () => {
+    const template = [{ artistId: "a1", name: "Cleo Sol", artworkUrl: "https://is1-ssl.mzstatic.com/image/thumb/Music/x.jpg/%7Bw%7Dx%7Bh%7Dbb.jpg" }];
+    const html = renderView({ view: "digest", artists: template, items: [{ ...show, imageUrl: null, ticketUrl: null }] });
+    expect(html).toContain("mzstatic.com/image/thumb/Music/x.jpg/");
+    expect(html).not.toMatch(/%7Bw%7D|\{w\}/);
+  });
   it("keeps the artist artwork and no button without them", () => {
     const html = renderView({ view: "digest", artists, items: [{ ...show, imageUrl: null, ticketUrl: null }] });
     expect(html).toContain("artist.jpg");
