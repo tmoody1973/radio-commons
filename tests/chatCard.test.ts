@@ -229,7 +229,7 @@ describe("station home header", () => {
     expect(html.split("On air now")[0]).not.toContain("<img");
   });
   it("has four Try asking questions that send as the listener's message", () => {
-    const asks = [...html.matchAll(/class="chip ask" data-ask="([^"]+)"/g)].map((m) => m[1]);
+    const asks = [...html.matchAll(/class="try ask" data-ask="([^"]+)"/g)].map((m) => m[1]);
     expect(asks).toHaveLength(4);
     expect(html.indexOf("Try asking")).toBeLessThan(html.indexOf("On air now"));
   });
@@ -287,7 +287,7 @@ describe("beta label and feedback", () => {
     const html = renderView({ view: "home", tiles: [], episodes: null, briefing: null, finds: null } as never);
     expect(html).toContain('<span class="beta">Beta</span>');
     expect(html).toContain('data-ask="I&#39;d like to send feedback about the Radio Milwaukee app"');
-    expect([...html.matchAll(/class="chip ask"/g)]).toHaveLength(4);
+    expect([...html.matchAll(/class="try ask"/g)]).toHaveLength(4);
   });
   it("the feedback preview shows the words, the name and Send", () => {
     const html = renderView({ view: "request", request: { kind: "feedback", message: "The map <b>didn't</b> open", fromName: "Tarik" }, token: "tok" } as never);

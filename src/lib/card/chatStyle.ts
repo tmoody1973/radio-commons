@@ -99,8 +99,9 @@ button svg{width:16px;height:16px}
 .link{background:none;padding:0;color:var(--text-2);font-size:13px;text-decoration:underline;text-underline-offset:2px}
 .home-support{margin:2px 2px 4px;color:var(--text-2);font-size:13px}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
-.chip{background:transparent;color:var(--text);border:1px solid var(--divider);border-radius:9999px;padding:6px 12px;font-size:13px;line-height:18px}
-.chip:hover{background:var(--soft)}
+/* not .chip: the shared card style pins .chip to a tile's corner */
+.try{background:transparent;color:var(--text);border:1px solid var(--divider);border-radius:9999px;padding:6px 12px;font-size:13px;line-height:18px}
+.try:hover{background:var(--soft)}
 .article{padding:0 0 12px;overflow:hidden}
 .article .hero{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:12px 12px 0 0}
 .article .caption{margin:6px 16px 0;font-size:12px;line-height:16px;color:var(--text-2)}

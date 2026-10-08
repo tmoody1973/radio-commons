@@ -550,7 +550,7 @@ const TRY_ASKING: [label: string, ask: string][] = [
 
 /** No logo (ChatGPT shows it above the card) and no donate link (OpenAI's apps can't link to checkout): the site has Give. */
 function homeHeader(): string {
-  const chips = TRY_ASKING.map(([label, ask]) => `<button type="button" class="chip ask" data-ask="${escape(ask)}">${escape(label)}</button>`).join("");
+  const chips = TRY_ASKING.map(([label, ask]) => `<button type="button" class="try ask" data-ask="${escape(ask)}">${escape(label)}</button>`).join("");
   const feedback = `<button type="button" class="link ask" data-ask="${escape("I'd like to send feedback about the Radio Milwaukee app")}">Send feedback</button>`;
   return `<header class="home-head"><b class="home-name">Radio Milwaukee <span class="beta">Beta</span></b><button type="button" class="link details" data-url="${STATION_SITE}">radiomilwaukee.org ↗</button></header>`
     + `<p class="home-support">Listener-supported. Support us at radiomilwaukee.org.</p>`
