@@ -700,10 +700,12 @@ export function buildMcpHandler(deps: Deps) {
             if (facts.status !== "ok") return { content: text(spokenTrackFacts(facts)), structuredContent: { ...facts, stationStory: null } };
             const song = songCardFromFacts(facts);
             // The station's own premiere or session about the song; the song answer never waits on Backstory failing.
-            const stationStory = await deps.backstory().songStory(song.artist, song.title).catch(() => null);
+            const stationStory = await Promise.resolve().then(() => deps.backstory().songStory(song.artist, song.title)).catch(() => null);
             const lines = stationStory ? [...song.lines, songStoryLine(stationStory)] : song.lines;
             const speech = spokenTrackFacts(facts) + (stationStory ? spokenSongStory(stationStory, song.artist) : "");
-            return { content: text(speech), structuredContent: { ...facts, stationStory, ...card({ view: "song", song: { ...song, lines } }) } };
+            // The id also goes in text: some hosts give the model only `content`, and it needs it for get_station_story.
+            const storyId = stationStory ? text(JSON.stringify({ stationStory: { storyId: stationStory.storyId, title: stationStory.title, show: stationStory.show } })) : [];
+            return { content: [...text(speech), ...storyId], structuredContent: { ...facts, stationStory, ...card({ view: "song", song: { ...song, lines } }) } };
           }, playlistUnavailable),
       );
 

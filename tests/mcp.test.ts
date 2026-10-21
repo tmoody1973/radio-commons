@@ -390,12 +390,19 @@ describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
       expect(message.result.content[0].text).toBe('"Effort" by Glitzy, released in 2026. Radio Milwaukee premiered it on Milwaukee Music Premiere in October 2026. Want to hear that story?');
       expect(message.result.structuredContent.cardHtml).toContain("Premiered on Milwaukee Music Premiere · October 2026");
       expect(message.result.structuredContent.stationStory).toEqual(premiere);
+      // Hosts that pass the model only `content` still get the id it needs for get_station_story.
+      expect(JSON.parse(message.result.content[1].text)).toEqual({ stationStory: { storyId: "s9", title: premiere.title, show: premiere.show } });
     });
     it("names a Studio Milwaukee session that played the song", async () => {
       const session = { ...premiere, show: "Studio Milwaukee", kind: "session" as const, publishedAt: Date.UTC(2025, 7, 20, 15) };
       const { message } = await mcpPost(handlerWith(fakeBackstory({ songStory: async () => session }), undefined, effort), call("get_track_story", { playId: "play_1" }));
       expect(message.result.content[0].text).toBe('"Effort" by Glitzy, released in 2026. Glitzy played it on Studio Milwaukee in August 2025. Want to hear that story?');
       expect(message.result.structuredContent.cardHtml).toContain("Played on Studio Milwaukee · August 2025");
+    });
+    it("still answers with the song when Backstory isn't configured", async () => {
+      const handler = buildMcpHandler({ backstory: () => { throw new Error("BACKSTORY_CONVEX_URL is not set"); }, fieldGuide: () => fakeFieldGuide(), playlist: () => effort, now: () => NOW, defer: (task) => void task(), cardHtml: () => "" });
+      const { message } = await mcpPost(handler, call("get_track_story", { playId: "play_1" }));
+      expect(message.result.content).toEqual([{ type: "text", text: '"Effort" by Glitzy, released in 2026.' }]);
     });
     it("still answers with the song when Backstory is down", async () => {
       const down = fakeBackstory({ songStory: async () => { throw new BackstoryUnavailable("timed out"); } });
