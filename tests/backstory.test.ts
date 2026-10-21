@@ -23,6 +23,15 @@ describe("Backstory client", () => {
     expect(await client.searchStoryCards("cheap eats", "this-bites")).toEqual([MATCH]);
     expect(calls).toEqual([["public:searchStoryCards", { text: "cheap eats", showSlug: "this-bites" }]]);
   });
+  it("asks songStory by artist and title and validates the reply", async () => {
+    const calls: unknown[] = [];
+    const found = { storyId: "s9", show: "Milwaukee Music Premiere", title: "Glitzy, 'Effort'", kind: "premiere", publishedAt: 1 };
+    const client = createBackstoryClient({ query: async (name, args) => { calls.push([name, args]); return found; } });
+    expect(await client.songStory("Glitzy", "Effort")).toEqual(found);
+    expect(calls).toEqual([["public:songStory", { artist: "Glitzy", title: "Effort" }]]);
+    const odd = createBackstoryClient({ query: async () => ({ storyId: "s9", kind: "episode" }) });
+    await expect(odd.songStory("Glitzy", "Effort")).rejects.toBeInstanceOf(BackstoryUnavailable);
+  });
   it("aborts a slow Backstory call", async () => {
     const client = createBackstoryClient({ query: () => new Promise((resolve) => setTimeout(() => resolve([]), 1000)), timeoutMs: 50 });
     await expect(client.searchStoryCards("x")).rejects.toBeInstanceOf(BackstoryUnavailable);
