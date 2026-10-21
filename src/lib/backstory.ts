@@ -36,6 +36,9 @@ export type AskResult = z.infer<typeof askSchema>;
 export type StoryCardMatch = z.infer<typeof matchSchema>;
 export type Story = z.infer<typeof storySchema>;
 
+const songStorySchema = z.object({ storyId: z.string(), show: z.string(), title: z.string(), kind: z.enum(["premiere", "session"]), publishedAt: z.number() });
+export type SongStory = z.infer<typeof songStorySchema>;
+
 export class BackstoryUnavailable extends Error {}
 
 export interface BackstoryClient {
@@ -47,6 +50,8 @@ export interface BackstoryClient {
   askStory(storyId: string, question: string): Promise<AskResult>;
   /** The published story behind a radiomilwaukee.org page, or null when Backstory isn't sure (station briefing). */
   storyForPage(url: string): Promise<{ storyId: string; title: string } | null>;
+  /** The station's published premiere or session about a song (exact artist and title), or null. */
+  songStory(artist: string, title: string): Promise<SongStory | null>;
 }
 
 type Query = (name: string, args: Record<string, unknown>) => Promise<unknown>;
@@ -78,6 +83,7 @@ export function createBackstoryClient({ query, timeoutMs = 350 }: { query: Query
     latestStoryCards: (showSlug) => call("public:latestStoryCards", showSlug ? { showSlug } : {}, z.array(matchSchema)),
     askStory: (storyId, question) => call("public:askStory", { storyId, question }, askSchema),
     storyForPage: (url) => call("public:storyForPage", { url }, z.object({ storyId: z.string(), title: z.string() }).nullable()),
+    songStory: (artist, title) => call("public:songStory", { artist, title }, songStorySchema.nullable()),
   };
 }
 

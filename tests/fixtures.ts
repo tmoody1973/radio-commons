@@ -22,6 +22,7 @@ export const fakeBackstory = (overrides: Partial<BackstoryClient> = {}): Backsto
     { storyId: "s2", title: "Older", show: "This Bites", showSlug: "this-bites", attribution: "a", publishedAt: Date.UTC(2026, 8, 25, 15), hint: "h", imageUrl: null },
   ],
   storyForPage: async () => null,
+  songStory: async () => null,
   askStory: async (id) => (id === STORY.storyId
     ? { status: "ok", passages: [{ text: "We sell <art> and 'antiques'.", startMs: 1_122_000, speaker: "Kim Shine" }] }
     : { status: "not_found", passages: [] }),

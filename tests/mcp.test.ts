@@ -379,6 +379,38 @@ describe("MCP endpoint (Alexa+ 2025-11-25 Streamable HTTP)", () => {
     expect(message.result.isError).toBe(true);
     expect(message.result.content[0].text).toBe(PLAYLIST_UNAVAILABLE_SPEECH);
   });
+  describe("get_track_story with the station's own coverage", () => {
+    const effort = fakePlaylist({ getTrackFacts: async () => ({ status: "ok", title: "Effort", artist: "Glitzy", year: 2026 }) });
+    const premiere = { storyId: "s9", show: "Milwaukee Music Premiere", title: "Milwaukee Music Premiere: Glitzy, 'Effort'", kind: "premiere" as const, publishedAt: Date.UTC(2026, 9, 1, 15) };
+    it("names the premiere aloud, on the card, and hands over its story id", async () => {
+      const asked: unknown[] = [];
+      const backstory = fakeBackstory({ songStory: async (artist, title) => { asked.push([artist, title]); return premiere; } });
+      const { message } = await mcpPost(handlerWith(backstory, undefined, effort), call("get_track_story", { playId: "play_1" }));
+      expect(asked).toEqual([["Glitzy", "Effort"]]);
+      expect(message.result.content[0].text).toBe('"Effort" by Glitzy, released in 2026. Radio Milwaukee premiered it on Milwaukee Music Premiere in October 2026. Want to hear that story?');
+      expect(message.result.structuredContent.cardHtml).toContain("Premiered on Milwaukee Music Premiere · October 2026");
+      expect(message.result.structuredContent.stationStory).toEqual(premiere);
+      // Hosts that pass the model only `content` still get the id it needs for get_station_story.
+      expect(JSON.parse(message.result.content[1].text)).toEqual({ stationStory: { storyId: "s9", title: premiere.title, show: premiere.show } });
+    });
+    it("names a Studio Milwaukee session that played the song", async () => {
+      const session = { ...premiere, show: "Studio Milwaukee", kind: "session" as const, publishedAt: Date.UTC(2025, 7, 20, 15) };
+      const { message } = await mcpPost(handlerWith(fakeBackstory({ songStory: async () => session }), undefined, effort), call("get_track_story", { playId: "play_1" }));
+      expect(message.result.content[0].text).toBe('"Effort" by Glitzy, released in 2026. Glitzy played it on Studio Milwaukee in August 2025. Want to hear that story?');
+      expect(message.result.structuredContent.cardHtml).toContain("Played on Studio Milwaukee · August 2025");
+    });
+    it("still answers with the song when Backstory isn't configured", async () => {
+      const handler = buildMcpHandler({ backstory: () => { throw new Error("BACKSTORY_CONVEX_URL is not set"); }, fieldGuide: () => fakeFieldGuide(), playlist: () => effort, now: () => NOW, defer: (task) => void task(), cardHtml: () => "" });
+      const { message } = await mcpPost(handler, call("get_track_story", { playId: "play_1" }));
+      expect(message.result.content).toEqual([{ type: "text", text: '"Effort" by Glitzy, released in 2026.' }]);
+    });
+    it("still answers with the song when Backstory is down", async () => {
+      const down = fakeBackstory({ songStory: async () => { throw new BackstoryUnavailable("timed out"); } });
+      const { message } = await mcpPost(handlerWith(down, undefined, effort), call("get_track_story", { playId: "play_1" }));
+      expect(message.result.content[0].text).toBe('"Effort" by Glitzy, released in 2026.');
+      expect(message.result.structuredContent.stationStory).toBeNull();
+    });
+  });
   it("get_track_story speaks the facts", async () => {
     const facts = fakePlaylist({ getTrackFacts: async () => ({ status: "ok", title: "Victory Dance", artist: "Ezra Collective", year: 2024, label: "Partisan" }) });
     const { message } = await mcpPost(handlerWith(undefined, undefined, facts), call("get_track_story", { playId: "play_1" }));

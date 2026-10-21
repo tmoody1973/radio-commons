@@ -1,5 +1,5 @@
 import { creditLines, STATION_NAMES } from "@/lib/card/song";
-import type { Passage, Story, StoryCardMatch } from "@/lib/backstory";
+import type { Passage, SongStory, Story, StoryCardMatch } from "@/lib/backstory";
 import type { PublicEvent, When } from "@/lib/fieldGuide";
 import type { DigestItem, FindRow, FollowResult, RecallResult, SavedFind, Station, StationShow, TrackFacts, UnfollowResult } from "@/lib/playlist";
 import { localClock } from "@/lib/stationTime";
@@ -216,6 +216,16 @@ export function spokenTrackFacts(facts: TrackFacts): string {
   const details = [f.year ? `released in ${f.year}` : null, f.label ? `on ${f.label}` : null, producedBy ? producedBy.replace("Produced", "produced") : null].filter(Boolean).join(", ");
   return `"${f.title}" by ${f.artist}${details ? `, ${details}` : ""}.`;
 }
+
+/** " Radio Milwaukee premiered it on Milwaukee Music Premiere in October 2026. Want to hear that story?" */
+export function spokenSongStory(story: SongStory, artist: string): string {
+  const who = story.kind === "premiere" ? "Radio Milwaukee premiered it" : `${artist} played it`;
+  return ` ${who} on ${story.show} in ${monthYear(story.publishedAt)}. Want to hear that story?`;
+}
+
+/** The song card's line for the same story: "Premiered on Milwaukee Music Premiere · October 2026". */
+export const songStoryLine = (story: SongStory) =>
+  `${story.kind === "premiere" ? "Premiered" : "Played"} on ${story.show} · ${monthYear(story.publishedAt)}`;
 
 /** "The last 5 on 88Nine, newest first: 1, A; 2, B; 3, C. Want the next two?" Page 2: "Next on 88Nine: 4, D; 5, E." */
 export function spokenRecent(stationName: string, songs: { artist: string; title: string }[], page = 1): string {

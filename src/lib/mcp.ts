@@ -15,7 +15,7 @@ import { createHash } from "node:crypto";
 import { eventMapPoints, MAP_H, MAP_W, pinnedEvents, pinnedPlaces } from "@/lib/map/staticMap";
 import {
   directAudioUrl, eventTime, EVENTS_UNAVAILABLE_SPEECH, NO_PLACES_FOR_EVENTS_SPEECH, NO_PLACES_SPEECH, spokenEvents, spokenPicks, NOT_ALLOWED_SPEECH, NOT_FOUND_SPEECH, EMPTY_DIGEST_SPEECH, EMPTY_DIGEST_NO_PICKS_SPEECH, LINK_ACCOUNT_SPEECH, LINK_ACCOUNT_FOR_MEMBERSHIP_SPEECH, PLAYLIST_UNAVAILABLE_SPEECH, spokenDigest, spokenFinds, spokenLatest, spokenMatches, spokenPassages,
-  NEWSLETTER_UNAVAILABLE_SPEECH, NO_NEWSLETTER_SPEECH, spokenBriefing, spokenOnAir, spokenPlaces, spokenRecall, spokenRecent, spokenSearch, spokenStationShows, spokenDeleted, spokenFollowed, spokenSaved, spokenUnfollowed, noSongOnAirSpeech, whichOnAirSpeech, WHICH_ARTIST_TO_FOLLOW_SPEECH, WHICH_ARTIST_TO_UNFOLLOW_SPEECH, spokenStory, spokenTrackFacts, UNAVAILABLE_SPEECH,
+  NEWSLETTER_UNAVAILABLE_SPEECH, NO_NEWSLETTER_SPEECH, spokenBriefing, spokenOnAir, spokenPlaces, spokenRecall, spokenRecent, spokenSearch, spokenStationShows, spokenDeleted, spokenFollowed, spokenSaved, spokenUnfollowed, noSongOnAirSpeech, whichOnAirSpeech, WHICH_ARTIST_TO_FOLLOW_SPEECH, WHICH_ARTIST_TO_UNFOLLOW_SPEECH, songStoryLine, spokenSongStory, spokenStory, spokenTrackFacts, UNAVAILABLE_SPEECH,
 } from "@/lib/speech";
 import { localWindow } from "@/lib/stationTime";
 import { noScheduleSpeech, programsFrom, SCHEDULE_UNAVAILABLE_SPEECH, spokenOnNow, spokenPrograms, withFreshLatest } from "@/lib/schedule";
@@ -681,7 +681,7 @@ export function buildMcpHandler(deps: Deps) {
         "get_track_story",
         {
           title: "More about a song Radio Milwaukee played",
-          description: "Tell the listener more about a song Radio Milwaukee played: credits, album, year, upcoming local shows. Pass its playId if you have it, and always also its title and artist (and station if known) so it is found even without an id. Use for 'what are the credits on that?', 'tell me about Groove Thang'. Speak only from this record.",
+          description: "Tell the listener more about a song Radio Milwaukee played: credits, album, year, upcoming local shows. Pass its playId if you have it, and always also its title and artist (and station if known) so it is found even without an id. Use for 'what are the credits on that?', 'tell me about Groove Thang'. Speak only from this record. When it offers Radio Milwaukee's own premiere or session story and the listener says yes, call get_station_story with stationStory.storyId.",
           inputSchema: z.object({
             playId: PLAY_ID.optional(),
             title: z.string().max(200).optional(),
@@ -697,8 +697,15 @@ export function buildMcpHandler(deps: Deps) {
               const found = bestRecentMatch(await deps.playlist().searchPlaysIndexed(slug, (title ?? artist)!), { title, artist });
               if (found) facts = await deps.playlist().getTrackFacts({ playId: found });
             }
-            const songCard = facts.status === "ok" ? card({ view: "song", song: songCardFromFacts(facts) }) : {};
-            return { content: text(spokenTrackFacts(facts)), structuredContent: { ...facts, ...songCard } };
+            if (facts.status !== "ok") return { content: text(spokenTrackFacts(facts)), structuredContent: { ...facts, stationStory: null } };
+            const song = songCardFromFacts(facts);
+            // The station's own premiere or session about the song; the song answer never waits on Backstory failing.
+            const stationStory = await Promise.resolve().then(() => deps.backstory().songStory(song.artist, song.title)).catch(() => null);
+            const lines = stationStory ? [...song.lines, songStoryLine(stationStory)] : song.lines;
+            const speech = spokenTrackFacts(facts) + (stationStory ? spokenSongStory(stationStory, song.artist) : "");
+            // The id also goes in text: some hosts give the model only `content`, and it needs it for get_station_story.
+            const storyId = stationStory ? text(JSON.stringify({ stationStory: { storyId: stationStory.storyId, title: stationStory.title, show: stationStory.show } })) : [];
+            return { content: [...text(speech), ...storyId], structuredContent: { ...facts, stationStory, ...card({ view: "song", song: { ...song, lines } }) } };
           }, playlistUnavailable),
       );
 
