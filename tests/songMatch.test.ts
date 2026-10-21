@@ -23,6 +23,15 @@ describe("bestRecentMatch", () => {
   it("prefers a title-and-artist match over a newer artist-only match", () => {
     expect(bestRecentMatch(RECENT, { title: "Holy Roller", artist: "Thao" })).toBe("p9");
   });
+  it("never answers with another artist's song when both were named", () => {
+    // "Move" by Tank & The Bangas must not come back as "Days Move Slow" by Bully.
+    const plays = [song("bully", "Days Move Slow", "Bully", 5)];
+    expect(bestRecentMatch(plays, { title: "Move", artist: "Tank & The Bangas" })).toBeNull();
+  });
+  it("treats '&' and 'and' as the same word, as the playlist and listeners differ", () => {
+    const plays = [song("fluff", "Fluff (feat. DUCKWRTH & Christian Scott aTunde Adjuah)", "Tank and the Bangas", 5)];
+    expect(bestRecentMatch(plays, { title: "Fluff", artist: "Tank & The Bangas" })).toBe("fluff");
+  });
   it("returns null when nothing matches or nothing was asked", () => {
     expect(bestRecentMatch(RECENT, { title: "Wonderwall" })).toBeNull();
     expect(bestRecentMatch(RECENT, {})).toBeNull();
