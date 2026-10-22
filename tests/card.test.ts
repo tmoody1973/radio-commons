@@ -203,6 +203,12 @@ describe("the card page", () => {
       expect(apple).not.toContain('class="tile');
       expect(apple).toContain("2 of your saved songs are in Apple Music");
     });
+    it("sizes an Apple artwork link instead of requesting the {w}x{h} template", () => {
+      const apple = [{ artistId: "a1", name: "Thao", artworkUrl: "https://is1-ssl.mzstatic.com/image/thumb/x/artwork.jpg/%7Bw%7Dx%7Bh%7Dbb.jpg" }];
+      const tile = renderView({ view: "digest", artists: apple, items: [items[1]] });
+      expect(tile).toContain("artwork.jpg/600x600bb.jpg");
+      expect(tile).not.toContain("%7Bw%7D");
+    });
     it("puts Apple Music as a final text line, not a tile", () => {
       expect(html).toContain("2 of your saved songs are in Apple Music");
       expect(html).toContain("Apple Music needs reconnecting at radio-commons.vercel.app/connect/apple-music.");
