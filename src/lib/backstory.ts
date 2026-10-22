@@ -56,8 +56,12 @@ export interface BackstoryClient {
 
 type Query = (name: string, args: Record<string, unknown>) => Promise<unknown>;
 
-/** Every call races a timeout (the Alexa+ round trip must stay under 500 ms) and validates the reply. */
-export function createBackstoryClient({ query, timeoutMs = 350 }: { query: Query; timeoutMs?: number }): BackstoryClient {
+// A cold first call (new connection, transcript not yet loaded) took 0.4-0.5 s live on 2026-10-21; warm calls take
+// 40-90 ms. Amazon's guidance is 3 s per tool call, so 1.5 s gives the cold call room and still fails fast.
+const TIMEOUT_MS = 1500;
+
+/** Every call races a timeout and validates the reply. */
+export function createBackstoryClient({ query, timeoutMs = TIMEOUT_MS }: { query: Query; timeoutMs?: number }): BackstoryClient {
   async function call<T>(name: string, args: Record<string, unknown>, schema: z.ZodType<T>): Promise<T> {
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {

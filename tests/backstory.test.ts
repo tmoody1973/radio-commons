@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { BackstoryUnavailable, createBackstoryClient } from "@/lib/backstory";
 import { getStation } from "@/lib/stations";
 
@@ -31,6 +31,28 @@ describe("Backstory client", () => {
     expect(calls).toEqual([["public:songStory", { artist: "Glitzy", title: "Effort" }]]);
     const odd = createBackstoryClient({ query: async () => ({ storyId: "s9", kind: "episode" }) });
     await expect(odd.songStory("Glitzy", "Effort")).rejects.toBeInstanceOf(BackstoryUnavailable);
+  });
+  it("waits out a cold first call (0.4-0.5 s live on 2026-10-21; Amazon allows 3 s)", async () => {
+    vi.useFakeTimers();
+    try {
+      const client = createBackstoryClient({ query: () => new Promise((resolve) => setTimeout(() => resolve([MATCH]), 600)) });
+      const reply = client.searchStoryCards("tomato martini");
+      await vi.advanceTimersByTimeAsync(600);
+      await expect(reply).resolves.toEqual([MATCH]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+  it("still gives up on a Backstory that doesn't answer within 1.5 s", async () => {
+    vi.useFakeTimers();
+    try {
+      const client = createBackstoryClient({ query: () => new Promise((resolve) => setTimeout(() => resolve([MATCH]), 2000)) });
+      const gaveUp = expect(client.searchStoryCards("x")).rejects.toBeInstanceOf(BackstoryUnavailable);
+      await vi.advanceTimersByTimeAsync(1500);
+      await gaveUp;
+    } finally {
+      vi.useRealTimers();
+    }
   });
   it("aborts a slow Backstory call", async () => {
     const client = createBackstoryClient({ query: () => new Promise((resolve) => setTimeout(() => resolve([]), 1000)), timeoutMs: 50 });
